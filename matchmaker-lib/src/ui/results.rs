@@ -952,6 +952,27 @@ impl ResultsUI {
         Paragraph::new(expanded)
     }
 
+    /// Returns just the substituted status spans as a `Line`, without width
+    /// expansion or indentation — suitable for embedding inline in the input bar.
+    pub fn status_line(&self) -> Line<'_> {
+        let replacements = [
+            ('r', self.index().to_string()),
+            ('m', self.status.matched_count.to_string()),
+            ('t', self.status.item_count.to_string()),
+        ];
+
+        let spans: Vec<Span<'_>> = self
+            .status_template
+            .iter()
+            .map(|span| {
+                let subbed = substitute_escaped(&span.content, &replacements);
+                Span::styled(subbed, span.style)
+            })
+            .collect();
+
+        Line::from(spans).style(self.status_config.style)
+    }
+
     /// The style from the config overrides the Line style (but not the span styles).
     /// None restores the prompt defined in the config.
     pub fn set_status_line(&mut self, template: Option<Line<'static>>) {

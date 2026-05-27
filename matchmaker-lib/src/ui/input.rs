@@ -372,6 +372,48 @@ impl QueryUI {
         Paragraph::new(line).block(self.config.border.as_block())
     }
 
+    /// Like `make_input` but right-aligns `right_label` (the inline status)
+    /// inside the available area.  `area_width` is the rendered width of the
+    /// input row (after border padding has been applied by the caller).
+    pub fn make_input_with_status<'a>(&'a self, right_label: Line<'a>, area_width: u16) -> Paragraph<'a> {
+        use unicode_width::UnicodeWidthStr;
+
+        let mut line = self.prompt.clone();
+        line.push_span(Span::styled(
+            self.state.render(),
+            self.config.style.r#override(Style::reset()),
+        ));
+
+        // Calculate how much of area_width the left part already consumes.
+        let left_width = line
+            .spans
+            .iter()
+            .map(|s| s.content.width())
+            .sum::<usize>() as u16;
+
+        // Width of the right label.
+        let label_width = right_label
+            .spans
+            .iter()
+            .map(|s| s.content.width())
+            .sum::<usize>() as u16;
+
+        // How many spaces we need to pad between left content and right label.
+        let padding = area_width
+            .saturating_sub(left_width)
+            .saturating_sub(label_width);
+
+        // Only append if there is room.
+        if padding > 0 || left_width + label_width <= area_width {
+            line.push_span(Span::raw(" ".repeat(padding as usize)));
+            for span in right_label.spans {
+                line.push_span(span);
+            }
+        }
+
+        Paragraph::new(line).block(self.config.border.as_block())
+    }
+
     /// Set the input ui prefix. The prompt style from the config overrides the Line style (but not the span styles).
     /// None restores the prompt defined in the config.
     pub fn set_prompt(&mut self, template: Option<Line<'static>>) {

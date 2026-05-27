@@ -171,7 +171,10 @@ impl<'a, T: SSS, S: Selection> PickerUI<'a, T, S> {
 
         let mut constraints = [
             Constraint::Length(1 + query.config.border.height()), // input
-            Constraint::Length(results.status_config.show as u16), // status
+            // When status_inline is true the status is shown inside the input bar.
+            Constraint::Length(
+                if query.config.status_inline { 0 } else { results.status_config.show as u16 }
+            ), // status
             Constraint::Length(header.height()),
             Constraint::Fill(1), // results
         ];

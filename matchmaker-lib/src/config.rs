@@ -247,6 +247,10 @@ pub struct QueryConfig {
 
     /// Maintain padding when moving the cursor in the bar.
     pub scroll_padding: bool,
+
+    /// When true, display the match status (e.g. "3/42") right-aligned
+    /// inside the input bar instead of in the separate status row.
+    pub status_inline: bool,
 }
 
 impl Default for QueryConfig {
@@ -263,6 +267,7 @@ impl Default for QueryConfig {
             initial: Default::default(),
 
             scroll_padding: true,
+            status_inline: false,
         }
     }
 }

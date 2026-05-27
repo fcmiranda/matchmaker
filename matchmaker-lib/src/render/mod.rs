@@ -12,6 +12,7 @@ use std::io::Write;
 use log::{debug, info, warn};
 use ratatui::Frame;
 use ratatui::layout::{Position, Rect};
+use ratatui::text::Line;
 use tokio::sync::mpsc;
 
 #[cfg(feature = "bracketed-paste")]
@@ -936,8 +937,22 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                     }
                 };
 
-                cursor_y_offset = render_input(frame, input, &mut picker_ui.query).y;
-                render_status(frame, status, &picker_ui.results, ui.area().width);
+                let status_inline_label: Option<Line<'_>> = if picker_ui.query.config.status_inline {
+                    Some(picker_ui.results.status_line())
+                } else {
+                    None
+                };
+                cursor_y_offset = render_input(
+                    frame,
+                    input,
+                    &mut picker_ui.query,
+                    status_inline_label,
+                )
+                .y;
+                // When status_inline is active, skip the separate status row.
+                if !picker_ui.query.config.status_inline {
+                    render_status(frame, status, &picker_ui.results, ui.area().width);
+                }
                 render_results(frame, results, &mut picker_ui, &mut click);
                 render_display(frame, header, &mut picker_ui.header, &picker_ui.results);
                 render_display(frame, footer, &mut footer_ui, &picker_ui.results);
@@ -1098,9 +1113,13 @@ fn render_results<T: SSS, S: Selection>(
 }
 
 /// Returns the offset of the cursor against the drawing area
-fn render_input(frame: &mut Frame, area: Rect, ui: &mut QueryUI) -> Position {
+fn render_input(frame: &mut Frame, area: Rect, ui: &mut QueryUI, status: Option<Line<'_>>) -> Position {
     ui.scroll_to_cursor();
-    let widget = ui.make_input();
+    let widget = if let Some(label) = status {
+        ui.make_input_with_status(label, area.width)
+    } else {
+        ui.make_input()
+    };
     let p = ui.cursor_offset(&area);
     if let CursorSetting::Default = ui.config.cursor {
         frame.set_cursor_position(p)
