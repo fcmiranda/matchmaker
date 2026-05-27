@@ -608,10 +608,14 @@ impl PreviewUI {
         if let Some(border) = self.active_border() {
             let mut block = border.as_block();
             if let Some(title) = title_text.clone() {
-                let fg = if border.title_fg == ratatui::style::Color::Reset {
+                let fg = if border.title_fg != ratatui::style::Color::Reset {
+                    border.title_fg
+                } else if self.config.border.title_fg != ratatui::style::Color::Reset {
+                    self.config.border.title_fg
+                } else if border.color != ratatui::style::Color::Reset {
                     border.color
                 } else {
-                    border.title_fg
+                    self.config.border.color
                 };
                 block = block.title(Span::styled(
                     title,

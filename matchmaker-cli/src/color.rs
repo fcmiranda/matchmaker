@@ -14,6 +14,7 @@
 /// | `preview-border` | `render.preview.border.color`                 |
 /// | `preview-label`  | `render.preview.border.title_fg`              |
 /// | `preview-title`  | `render.preview.border.title_fg`              |
+/// | `preview-border-title` | `render.preview.border.title_fg`         |
 /// | `list-border`    | `render.results.border.color`                 |
 /// | `list-label`     | `render.results.border.title_fg`              |
 /// | `list-title`     | `render.results.border.title_fg`              |
@@ -60,7 +61,9 @@ pub fn apply_color_spec(config: &mut Config, spec: &str) {
             "border" => config.render.ui.border.color = color,
             "label" | "title" => config.render.ui.border.title_fg = color,
             "preview-border" => config.render.preview.border.color = color,
-            "preview-label" | "preview-title" => config.render.preview.border.title_fg = color,
+            "preview-label" | "preview-title" | "preview-border-title" => {
+                config.render.preview.border.title_fg = color
+            }
             "list-border" => config.render.results.border.color = color,
             "list-label" | "list-title" => config.render.results.border.title_fg = color,
             "input-border" => config.render.query.border.color = color,

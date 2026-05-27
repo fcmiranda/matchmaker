@@ -341,7 +341,7 @@ hex (`#ff5f87`), and 256-palette indices (`200`).
 | `border` | | Global UI border colour |
 | `label` | `title` | Global UI border title colour |
 | `preview-border` | | Preview pane border colour |
-| `preview-label` | `preview-title` | Preview pane border title colour |
+| `preview-label` | `preview-title`, `preview-border-title` | Preview pane border title colour |
 | `list-border` | | Results pane border colour |
 | `list-label` | `list-title` | Results pane border title colour |
 | `input-border` | | Query bar border colour |
