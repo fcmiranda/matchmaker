@@ -401,6 +401,8 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                         Action::Toggle => {
                             if let Some(item) = worker.get_nth(results.index()) {
                                 selections.toggle(item);
+                                // Advance cursor so repeated presses select consecutive items.
+                                results.cursor_next();
                             }
                         }
                         Action::CycleAll => {
