@@ -47,21 +47,16 @@ fi
 side = "right"
 percentage = 40
 min = 30
-border.type = "Plain"
-border.padding = [2, 0]
 
 [[preview.layout]]
 side = "top"
 percentage = 55
 min = 5
-border.type = "Plain"
 
 [[preview.layout]]
 side = "right"
 percentage = 75
 min = 5
-border.type = "Plain"
-border.padding = [2, 0]
 
 [previewer]
 always_trigger = true

@@ -39,6 +39,12 @@ pub struct PreviewUI {
 }
 
 impl PreviewUI {
+    fn active_layout_border(&self) -> Option<&BorderSetting> {
+        self.setting()
+            .and_then(|s| s.border.as_ref())
+            .filter(|b| b.r#type.is_some())
+    }
+
     fn initial(&self) -> &PreviewInitialSetting {
         #[cfg(feature = "partial")]
         {
@@ -110,12 +116,16 @@ impl PreviewUI {
     }
 
     pub fn update_dimensions(&mut self, area: &Rect) {
+        let (border_h, border_w) = self
+            .active_layout_border()
+            .map(|b| (b.height(), b.width()))
+            .unwrap_or((0, 0));
         let mut height = area.height;
-        height -= self.border().height().min(height);
+        height -= border_h.min(height);
         self.area.height = height;
 
         let mut width = area.width;
-        width -= self.border().width().min(width);
+        width -= border_w.min(width);
         self.area.width = width;
     }
 
@@ -436,8 +446,12 @@ impl PreviewUI {
         self.config.drag_width.unwrap_or_else(|| {
             let side = self.setting().map(|s| &s.layout.side).unwrap_or(&Side::Right);
             match side {
-                Side::Left | Side::Right => self.border().width(),
-                Side::Top | Side::Bottom => self.border().height(),
+                Side::Left | Side::Right => {
+                    self.active_layout_border().map(|b| b.width()).unwrap_or(0)
+                }
+                Side::Top | Side::Bottom => {
+                    self.active_layout_border().map(|b| b.height()).unwrap_or(0)
+                }
             }
         })
     }
@@ -476,8 +490,13 @@ impl PreviewUI {
             let setting = self.setting();
             let side = setting.map(|s| &s.layout.side).unwrap_or(&Side::Right);
             match side {
-                Side::Left | Side::Right => self.area.width + self.border().width(),
-                Side::Top | Side::Bottom => self.area.height + self.border().height(),
+                Side::Left | Side::Right => {
+                    self.area.width + self.active_layout_border().map(|b| b.width()).unwrap_or(0)
+                }
+                Side::Top | Side::Bottom => {
+                    self.area.height
+                        + self.active_layout_border().map(|b| b.height()).unwrap_or(0)
+                }
             }
         }
     }
@@ -551,11 +570,7 @@ impl PreviewUI {
         }
 
         let mut preview = Paragraph::new(lines);
-        if let Some(border) = self
-            .setting()
-            .and_then(|s| s.border.as_ref())
-            .filter(|b| b.r#type.is_some())
-        {
+        if let Some(border) = self.active_layout_border() {
             preview = preview.block(border.block_with_title(self.title.as_deref()));
         }
         if self.config.wrap {
