@@ -47,7 +47,6 @@ fi
 side = "right"
 percentage = 40
 min = 30
-max = 120
 border.type = "Plain"
 border.padding = [2, 0]
 
@@ -55,14 +54,12 @@ border.padding = [2, 0]
 side = "top"
 percentage = 55
 min = 5
-max = 50
 border.type = "Plain"
 
 [[preview.layout]]
 side = "right"
 percentage = 75
 min = 5
-max = 240
 border.type = "Plain"
 border.padding = [2, 0]
 
