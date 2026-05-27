@@ -59,7 +59,8 @@ impl<A: ActionExt> BindMap<A> {
             key!(shift-PageUp) => Action::PreviewHalfPageUp,
             key!(shift-Home) => Action::PreviewJump,
             key!(shift-End) => Action::PreviewJump,
-            key!('?') => Action::SwitchPreview(None),
+            key!(ctrl-p) => Action::SwitchPreview(None),
+            key!('?') => Action::Help("".to_string()),
         );
 
         #[cfg(target_os = "macos")]
