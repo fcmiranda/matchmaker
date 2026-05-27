@@ -30,6 +30,7 @@ _mm() {
 '(-q)*-v[Increase the verbosity level]' \
 '--sort[Sort input lines alphabetically before injecting into the picker]' \
 '--icons[Prepend a Nerd Font file-type icon before each result row]' \
+'--symlink-target[Append symlink target path after the first column when the entry is a symlink]' \
 '-h[Print help]' \
 '--help[Print help]' \
 '*::args -- args passed to the start command:_default' \

@@ -50,6 +50,10 @@ pub struct Cli {
     /// Prepend a Nerd Font file-type icon before each result row.
     #[arg(long)]
     pub icons: bool,
+
+    /// Append symlink target path after the first column when the entry is a symlink.
+    #[arg(long)]
+    pub symlink_target: bool,
 }
 
 #[derive(Debug, Clone, clap::ValueEnum, PartialEq)]
@@ -119,6 +123,7 @@ impl Cli {
                 "--no-read",
                 "--sort",
                 "--icons",
+                "--symlink-target",
                 "--help",
                 "-F",
             ]

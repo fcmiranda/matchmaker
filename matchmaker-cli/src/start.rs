@@ -173,6 +173,10 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
         config.render.results.icons = true;
     }
 
+    if cli.symlink_target {
+        config.render.results.symlink_target = true;
+    }
+
     if cli.dump_config {
         let contents = toml::to_string_pretty(&config).expect("failed to serialize to TOML");
 

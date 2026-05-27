@@ -539,7 +539,11 @@ impl ResultsUI {
                         }
 
                         let icon_name =
-                            if self.config.icons { extract_col0_name(&row[0]) } else { String::new() };
+                            if self.config.icons || self.config.symlink_target {
+                                extract_col0_name(&row[0])
+                            } else {
+                                String::new()
+                            };
 
                         prefix_span(
                             &mut row[0],
@@ -550,6 +554,13 @@ impl ResultsUI {
                         );
                         if self.config.icons {
                             insert_icon_span(&mut row[0], &icon_name);
+                        }
+                        if self.config.symlink_target {
+                            maybe_append_symlink_target(
+                                &mut row[0],
+                                &icon_name,
+                                self.config.symlink_target_style.into(),
+                            );
                         }
 
                         let last_visible = widths
@@ -586,7 +597,7 @@ impl ResultsUI {
                         rows.push(style_row(row, is_current_row));
                     } else {
                         let col_count = row.len();
-                        let icon_name_stacked = if self.config.icons && col_count > 0 {
+                        let icon_name_stacked = if (self.config.icons || self.config.symlink_target) && col_count > 0 {
                             extract_col0_name(&row[0])
                         } else {
                             String::new()
@@ -613,6 +624,13 @@ impl ResultsUI {
                             );
                             if self.config.icons && col_idx == 0 {
                                 insert_icon_span(col, &icon_name_stacked);
+                            }
+                            if self.config.symlink_target && col_idx == 0 {
+                                maybe_append_symlink_target(
+                                    col,
+                                    &icon_name_stacked,
+                                    self.config.symlink_target_style.into(),
+                                );
                             }
 
                             let col = style_text(col, x, is_current_row);
@@ -656,7 +674,11 @@ impl ResultsUI {
                 }
 
                 let icon_name =
-                    if self.config.icons { extract_col0_name(&row[0]) } else { String::new() };
+                    if self.config.icons || self.config.symlink_target {
+                        extract_col0_name(&row[0])
+                    } else {
+                        String::new()
+                    };
                 prefix_span(
                     &mut row[0],
                     prefix,
@@ -666,6 +688,13 @@ impl ResultsUI {
                 );
                 if self.config.icons {
                     insert_icon_span(&mut row[0], &icon_name);
+                }
+                if self.config.symlink_target {
+                    maybe_append_symlink_target(
+                        &mut row[0],
+                        &icon_name,
+                        self.config.symlink_target_style.into(),
+                    );
                 }
 
                 let last_visible = widths
@@ -702,7 +731,7 @@ impl ResultsUI {
                 rows.push(style_row(row, is_current_row));
             } else {
                 let col_count = row.len();
-                let icon_name_stacked = if self.config.icons && col_count > 0 {
+                let icon_name_stacked = if (self.config.icons || self.config.symlink_target) && col_count > 0 {
                     extract_col0_name(&row[0])
                 } else {
                     String::new()
@@ -729,6 +758,13 @@ impl ResultsUI {
                     );
                     if self.config.icons && col_idx == 0 {
                         insert_icon_span(col, &icon_name_stacked);
+                    }
+                    if self.config.symlink_target && col_idx == 0 {
+                        maybe_append_symlink_target(
+                            col,
+                            &icon_name_stacked,
+                            self.config.symlink_target_style.into(),
+                        );
                     }
 
                     let col = style_text(col, x, is_current_row);
@@ -821,7 +857,7 @@ impl ResultsUI {
                     .rev()
                     .find_map(|(i, w)| (*w != 0).then_some(i));
 
-                let icon_name_hz = if self.config.icons {
+                let icon_name_hz = if self.config.icons || self.config.symlink_target {
                     row.first()
                         .and_then(|t| t.lines.first())
                         .map(|l| l.spans.iter().map(|s| s.content.as_ref()).collect::<String>())
@@ -851,6 +887,13 @@ impl ResultsUI {
                             if self.config.icons {
                                 insert_icon_span(&mut t, &icon_name_hz);
                             }
+                            if self.config.symlink_target {
+                                maybe_append_symlink_target(
+                                    &mut t,
+                                    &icon_name_hz,
+                                    self.config.symlink_target_style.into(),
+                                );
+                            }
                         };
                         t
                     })
@@ -872,7 +915,7 @@ impl ResultsUI {
                     0
                 };
 
-                let icon_name_stacked = if self.config.icons {
+                let icon_name_stacked = if self.config.icons || self.config.symlink_target {
                     row.first()
                         .and_then(|t| t.lines.first())
                         .map(|l| l.spans.iter().map(|s| s.content.as_ref()).collect::<String>())
@@ -913,6 +956,13 @@ impl ResultsUI {
                     );
                     if self.config.icons && x == 0 {
                         insert_icon_span(&mut col, &icon_name_stacked);
+                    }
+                    if self.config.symlink_target && x == 0 {
+                        maybe_append_symlink_target(
+                            &mut col,
+                            &icon_name_stacked,
+                            self.config.symlink_target_style.into(),
+                        );
                     }
 
                     let col = style_text(col, x, is_current_row);
@@ -1229,6 +1279,27 @@ impl StatusUI {
 }
 
 // ---------- icon helpers ----------
+
+/// Append a symlink-target annotation to the **first line** of `col`.
+///
+/// Reads the link target with `std::fs::read_link`. If the path is not a
+/// symlink (or the read fails) the function is a no-op. The annotation is
+/// rendered as `" \u{f061} <target>"` using `style`.
+fn maybe_append_symlink_target(
+    col: &mut ratatui::text::Text<'_>,
+    name: &str,
+    style: ratatui::style::Style,
+) {
+    let path = std::path::Path::new(name.trim());
+    if let Ok(target) = std::fs::read_link(path) {
+        let target_str = target.to_string_lossy().into_owned();
+        let annotation = format!(" \u{f061} {target_str}");
+        let span = ratatui::text::Span::styled(annotation, style);
+        if let Some(line) = col.lines.first_mut() {
+            line.spans.push(span);
+        }
+    }
+}
 
 /// Extract the plain-text content of the first line of a `Text` cell (before
 /// any prefix span has been inserted). Used to determine which file-type icon
