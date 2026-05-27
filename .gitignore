@@ -8,3 +8,5 @@ matchmaker-cli/assets/presets/todo
 *.jsonl
 emojis.json
 UnicodeData.txt
+# APM dependencies
+apm_modules/
