@@ -1055,6 +1055,13 @@ pub struct PreviewSetting {
     pub layout: PreviewLayout,
     #[partial(recurse)]
     pub border: Option<BorderSetting>,
+    /// Optional preview title for this layout.
+    ///
+    /// - Omit for default dynamic title (current item name)
+    /// - Set to `{item}` for explicit dynamic title
+    /// - Set to any other string for a static title
+    /// - `{item}` inside a longer string is interpolated
+    pub title: Option<String>,
     #[serde(default, alias = "cmd", alias = "x")]
     pub command: String,
 

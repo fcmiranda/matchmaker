@@ -10,14 +10,19 @@
 /// | `hl-bg`          | `render.results.current_style.bg`             |
 /// | `border`         | `render.ui.border.color`                      |
 /// | `label`          | `render.ui.border.title_fg`                   |
+/// | `title`          | `render.ui.border.title_fg`                   |
 /// | `preview-border` | `render.preview.border.color`                 |
 /// | `preview-label`  | `render.preview.border.title_fg`              |
+/// | `preview-title`  | `render.preview.border.title_fg`              |
 /// | `list-border`    | `render.results.border.color`                 |
 /// | `list-label`     | `render.results.border.title_fg`              |
+/// | `list-title`     | `render.results.border.title_fg`              |
 /// | `input-border`   | `render.query.border.color`                   |
 /// | `input-label`    | `render.query.border.title_fg`                |
+/// | `input-title`    | `render.query.border.title_fg`                |
 /// | `header-border`  | `render.header.border.color`                  |
 /// | `header-label`   | `render.header.border.title_fg`               |
+/// | `header-title`   | `render.header.border.title_fg`               |
 /// | `nav`            | `render.ui.nav_color`                         |
 /// | `selected-fg`    | `render.results.selected_style.fg`            |
 /// | `selected-bg`    | `render.results.selected_style.bg`            |
@@ -53,15 +58,15 @@ pub fn apply_color_spec(config: &mut Config, spec: &str) {
             "hl-fg" | "current-fg" => config.render.results.current_style.fg = Some(color),
             "hl-bg" | "current-bg" => config.render.results.current_style.bg = Some(color),
             "border" => config.render.ui.border.color = color,
-            "label" => config.render.ui.border.title_fg = color,
+            "label" | "title" => config.render.ui.border.title_fg = color,
             "preview-border" => config.render.preview.border.color = color,
-            "preview-label" => config.render.preview.border.title_fg = color,
+            "preview-label" | "preview-title" => config.render.preview.border.title_fg = color,
             "list-border" => config.render.results.border.color = color,
-            "list-label" => config.render.results.border.title_fg = color,
+            "list-label" | "list-title" => config.render.results.border.title_fg = color,
             "input-border" => config.render.query.border.color = color,
-            "input-label" => config.render.query.border.title_fg = color,
+            "input-label" | "input-title" => config.render.query.border.title_fg = color,
             "header-border" => config.render.header.border.color = color,
-            "header-label" => config.render.header.border.title_fg = color,
+            "header-label" | "header-title" => config.render.header.border.title_fg = color,
             "nav" => config.render.ui.nav_color = color,
             "selected-fg" => config.render.results.selected_style.fg = Some(color),
             "selected-bg" => config.render.results.selected_style.bg = Some(color),

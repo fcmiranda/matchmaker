@@ -1,7 +1,8 @@
 use log::error;
 use ratatui::{
     layout::Rect,
-    text::Line,
+    text::{Line, Span},
+    style::Style,
     widgets::{Paragraph, Wrap},
 };
 
@@ -39,10 +40,14 @@ pub struct PreviewUI {
 }
 
 impl PreviewUI {
-    fn active_layout_border(&self) -> Option<&BorderSetting> {
-        self.setting()
-            .and_then(|s| s.border.as_ref())
-            .filter(|b| b.r#type.is_some())
+    fn active_border(&self) -> Option<&BorderSetting> {
+        if let Some(layout_border) = self.setting().and_then(|s| s.border.as_ref()) {
+            if !layout_border.is_empty() {
+                return Some(layout_border);
+            }
+        }
+
+        (!self.config.border.is_empty()).then_some(&self.config.border)
     }
 
     fn initial(&self) -> &PreviewInitialSetting {
@@ -117,7 +122,7 @@ impl PreviewUI {
 
     pub fn update_dimensions(&mut self, area: &Rect) {
         let (border_h, border_w) = self
-            .active_layout_border()
+            .active_border()
             .map(|b| (b.height(), b.width()))
             .unwrap_or((0, 0));
         let mut height = area.height;
@@ -447,10 +452,10 @@ impl PreviewUI {
             let side = self.setting().map(|s| &s.layout.side).unwrap_or(&Side::Right);
             match side {
                 Side::Left | Side::Right => {
-                    self.active_layout_border().map(|b| b.width()).unwrap_or(0)
+                    self.active_border().map(|b| b.width()).unwrap_or(0)
                 }
                 Side::Top | Side::Bottom => {
-                    self.active_layout_border().map(|b| b.height()).unwrap_or(0)
+                    self.active_border().map(|b| b.height()).unwrap_or(0)
                 }
             }
         })
@@ -491,11 +496,11 @@ impl PreviewUI {
             let side = setting.map(|s| &s.layout.side).unwrap_or(&Side::Right);
             match side {
                 Side::Left | Side::Right => {
-                    self.area.width + self.active_layout_border().map(|b| b.width()).unwrap_or(0)
+                    self.area.width + self.active_border().map(|b| b.width()).unwrap_or(0)
                 }
                 Side::Top | Side::Bottom => {
                     self.area.height
-                        + self.active_layout_border().map(|b| b.height()).unwrap_or(0)
+                        + self.active_border().map(|b| b.height()).unwrap_or(0)
                 }
             }
         }
@@ -569,9 +574,51 @@ impl PreviewUI {
             }
         }
 
+        let configured_title = self.setting().and_then(|s| s.title.as_deref());
+        let dynamic = self.title.as_deref().unwrap_or_default();
+        let title_text = match configured_title {
+            None => Some(dynamic.to_string()),
+            Some("") => None,
+            Some("{item}") => Some(dynamic.to_string()),
+            Some(t) if t.contains("{item}") => Some(t.replace("{item}", dynamic)),
+            Some("$currentItemName") => Some(dynamic.to_string()),
+            Some(t) if t.contains("$currentItemName") => Some(t.replace("$currentItemName", dynamic)),
+            Some(t) => Some(t.to_string()),
+        };
+
+        if self.active_border().is_none() {
+            if let Some(title) = &title_text {
+                let fg = if self.config.border.title_fg == ratatui::style::Color::Reset {
+                    self.config.border.color
+                } else {
+                    self.config.border.title_fg
+                };
+                let title_line = Line::from(Span::styled(
+                    title.clone(),
+                    Style::default()
+                        .fg(fg)
+                        .add_modifier(self.config.border.title_modifier),
+                ));
+                lines.insert(0, title_line);
+                lines.truncate(height);
+            }
+        }
+
         let mut preview = Paragraph::new(lines);
-        if let Some(border) = self.active_layout_border() {
-            preview = preview.block(border.block_with_title(self.title.as_deref()));
+        if let Some(border) = self.active_border() {
+            let mut block = border.as_block();
+            if let Some(title) = title_text.clone() {
+                let fg = if border.title_fg == ratatui::style::Color::Reset {
+                    border.color
+                } else {
+                    border.title_fg
+                };
+                block = block.title(Span::styled(
+                    title,
+                    Style::default().fg(fg).add_modifier(border.title_modifier),
+                ));
+            }
+            preview = preview.block(block);
         }
         if self.config.wrap {
             preview = preview

@@ -132,17 +132,23 @@ mm results.symlink_target=true results.symlink_target_style.fg=Cyan
 
 ## 4. Preview Title
 
-**What it does:** Displays a title on the preview pane border.  The title is taken from
-the first column of the currently highlighted item and is updated as the cursor moves.
+**What it does:** Displays a title on the preview pane border.
 
-The title colour defaults to the border `color`; set `border.title_fg` on the preview
-layout to use a distinct colour.
+- By default (no `title` key), it shows the current item name (first column).
+- Set `title` for a static title, or use `{item}` interpolation.
+- Title color is controlled by `--color preview-title:<Color>` (alias: `preview-label`).
 
 ### CLI
 
 ```bash
-# Enable a titled preview border (Plain border required to show title)
-mm p.l.border.type=Plain p.l.border.title_fg=Yellow
+# Dynamic item title with yellow label
+mm p.l.type=Plain --color 'preview-title:Yellow'
+
+# Static title
+mm p.l.type=Plain p.l.title='Preview'
+
+# Interpolated title
+mm p.l.type=Plain p.l.title='File: {item}'
 ```
 
 ### Config
@@ -153,16 +159,13 @@ command = "bat --color=always {1}"
 side = "right"
 percentage = 40
 border.type = "Plain"
-border.title_fg = "Yellow"   # title text colour; Reset means inherit border.color
+title = "File: {item}"       # optional; omit for default dynamic item name
 ```
 
-> The `border.title` field can be used to set a *static* label instead:
->
-> ```toml
-> border.title = " Preview "
-> ```
->
-> When `title_fg = "Reset"` (the default) the title inherits the border `color`.
+```bash
+# Color the title via --color
+mm p.l.border.type=Plain p.l.title='File: {item}' --color 'preview-title:Yellow'
+```
 
 ---
 
@@ -336,15 +339,15 @@ hex (`#ff5f87`), and 256-palette indices (`200`).
 | `hl-fg` | `current-fg` | Cursor-row foreground |
 | `hl-bg` | `current-bg` | Cursor-row background |
 | `border` | | Global UI border colour |
-| `label` | | Global UI border title colour |
+| `label` | `title` | Global UI border title colour |
 | `preview-border` | | Preview pane border colour |
-| `preview-label` | | Preview pane border title colour |
+| `preview-label` | `preview-title` | Preview pane border title colour |
 | `list-border` | | Results pane border colour |
-| `list-label` | | Results pane border title colour |
+| `list-label` | `list-title` | Results pane border title colour |
 | `input-border` | | Query bar border colour |
-| `input-label` | | Query bar border title colour |
+| `input-label` | `input-title` | Query bar border title colour |
 | `header-border` | | Header border colour |
-| `header-label` | | Header border title colour |
+| `header-label` | `header-title` | Header border title colour |
 | `nav` | | Navigation-mode indicator colour (Phase 5) |
 | `selected-fg` | | Selected-row foreground |
 | `selected-bg` | | Selected-row background |
@@ -485,7 +488,8 @@ mm \
   query.status_inline=true \
   p.l.gap=2 \
   p.l.border.type=Plain \
-  p.l.border.title_fg=Yellow \
+  p.l.title='File: {item}' \
+  --color 'preview-label:Yellow' \
   b 'ctrl-y=FmSetYankPaths({+1})' \
   b 'ctrl-shift-y=FmSetYankPaths()'
 ```
@@ -526,7 +530,7 @@ status_inline = true
 gap             = 2
 border.type     = "Plain"
 border.color    = "#45475a"
-border.title_fg = "#89dceb"
+title           = "File: {item}"
 ```
 
 ### Git status picker with yank highlights
@@ -587,7 +591,7 @@ journalctl --no-pager -n 500 | \
 |---|---|---|
 | `query.status_inline` | `bool` | `false` |
 | `preview.layout[n].gap` | `u16` | `1` |
-| `preview.layout[n].border.title_fg` | `Color` | `Reset` (inherits `border.color`) |
+| `preview.layout[n].title` | `Option<String>` | `None` (dynamic current item name) |
 | `results.selected_style` | `StyleSetting` | `modifier: BOLD` |
 | `results.selected_prefix_style` | `StyleSetting` | `fg: Cyan, modifier: BOLD` |
 | `results.yank_prefix_style` | `StyleSetting` | `fg: Yellow, modifier: BOLD` |
