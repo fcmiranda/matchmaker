@@ -520,10 +520,16 @@ impl ResultsUI {
 
                 if trunc_height < h {
                     let mut remaining_height = h - trunc_height;
-                    let prefix = if selector.contains(item) {
+                    let is_selected = selector.contains(item);
+                    let prefix = if is_selected {
                         self.config.multi_prefix.clone().to_string()
                     } else {
                         self.default_prefix(0)
+                    };
+                    let prefix_inactive_style = if is_selected {
+                        self.config.selected_prefix_style
+                    } else {
+                        self.config.prefix_inactive_style
                     };
 
                     total_height += remaining_height;
@@ -549,7 +555,7 @@ impl ResultsUI {
                             &mut row[0],
                             prefix,
                             self.config.prefix_style,
-                            self.config.prefix_inactive_style,
+                            prefix_inactive_style,
                             is_current_row,
                         );
                         if self.config.icons {
@@ -594,7 +600,12 @@ impl ResultsUI {
                         }
 
                         let row = Row::new(row_texts).height(remaining_height);
-                        rows.push(style_row(row, is_current_row));
+                        let row = if is_selected {
+                            row.style(Style::from(self.config.selected_style))
+                        } else {
+                            row
+                        };
+                        rows.push(row);
                     } else {
                         let col_count = row.len();
                         let icon_name_stacked = if (self.config.icons || self.config.symlink_target) && col_count > 0 {
@@ -619,7 +630,7 @@ impl ResultsUI {
                                 &mut col,
                                 prefix.clone(),
                                 self.config.prefix_style,
-                                self.config.prefix_inactive_style,
+                                prefix_inactive_style,
                                 is_current_row,
                             );
                             if self.config.icons && col_idx == 0 {
@@ -633,9 +644,13 @@ impl ResultsUI {
                                 );
                             }
 
-                            let col = style_text(col, x, is_current_row);
-                            let row = Row::new(vec![col]).height(height);
-                            push.push(style_row(row, is_current_row));
+                            let row = Row::new(vec![col.clone()]).height(height);
+                            let row = if is_selected {
+                                row.style(Style::from(self.config.selected_style))
+                            } else {
+                                row
+                            };
+                            push.push(row);
                         }
                         rows.extend(push.into_iter().rev());
                     }
@@ -658,10 +673,16 @@ impl ResultsUI {
             // same as above
             let h = height_of(&results[0]);
             let (row, item) = &mut results[0];
-            let prefix = if selector.contains(item) {
+            let is_selected = selector.contains(item);
+            let prefix = if is_selected {
                 self.config.multi_prefix.clone().to_string()
             } else {
                 self.default_prefix(0)
+            };
+            let prefix_inactive_style = if is_selected && !is_current_row {
+                self.config.selected_prefix_style
+            } else {
+                self.config.prefix_inactive_style
             };
 
             total_height += remaining_height;
@@ -683,7 +704,7 @@ impl ResultsUI {
                     &mut row[0],
                     prefix,
                     self.config.prefix_style,
-                    self.config.prefix_inactive_style,
+                    prefix_inactive_style,
                     is_current_row,
                 );
                 if self.config.icons {
@@ -728,7 +749,12 @@ impl ResultsUI {
                 }
 
                 let row = Row::new(row_texts).height(remaining_height);
-                rows.push(style_row(row, is_current_row));
+                let row = if is_selected && !is_current_row {
+                    row.style(Style::from(self.config.selected_style))
+                } else {
+                    row
+                };
+                rows.push(row);
             } else {
                 let col_count = row.len();
                 let icon_name_stacked = if (self.config.icons || self.config.symlink_target) && col_count > 0 {
@@ -753,7 +779,7 @@ impl ResultsUI {
                         &mut col,
                         prefix.clone(),
                         self.config.prefix_style,
-                        self.config.prefix_inactive_style,
+                        prefix_inactive_style,
                         is_current_row,
                     );
                     if self.config.icons && col_idx == 0 {
@@ -767,9 +793,13 @@ impl ResultsUI {
                         );
                     }
 
-                    let col = style_text(col, x, is_current_row);
-                    let row = Row::new(vec![col]).height(height);
-                    push.push(style_row(row, is_current_row));
+                    let row = Row::new(vec![col.clone()]).height(height);
+                    let row = if is_selected && !is_current_row {
+                        row.style(Style::from(self.config.selected_style))
+                    } else {
+                        row
+                    };
+                    push.push(row);
                 }
                 rows.extend(push.into_iter().rev());
             }
@@ -813,7 +843,8 @@ impl ResultsUI {
             }
 
             // determine prefix
-            let prefix = if selector.contains(item) {
+            let is_selected = selector.contains(item);
+            let prefix = if is_selected {
                 self.config.multi_prefix.clone().to_string()
             } else {
                 self.default_prefix(i)
@@ -877,12 +908,17 @@ impl ResultsUI {
 
                         // prefix after hscroll
                         if x == 0 {
+                            let inactive_prefix_style = if is_selected && !is_current_row {
+                                self.config.selected_prefix_style
+                            } else {
+                                self.config.prefix_inactive_style
+                            };
                             prefix_span(
                                 &mut t,
                                 prefix.clone(),
                                 self.config.prefix_style,
-                                self.config.prefix_inactive_style,
-                                self.is_current(i),
+                                inactive_prefix_style,
+                                is_current_row,
                             );
                             if self.config.icons {
                                 insert_icon_span(&mut t, &icon_name_hz);
@@ -904,7 +940,20 @@ impl ResultsUI {
                 }
 
                 // push
-                let row = style_row(Row::new(row_texts).height(height), self.is_current(i));
+                let mut row = Row::new(row_texts).height(height);
+
+                if self.is_current(i) {
+                    match self.config.row_connection {
+                        RowConnectionStyle::Capped => {
+                            row = row.style(self.config.inactive_current_style)
+                        }
+                        RowConnectionStyle::Full => row = row.style(self.config.current_style),
+                        _ => {}
+                    }
+                } else if is_selected {
+                    row = row.style(Style::from(self.config.selected_style));
+                }
+
                 rows.push(row);
             } else {
                 let mut push = vec![];
@@ -947,11 +996,16 @@ impl ResultsUI {
                     remaining_height -= height;
 
                     let is_current_row = self.is_current(i);
+                    let inactive_prefix_style = if is_selected && !is_current_row {
+                        self.config.selected_prefix_style
+                    } else {
+                        self.config.prefix_inactive_style
+                    };
                     prefix_span(
                         &mut col,
                         prefix.clone(),
                         self.config.prefix_style,
-                        self.config.prefix_inactive_style,
+                        inactive_prefix_style,
                         is_current_row,
                     );
                     if self.config.icons && x == 0 {
@@ -965,9 +1019,50 @@ impl ResultsUI {
                         );
                     }
 
-                    let col = style_text(col, x, is_current_row);
-                    let row = Row::new(vec![col]).height(height);
-                    push.push(style_row(row, is_current_row));
+                    let is_active_col = active_column == x;
+
+                    match self.config.row_connection {
+                        RowConnectionStyle::Disjoint => {
+                            if is_active_col {
+                                col = col.style(if is_current_row {
+                                    self.config.current_style
+                                } else {
+                                    self.config.style
+                                });
+                            } else {
+                                col = col.style(if is_current_row {
+                                    self.config.inactive_current_style
+                                } else {
+                                    self.config.inactive_style
+                                });
+                            }
+                        }
+                        RowConnectionStyle::Capped => {
+                            if is_active_col {
+                                col = col.style(if is_current_row {
+                                    self.config.current_style
+                                } else {
+                                    self.config.style
+                                });
+                            }
+                        }
+                        RowConnectionStyle::Full => {}
+                    }
+
+                    // push
+                    let mut row = Row::new(vec![col]).height(height);
+                    if is_current_row {
+                        match self.config.row_connection {
+                            RowConnectionStyle::Capped => {
+                                row = row.style(self.config.inactive_current_style)
+                            }
+                            RowConnectionStyle::Full => row = row.style(self.config.current_style),
+                            _ => {}
+                        }
+                    } else if is_selected {
+                        row = row.style(Style::from(self.config.selected_style));
+                    }
+                    push.push(row);
                 }
                 rows.extend(push);
             }
