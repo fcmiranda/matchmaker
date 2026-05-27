@@ -23,7 +23,7 @@ _mm() {
 
     case "${cmd}" in
         mm)
-            opts="-o -F -q -v -d -h --config --override --dump-config --test-keys --last-key --no-read --download --doc --sort --icons --symlink-target --help [ARGS]..."
+            opts="-o -F -q -v -d -h --config --override --dump-config --test-keys --last-key --no-read --download --doc --sort --icons --symlink-target --color --help [ARGS]..."
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 1 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -51,6 +51,10 @@ _mm() {
                     ;;
                 -d)
                     COMPREPLY=($(compgen -W "options binds template other" -- "${cur}"))
+                    return 0
+                    ;;
+                --color)
+                    COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
                 *)

@@ -27,6 +27,7 @@ Register-ArgumentCompleter -Native -CommandName 'mm' -ScriptBlock {
             [CompletionResult]::new('--download', '--download', [CompletionResultType]::ParameterName, 'Download presets from GitHub. Optionally specify a subfolder')
             [CompletionResult]::new('-d', '-d', [CompletionResultType]::ParameterName, 'Display documentation')
             [CompletionResult]::new('--doc', '--doc', [CompletionResultType]::ParameterName, 'Display documentation')
+            [CompletionResult]::new('--color', '--color', [CompletionResultType]::ParameterName, 'Colourise the UI with fzf-style key:value pairs (comma-separated). Example: --color border:#cba6f7,hl-fg:#a6e3a1,nav:#89b4fa Keys: fg, bg, hl-fg, hl-bg, border, label, preview-border, preview-label, list-border, list-label, input-border, input-label, header-border, header-label, nav, selected-fg, selected-bg, selected-prefix, yank, symlink')
             [CompletionResult]::new('--dump-config', '--dump-config', [CompletionResultType]::ParameterName, 'dump-config')
             [CompletionResult]::new('-F', '-F ', [CompletionResultType]::ParameterName, 'F')
             [CompletionResult]::new('--test-keys', '--test-keys', [CompletionResultType]::ParameterName, 'test-keys')

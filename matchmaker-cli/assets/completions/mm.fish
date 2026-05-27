@@ -5,6 +5,7 @@ complete -c mm -s d -l doc -d 'Display documentation' -r -f -a "options\t''
 binds\t''
 template\t''
 other\t''"
+complete -c mm -l color -d 'Colourise the UI with fzf-style key:value pairs (comma-separated). Example: --color border:#cba6f7,hl-fg:#a6e3a1,nav:#89b4fa Keys: fg, bg, hl-fg, hl-bg, border, label, preview-border, preview-label, list-border, list-label, input-border, input-label, header-border, header-label, nav, selected-fg, selected-bg, selected-prefix, yank, symlink' -r
 complete -c mm -l dump-config
 complete -c mm -s F
 complete -c mm -l test-keys

@@ -1228,6 +1228,7 @@ dependencies = [
  "matchmaker-partial",
  "matchmaker-partial-macros",
  "mimalloc",
+ "ratatui",
  "regex",
  "serde",
  "strum",
