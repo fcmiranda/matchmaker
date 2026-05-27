@@ -21,6 +21,10 @@ pub struct Layout {
     pub header: Rect,
     pub results: Rect,
     pub footer: Rect,
+    /// The gap rect between preview and picker (used for drag hit-testing).
+    pub gap: Rect,
+    /// The full area covered by preview + gap + picker combined.
+    pub pane: Rect,
 }
 
 /// In the "standard implementation", None represents unset, String: command, Text: display

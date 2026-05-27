@@ -1031,6 +1031,10 @@ pub struct PreviewLayout {
     pub percentage: Percentage,
     pub min: i16,
     pub max: i16,
+    /// Width (or height) in cells of the draggable gap between the preview and
+    /// the picker.  When `0` the gap is not rendered but the drag-zone still
+    /// falls back to the border edge (existing behaviour).
+    pub gap: u16,
 }
 
 impl Default for PreviewLayout {
@@ -1040,6 +1044,7 @@ impl Default for PreviewLayout {
             percentage: Percentage::new(60),
             min: 15,
             max: 120,
+            gap: 1,
         }
     }
 }

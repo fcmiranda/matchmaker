@@ -175,6 +175,16 @@ impl PreviewUI {
         }
     }
 
+    pub fn setting_mut(&mut self) -> Option<&mut PreviewSetting> {
+        if let Some(ret) = self.config.layout.get_mut(self.layout_idx)
+            && ret.layout.max != 0
+        {
+            Some(ret)
+        } else {
+            None
+        }
+    }
+
     pub fn visible(&self) -> bool {
         self.setting().is_some() && self.show
     }
@@ -432,9 +442,9 @@ impl PreviewUI {
         })
     }
 
-    pub fn split(&self, area: Rect) -> [Rect; 2] {
+    pub fn split(&self, area: Rect) -> [Rect; 3] {
         let Some(setting) = self.setting() else {
-            return [Rect::default(), area];
+            return [Rect::default(), area, Rect::default()];
         };
 
         setting.layout.split(area, self.current_dimension)

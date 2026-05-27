@@ -81,6 +81,8 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
     }
 
     let mut click = Click::None;
+    // Tracks the last known mouse position for gap hover highlighting.
+    let mut mouse_hover: Option<Position> = None;
 
     // place the initial command in the state where the preview listener can access
     if let Some(ref p) = preview_ui {
@@ -187,48 +189,58 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                         MouseEventKind::Down(MouseButton::Left) => {
                             if let Some(p) = preview_ui.as_mut()
                                 && p.visible()
-                                && let drag_width = p.drag_width()
-                                && drag_width > 0
-                                && let Some(side) = p.setting().map(|s| &s.layout.side)
                             {
-                                let is_in_drag_area = match side {
-                                    Side::Right => {
-                                        let drag_area = Rect {
-                                            x: layout.preview.x,
-                                            y: layout.preview.y,
-                                            width: drag_width,
-                                            height: layout.preview.height,
-                                        };
-                                        drag_area.contains(pos)
-                                    }
-                                    Side::Left => {
-                                        let drag_area = Rect {
-                                            x: layout.preview.x
-                                                + layout.preview.width.saturating_sub(drag_width),
-                                            y: layout.preview.y,
-                                            width: drag_width,
-                                            height: layout.preview.height,
-                                        };
-                                        drag_area.contains(pos)
-                                    }
-                                    Side::Bottom => {
-                                        let drag_area = Rect {
-                                            x: layout.preview.x,
-                                            y: layout.preview.y,
-                                            width: layout.preview.width,
-                                            height: drag_width,
-                                        };
-                                        drag_area.contains(pos)
-                                    }
-                                    Side::Top => {
-                                        let drag_area = Rect {
-                                            x: layout.preview.x,
-                                            y: layout.preview.y
-                                                + layout.preview.height.saturating_sub(drag_width),
-                                            width: layout.preview.width,
-                                            height: drag_width,
-                                        };
-                                        drag_area.contains(pos)
+                                let gap_rect = layout.gap;
+                                let is_in_drag_area = if !gap_rect.is_empty() {
+                                    // Dedicated gap area: click anywhere in the gap to start drag.
+                                    gap_rect.contains(pos)
+                                } else {
+                                    // Fallback: use the legacy drag_width border-edge approach.
+                                    let drag_width = p.drag_width();
+                                    if drag_width > 0 {
+                                        let side = p.setting().map(|s| &s.layout.side).unwrap_or(&Side::Right);
+                                        match side {
+                                            Side::Right => {
+                                                let drag_area = Rect {
+                                                    x: layout.preview.x,
+                                                    y: layout.preview.y,
+                                                    width: drag_width,
+                                                    height: layout.preview.height,
+                                                };
+                                                drag_area.contains(pos)
+                                            }
+                                            Side::Left => {
+                                                let drag_area = Rect {
+                                                    x: layout.preview.x
+                                                        + layout.preview.width.saturating_sub(drag_width),
+                                                    y: layout.preview.y,
+                                                    width: drag_width,
+                                                    height: layout.preview.height,
+                                                };
+                                                drag_area.contains(pos)
+                                            }
+                                            Side::Bottom => {
+                                                let drag_area = Rect {
+                                                    x: layout.preview.x,
+                                                    y: layout.preview.y,
+                                                    width: layout.preview.width,
+                                                    height: drag_width,
+                                                };
+                                                drag_area.contains(pos)
+                                            }
+                                            Side::Top => {
+                                                let drag_area = Rect {
+                                                    x: layout.preview.x,
+                                                    y: layout.preview.y
+                                                        + layout.preview.height.saturating_sub(drag_width),
+                                                    width: layout.preview.width,
+                                                    height: drag_width,
+                                                };
+                                                drag_area.contains(pos)
+                                            }
+                                        }
+                                    } else {
+                                        false
                                     }
                                 };
 
@@ -362,6 +374,9 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                         }
                         MouseEventKind::Up(MouseButton::Left) => {
                             state.dragging = None;
+                        }
+                        MouseEventKind::Moved => {
+                            mouse_hover = Some(pos);
                         }
                         _ => {}
                     }
@@ -882,26 +897,26 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                         Rect::default()
                     };
 
-                let [preview, picker_area, footer] = if let Some(preview_ui) = preview_ui.as_mut()
+                let [preview, picker_area, footer, gap_area] = if let Some(preview_ui) = preview_ui.as_mut()
                     && preview_ui.visible()
                 {
-                    let [preview, mut picker_area] = preview_ui.split(_area);
+                    let [preview, mut picker_area, gap_area] = preview_ui.split(_area);
 
                     if state.iterations == 0 && picker_area.width <= 5 {
                         warn!("UI too narrow, hiding preview");
                         preview_ui.show(false);
 
-                        [Rect::default(), _area, footer]
+                        [Rect::default(), _area, footer, Rect::default()]
                     } else {
                         if !full_width_footer {
                             footer =
                                 split(&mut picker_area, footer_ui.height(), picker_ui.reverse());
                         }
 
-                        [preview, picker_area, footer]
+                        [preview, picker_area, footer, gap_area]
                     }
                 } else {
-                    [Rect::default(), _area, footer]
+                    [Rect::default(), _area, footer, Rect::default()]
                 };
 
                 let [input, status, header, results] = picker_ui.layout(picker_area);
@@ -914,6 +929,8 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                     header,
                     results,
                     footer,
+                    gap: gap_area,
+                    pane: _area,
                 });
 
                 if did_resize {
@@ -966,6 +983,20 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                             .map(|item| picker_ui.worker.columns[0].raw(item).into_owned());
                         preview_ui.set_title(item_title);
                         render_preview(frame, preview, preview_ui);
+
+                        // Highlight the gap area when the mouse is hovering over it.
+                        if !gap_area.is_empty() {
+                            let is_hovered = mouse_hover
+                                .is_some_and(|p| gap_area.contains(p));
+                            let is_dragging = state.dragging.is_some();
+                            if is_hovered || is_dragging {
+                                use ratatui::style::Color as C;
+                                use ratatui::widgets::Block;
+                                let gap_block = Block::default()
+                                    .style(ratatui::style::Style::default().bg(C::DarkGray));
+                                frame.render_widget(gap_block, gap_area);
+                            }
+                        }
                     }
                 }
                 if let Some(x) = overlay_ui_ref {

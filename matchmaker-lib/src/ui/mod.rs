@@ -228,7 +228,12 @@ impl<'a, T: SSS, O: Selection> PickerUI<'a, T, O> {
 }
 
 impl PreviewLayout {
-    pub fn split(&self, area: Rect, override_size: Option<u16>) -> [Rect; 2] {
+    /// Split `area` into `[preview, picker, gap]`.
+    ///
+    /// `gap` is the draggable separator between the two panes.  It is not
+    /// rendered but is returned for mouse hit-testing.  When `self.gap == 0`
+    /// the gap rect is `Rect::default()`.
+    pub fn split(&self, area: Rect, override_size: Option<u16>) -> [Rect; 3] {
         use crate::config::Side;
         use ratatui::layout::{Constraint, Direction, Layout};
 
@@ -268,23 +273,56 @@ impl PreviewLayout {
             }
         };
 
-        let side_constraint = Constraint::Length(side_size);
+        let gap = self.gap;
 
-        let constraints = if side_first {
-            [side_constraint, Constraint::Min(0)]
+        // Build ratatui constraints with an optional gap slot between the panes.
+        let chunks = if side_first {
+            // preview | gap | picker
+            let constraints = if gap > 0 {
+                vec![
+                    Constraint::Length(side_size),
+                    Constraint::Length(gap),
+                    Constraint::Min(0),
+                ]
+            } else {
+                vec![Constraint::Length(side_size), Constraint::Min(0)]
+            };
+            Layout::default()
+                .direction(direction)
+                .constraints(constraints)
+                .split(area)
         } else {
-            [Constraint::Min(0), side_constraint]
+            // picker | gap | preview
+            let constraints = if gap > 0 {
+                vec![
+                    Constraint::Min(0),
+                    Constraint::Length(gap),
+                    Constraint::Length(side_size),
+                ]
+            } else {
+                vec![Constraint::Min(0), Constraint::Length(side_size)]
+            };
+            Layout::default()
+                .direction(direction)
+                .constraints(constraints)
+                .split(area)
         };
 
-        let chunks = Layout::default()
-            .direction(direction)
-            .constraints(constraints)
-            .split(area);
-
-        if side_first {
-            [chunks[0], chunks[1]]
+        if gap > 0 {
+            if side_first {
+                // chunks: [preview, gap, picker]
+                [chunks[0], chunks[2], chunks[1]]
+            } else {
+                // chunks: [picker, gap, preview]
+                [chunks[2], chunks[0], chunks[1]]
+            }
         } else {
-            [chunks[1], chunks[0]]
+            // No gap: same layout as before, gap rect is default.
+            if side_first {
+                [chunks[0], chunks[1], Rect::default()]
+            } else {
+                [chunks[1], chunks[0], Rect::default()]
+            }
         }
     }
 }
