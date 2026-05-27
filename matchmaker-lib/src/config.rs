@@ -207,6 +207,9 @@ pub struct UiConfig {
     #[partial(alias = "b")]
     pub border: BorderSetting,
     pub tick_rate: u8, // separate from render, but best place ig
+
+    /// Navigation-mode indicator colour (set via `--color nav:` or `--nav color:`).
+    pub nav_color: Color,
 }
 
 impl Default for UiConfig {
@@ -214,6 +217,7 @@ impl Default for UiConfig {
         Self {
             border: Default::default(),
             tick_rate: 60,
+            nav_color: Color::Reset,
         }
     }
 }
@@ -452,6 +456,16 @@ pub struct ResultsConfig {
     /// Style for the appended symlink target text.
     #[partial(recurse)]
     pub symlink_target_style: StyleSetting,
+
+    /// Style for multi-selected rows (not the cursor row).
+    #[partial(recurse)]
+    pub selected_style: StyleSetting,
+    /// Style for the prefix marker of multi-selected rows.
+    #[partial(recurse)]
+    pub selected_prefix_style: StyleSetting,
+    /// Style for the prefix marker of yanked rows (FM mode).
+    #[partial(recurse)]
+    pub yank_prefix_style: StyleSetting,
 }
 
 impl Default for ResultsConfig {
@@ -510,6 +524,20 @@ impl Default for ResultsConfig {
             symlink_target: false,
             symlink_target_style: StyleSetting {
                 fg: Some(Color::DarkGray),
+                ..Default::default()
+            },
+            selected_style: StyleSetting {
+                modifier: Modifier::BOLD,
+                ..Default::default()
+            },
+            selected_prefix_style: StyleSetting {
+                fg: Some(Color::Cyan),
+                modifier: Modifier::BOLD,
+                ..Default::default()
+            },
+            yank_prefix_style: StyleSetting {
+                fg: Some(Color::Yellow),
+                modifier: Modifier::BOLD,
                 ..Default::default()
             },
         }

@@ -1,5 +1,6 @@
 mod action;
 mod clap;
+mod color;
 mod config;
 mod crokey;
 pub mod formatter;

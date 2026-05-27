@@ -54,6 +54,14 @@ pub struct Cli {
     /// Append symlink target path after the first column when the entry is a symlink.
     #[arg(long)]
     pub symlink_target: bool,
+
+    /// Colourise the UI with fzf-style key:value pairs (comma-separated).
+    /// Example: --color border:#cba6f7,hl-fg:#a6e3a1,nav:#89b4fa
+    /// Keys: fg, bg, hl-fg, hl-bg, border, label, preview-border, preview-label,
+    ///       list-border, list-label, input-border, input-label, header-border,
+    ///       header-label, nav, selected-fg, selected-bg, selected-prefix, yank, symlink
+    #[arg(long, value_name = "SPEC")]
+    pub color: Vec<String>,
 }
 
 #[derive(Debug, Clone, clap::ValueEnum, PartialEq)]
@@ -114,6 +122,7 @@ impl Cli {
             try_parse!("d", "-");
             try_parse!("override", "--");
             try_parse!("o", "-");
+            try_parse!("color", "--");
 
             // Flags
             if [

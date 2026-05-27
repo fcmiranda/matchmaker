@@ -10,6 +10,7 @@ use std::{
 use crate::{
     action::{ActionContext, MMAction, action_handler},
     clap::Cli,
+    color::apply_color_spec,
     config::PartialConfig,
     paths::{last_key_path, presets_path},
     register::MMExt,
@@ -175,6 +176,10 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
 
     if cli.symlink_target {
         config.render.results.symlink_target = true;
+    }
+
+    for spec in &cli.color {
+        apply_color_spec(&mut config, spec);
     }
 
     if cli.dump_config {
