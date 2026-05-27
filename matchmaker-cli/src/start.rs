@@ -20,7 +20,7 @@ use cba::{
     _wbog,
     bait::{OptionExt, ResultExt, TransformExt},
     bo::{
-        MapReaderError, load_type_or_default, map_chunks, map_reader_lines, read_to_chunks,
+        MapReaderError, map_chunks, map_reader_lines, read_to_chunks,
         write_str,
     },
     bog::BogOkExt,
@@ -74,9 +74,19 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
     }
 
     let mut config: Config = if cli.config.is_some() {
+        // Explicit --config: load file verbatim, no default layering.
         load_type(cfg_path, |s| toml::from_str(s))._ebog().or_exit()
+    } else if cfg_path.exists() {
+        // Default user config path: overlay the file on top of the embedded
+        // defaults so the user only needs to specify what they want to change
+        // (including individual [binds] entries).
+        let mut base = Config::default();
+        let user: PartialConfig =
+            load_type(cfg_path, |s| toml::from_str(s))._ebog().or_exit();
+        base.apply(user);
+        base
     } else {
-        load_type_or_default(cfg_path, |s| toml::from_str(s))
+        Config::default()
     };
     // check config
     if config.source.is_some() {
