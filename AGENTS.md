@@ -25,6 +25,12 @@ Prefer linking to existing docs instead of restating them:
 - When changing picker behavior, trace the path through event -> action -> renderer/handler rather than only editing a UI surface.
 - Treat `matchmaker-partial-macros` as sensitive code: prefer small changes and validate with targeted tests because the generated behavior is easy to regress.
 
+## Commit Policy
+
+- After implementing a feature, create a git commit for that feature.
+- Do not amend commits unless explicitly requested.
+- If unrelated worktree changes make a clean feature commit ambiguous, stop and ask before committing.
+
 ## Navigation Hints
 
 - Start in `matchmaker-cli/src/config.rs` and `matchmaker-lib/src/config.rs` for config shape questions.
