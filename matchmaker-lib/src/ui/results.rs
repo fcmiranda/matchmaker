@@ -248,7 +248,7 @@ impl ResultsUI {
 
     // ------- RENDERING ----------
     pub fn indentation(&self) -> usize {
-        self.config.multi_prefix.width()
+        self.config.multi_prefix.width() + if self.config.icons { 2 } else { 0 }
     }
     pub fn col(&self) -> Option<usize> {
         self.col
@@ -538,6 +538,20 @@ impl ResultsUI {
                             }
                         }
 
+                        let icon_name =
+                            if self.config.icons { extract_col0_name(&row[0]) } else { String::new() };
+
+                        prefix_span(
+                            &mut row[0],
+                            prefix,
+                            self.config.prefix_style,
+                            self.config.prefix_inactive_style,
+                            is_current_row,
+                        );
+                        if self.config.icons {
+                            insert_icon_span(&mut row[0], &icon_name);
+                        }
+
                         let last_visible = widths
                             .iter()
                             .enumerate()
@@ -571,10 +585,16 @@ impl ResultsUI {
                         let row = Row::new(row_texts).height(remaining_height);
                         rows.push(style_row(row, is_current_row));
                     } else {
+                        let col_count = row.len();
+                        let icon_name_stacked = if self.config.icons && col_count > 0 {
+                            extract_col0_name(&row[0])
+                        } else {
+                            String::new()
+                        };
                         let mut push = vec![];
 
-                        for (x, col) in row.into_iter().enumerate().rev() {
-                            let mut col = col.clone();
+                        for (rev_i, col) in row.into_iter().rev().enumerate() {
+                            let col_idx = col_count.saturating_sub(1 + rev_i);
                             let mut height = col.height() as u16;
                             if remaining_height == 0 {
                                 break;
@@ -591,6 +611,9 @@ impl ResultsUI {
                                 self.config.prefix_inactive_style,
                                 is_current_row,
                             );
+                            if self.config.icons && col_idx == 0 {
+                                insert_icon_span(col, &icon_name_stacked);
+                            }
 
                             let col = style_text(col, x, is_current_row);
                             let row = Row::new(vec![col]).height(height);
@@ -632,6 +655,19 @@ impl ResultsUI {
                     }
                 }
 
+                let icon_name =
+                    if self.config.icons { extract_col0_name(&row[0]) } else { String::new() };
+                prefix_span(
+                    &mut row[0],
+                    prefix,
+                    self.config.prefix_style,
+                    self.config.prefix_inactive_style,
+                    is_current_row,
+                );
+                if self.config.icons {
+                    insert_icon_span(&mut row[0], &icon_name);
+                }
+
                 let last_visible = widths
                     .iter()
                     .enumerate()
@@ -665,10 +701,16 @@ impl ResultsUI {
                 let row = Row::new(row_texts).height(remaining_height);
                 rows.push(style_row(row, is_current_row));
             } else {
+                let col_count = row.len();
+                let icon_name_stacked = if self.config.icons && col_count > 0 {
+                    extract_col0_name(&row[0])
+                } else {
+                    String::new()
+                };
                 let mut push = vec![];
 
-                for (x, col) in row.into_iter().enumerate().rev() {
-                    let mut col = col.clone();
+                for (rev_i, col) in row.into_iter().rev().enumerate() {
+                    let col_idx = col_count.saturating_sub(1 + rev_i);
                     let mut height = col.height() as u16;
                     if remaining_height == 0 {
                         break;
@@ -685,6 +727,9 @@ impl ResultsUI {
                         self.config.prefix_inactive_style,
                         is_current_row,
                     );
+                    if self.config.icons && col_idx == 0 {
+                        insert_icon_span(col, &icon_name_stacked);
+                    }
 
                     let col = style_text(col, x, is_current_row);
                     let row = Row::new(vec![col]).height(height);
@@ -776,6 +821,15 @@ impl ResultsUI {
                     .rev()
                     .find_map(|(i, w)| (*w != 0).then_some(i));
 
+                let icon_name_hz = if self.config.icons {
+                    row.first()
+                        .and_then(|t| t.lines.first())
+                        .map(|l| l.spans.iter().map(|s| s.content.as_ref()).collect::<String>())
+                        .unwrap_or_default()
+                } else {
+                    String::new()
+                };
+
                 let mut row_texts: Vec<_> = row
                     .iter()
                     .take(last_visible.map(|x| x + 1).unwrap_or(0))
@@ -794,6 +848,9 @@ impl ResultsUI {
                                 self.config.prefix_inactive_style,
                                 self.is_current(i),
                             );
+                            if self.config.icons {
+                                insert_icon_span(&mut t, &icon_name_hz);
+                            }
                         };
                         t
                     })
@@ -813,6 +870,15 @@ impl ResultsUI {
                     self.vscroll as usize
                 } else {
                     0
+                };
+
+                let icon_name_stacked = if self.config.icons {
+                    row.first()
+                        .and_then(|t| t.lines.first())
+                        .map(|l| l.spans.iter().map(|s| s.content.as_ref()).collect::<String>())
+                        .unwrap_or_default()
+                } else {
+                    String::new()
                 };
 
                 for (x, mut col) in row.into_iter().enumerate() {
@@ -845,6 +911,9 @@ impl ResultsUI {
                         self.config.prefix_inactive_style,
                         is_current_row,
                     );
+                    if self.config.icons && x == 0 {
+                        insert_icon_span(&mut col, &icon_name_stacked);
+                    }
 
                     let col = style_text(col, x, is_current_row);
                     let row = Row::new(vec![col]).height(height);
@@ -1156,5 +1225,114 @@ impl StatusUI {
         }
 
         Span::styled(text.to_string(), style)
+    }
+}
+
+// ---------- icon helpers ----------
+
+/// Extract the plain-text content of the first line of a `Text` cell (before
+/// any prefix span has been inserted). Used to determine which file-type icon
+/// to display.
+fn extract_col0_name(col: &ratatui::text::Text<'_>) -> String {
+    col.lines
+        .first()
+        .map(|l| l.spans.iter().map(|s| s.content.as_ref()).collect::<String>())
+        .unwrap_or_default()
+}
+
+/// Insert a Nerd-Font icon span at position 1 (directly after the prefix) in
+/// every line of `col`. Callers must ensure `prefix_span` has already been
+/// called so that span 0 is the prefix.
+fn insert_icon_span(col: &mut ratatui::text::Text<'_>, name: &str) {
+    let (icon, color) = icon_for_name(name);
+    let icon_span = ratatui::text::Span::styled(
+        format!("{icon} "),
+        ratatui::style::Style::default().fg(color),
+    );
+    for line in col.lines.iter_mut() {
+        line.spans.insert(1, icon_span.clone());
+    }
+}
+
+/// Return the Nerd-Font glyph and colour for a given file/directory name.
+///
+/// Lookup order: directory → symlink → known basename → file extension →
+/// generic file fallback.
+fn icon_for_name(name: &str) -> (char, Color) {
+    use std::path::Path;
+    let path = Path::new(name.trim());
+
+    // Directory
+    if std::fs::metadata(path).is_ok_and(|m| m.is_dir()) {
+        return ('\u{f115}', Color::Blue); // nf-fa-folder_open
+    }
+    // Symlink
+    if std::fs::symlink_metadata(path).is_ok_and(|m| m.file_type().is_symlink()) {
+        return ('\u{f482}', Color::Cyan); // nf-mdi-link
+    }
+
+    let basename = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or(name.trim());
+
+    match basename.to_lowercase().as_str() {
+        "cargo.toml" | "cargo.lock" => return ('\u{e7a8}', Color::Red),
+        "package.json" | "package-lock.json" | "yarn.lock" => {
+            return ('\u{e74e}', Color::Green)
+        }
+        "makefile" | "gnumakefile" => return ('\u{e779}', Color::Yellow),
+        "dockerfile" => return ('\u{e7b0}', Color::Cyan),
+        ".gitignore" | ".gitmodules" | ".gitattributes" => return ('\u{e702}', Color::Red),
+        "readme.md" | "readme.txt" | "readme" => return ('\u{e73e}', Color::Blue),
+        "license" | "license.md" | "license.txt" => return ('\u{f02d}', Color::Yellow),
+        _ => {}
+    }
+
+    match path.extension().and_then(|e| e.to_str()).unwrap_or("") {
+        "rs" => ('\u{e7a8}', Color::Red),
+        "toml" => ('\u{e6b2}', Color::Gray),
+        "json" => ('\u{e60b}', Color::Yellow),
+        "yaml" | "yml" => ('\u{e6d2}', Color::Yellow),
+        "js" | "mjs" | "cjs" => ('\u{e74e}', Color::Yellow),
+        "ts" | "mts" | "cts" => ('\u{e628}', Color::Blue),
+        "jsx" | "tsx" => ('\u{e7ba}', Color::Cyan),
+        "py" | "pyw" => ('\u{e73c}', Color::Yellow),
+        "html" | "htm" => ('\u{e736}', Color::Red),
+        "css" | "scss" | "sass" | "less" => ('\u{e749}', Color::Cyan),
+        "sh" | "bash" | "zsh" | "fish" | "ksh" => ('\u{f489}', Color::Green),
+        "md" | "mdx" | "markdown" => ('\u{e73e}', Color::Blue),
+        "txt" | "text" => ('\u{f15c}', Color::Gray),
+        "png" | "jpg" | "jpeg" | "gif" | "webp" | "svg" | "ico" | "bmp" => {
+            ('\u{f1c5}', Color::Magenta)
+        }
+        "mp4" | "mkv" | "avi" | "mov" | "webm" | "flv" => ('\u{f03d}', Color::Magenta),
+        "mp3" | "flac" | "ogg" | "wav" | "aac" | "opus" => ('\u{f001}', Color::Magenta),
+        "zip" | "tar" | "gz" | "xz" | "bz2" | "zst" | "7z" | "rar" => {
+            ('\u{f410}', Color::Yellow)
+        }
+        "pdf" => ('\u{f1c1}', Color::Red),
+        "c" | "h" => ('\u{e61e}', Color::Blue),
+        "cpp" | "cc" | "cxx" | "hpp" | "hxx" => ('\u{e61d}', Color::Blue),
+        "go" => ('\u{e724}', Color::Cyan),
+        "java" | "class" | "jar" => ('\u{e738}', Color::Red),
+        "rb" => ('\u{e739}', Color::Red),
+        "php" => ('\u{e73d}', Color::Magenta),
+        "lua" => ('\u{e620}', Color::Blue),
+        "vim" | "nvim" => ('\u{e7c5}', Color::Green),
+        "lock" => ('\u{f023}', Color::Yellow),
+        "env" | "envrc" => ('\u{f462}', Color::Yellow),
+        "xml" => ('\u{e619}', Color::Yellow),
+        "sql" => ('\u{e706}', Color::Gray),
+        "nix" => ('\u{f313}', Color::Cyan),
+        "swift" => ('\u{e755}', Color::Red),
+        "kt" | "kts" => ('\u{e634}', Color::Magenta),
+        "cs" => ('\u{f81a}', Color::Magenta),
+        "ex" | "exs" => ('\u{e62d}', Color::Magenta),
+        "hs" | "lhs" => ('\u{e61f}', Color::Magenta),
+        "ml" | "mli" => ('\u{e67a}', Color::Yellow),
+        "r" | "rmd" => ('\u{f25d}', Color::Blue),
+        "tf" | "tfvars" => ('\u{e20f}', Color::Magenta),
+        _ => ('\u{f15b}', Color::Gray), // nf-fa-file
     }
 }

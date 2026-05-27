@@ -29,6 +29,7 @@ _mm() {
 '(-v)*-q[Reduce the verbosity level]' \
 '(-q)*-v[Increase the verbosity level]' \
 '--sort[Sort input lines alphabetically before injecting into the picker]' \
+'--icons[Prepend a Nerd Font file-type icon before each result row]' \
 '-h[Print help]' \
 '--help[Print help]' \
 '*::args -- args passed to the start command:_default' \

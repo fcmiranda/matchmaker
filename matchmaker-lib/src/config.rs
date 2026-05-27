@@ -441,6 +441,17 @@ pub struct ResultsConfig {
     #[serde(deserialize_with = "camelcase_normalized")]
     pub separator: HorizontalSeparator,
     pub separator_style: StyleSetting,
+
+    /// Prepend a file-type icon (Nerd Font) before the first column text.
+    /// Requires a Nerd Font in the terminal. Defaults to false.
+    pub icons: bool,
+
+    /// Show symlink targets appended to the first column text.
+    /// Defaults to false.
+    pub symlink_target: bool,
+    /// Style for the appended symlink target text.
+    #[partial(recurse)]
+    pub symlink_target_style: StyleSetting,
 }
 
 impl Default for ResultsConfig {
@@ -495,6 +506,12 @@ impl Default for ResultsConfig {
             separator_style: Default::default(),
             show_skipped: true,
             vscroll_current_only: true,
+            icons: false,
+            symlink_target: false,
+            symlink_target_style: StyleSetting {
+                fg: Some(Color::DarkGray),
+                ..Default::default()
+            },
         }
     }
 }

@@ -46,6 +46,10 @@ pub struct Cli {
     /// Sort input lines alphabetically before injecting into the picker.
     #[arg(long)]
     pub sort: bool,
+
+    /// Prepend a Nerd Font file-type icon before each result row.
+    #[arg(long)]
+    pub icons: bool,
 }
 
 #[derive(Debug, Clone, clap::ValueEnum, PartialEq)]
@@ -114,6 +118,7 @@ impl Cli {
                 "--last-key",
                 "--no-read",
                 "--sort",
+                "--icons",
                 "--help",
                 "-F",
             ]

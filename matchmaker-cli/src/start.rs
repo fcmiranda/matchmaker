@@ -169,6 +169,10 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
         config.start.sort = true;
     }
 
+    if cli.icons {
+        config.render.results.icons = true;
+    }
+
     if cli.dump_config {
         let contents = toml::to_string_pretty(&config).expect("failed to serialize to TOML");
 
