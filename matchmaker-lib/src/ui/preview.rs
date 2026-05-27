@@ -551,7 +551,13 @@ impl PreviewUI {
         }
 
         let mut preview = Paragraph::new(lines);
-        preview = preview.block(self.border().block_with_title(self.title.as_deref()));
+        if let Some(border) = self
+            .setting()
+            .and_then(|s| s.border.as_ref())
+            .filter(|b| b.r#type.is_some())
+        {
+            preview = preview.block(border.block_with_title(self.title.as_deref()));
+        }
         if self.config.wrap {
             preview = preview
                 .wrap(Wrap { trim: false })
