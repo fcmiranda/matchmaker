@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use cba::bring::split::split_on_nesting;
 use ratatui::{
     layout::{Alignment, Rect},
@@ -47,6 +49,10 @@ pub struct ResultsUI {
     cursor_above: u16,
 
     pub cursor_disabled: bool,
+
+    /// Set of col-0 names whose prefix should be rendered with `yank_prefix_style`.
+    /// Populated externally via `Action::Custom(FmSetYankPaths(...))`.
+    pub yank_paths: HashSet<String>,
 }
 
 impl ResultsUI {
@@ -74,11 +80,25 @@ impl ResultsUI {
             cursor_disabled: false,
             bottom_clip: None,
             cursor_above: 0,
+            yank_paths: HashSet::new(),
         }
     }
 
     pub fn hidden_columns(&mut self, hidden_columns: Vec<bool>) {
         self.hidden_columns = hidden_columns;
+    }
+
+    /// Return the correct inactive prefix style for a given row.
+    ///
+    /// Priority: yank (highest) > selected > default.
+    fn inactive_prefix_style(&self, col0_name: &str, is_selected: bool) -> crate::config::StyleSetting {
+        if !col0_name.is_empty() && self.yank_paths.contains(col0_name) {
+            self.config.yank_prefix_style
+        } else if is_selected {
+            self.config.selected_prefix_style
+        } else {
+            self.config.prefix_inactive_style
+        }
     }
 
     // as given by ratatui area
@@ -526,11 +546,6 @@ impl ResultsUI {
                     } else {
                         self.default_prefix(0)
                     };
-                    let prefix_inactive_style = if is_selected {
-                        self.config.selected_prefix_style
-                    } else {
-                        self.config.prefix_inactive_style
-                    };
 
                     total_height += remaining_height;
 
@@ -545,7 +560,7 @@ impl ResultsUI {
                         }
 
                         let icon_name =
-                            if self.config.icons || self.config.symlink_target {
+                            if self.config.icons || self.config.symlink_target || !self.yank_paths.is_empty() {
                                 extract_col0_name(&row[0])
                             } else {
                                 String::new()
@@ -555,7 +570,7 @@ impl ResultsUI {
                             &mut row[0],
                             prefix,
                             self.config.prefix_style,
-                            prefix_inactive_style,
+                            self.inactive_prefix_style(&icon_name, is_selected),
                             is_current_row,
                         );
                         if self.config.icons {
@@ -608,7 +623,7 @@ impl ResultsUI {
                         rows.push(row);
                     } else {
                         let col_count = row.len();
-                        let icon_name_stacked = if (self.config.icons || self.config.symlink_target) && col_count > 0 {
+                        let icon_name_stacked = if (self.config.icons || self.config.symlink_target || !self.yank_paths.is_empty()) && col_count > 0 {
                             extract_col0_name(&row[0])
                         } else {
                             String::new()
@@ -630,7 +645,7 @@ impl ResultsUI {
                                 &mut col,
                                 prefix.clone(),
                                 self.config.prefix_style,
-                                prefix_inactive_style,
+                                self.inactive_prefix_style(&icon_name_stacked, is_selected),
                                 is_current_row,
                             );
                             if self.config.icons && col_idx == 0 {
@@ -679,11 +694,6 @@ impl ResultsUI {
             } else {
                 self.default_prefix(0)
             };
-            let prefix_inactive_style = if is_selected && !is_current_row {
-                self.config.selected_prefix_style
-            } else {
-                self.config.prefix_inactive_style
-            };
 
             total_height += remaining_height;
 
@@ -695,7 +705,7 @@ impl ResultsUI {
                 }
 
                 let icon_name =
-                    if self.config.icons || self.config.symlink_target {
+                    if self.config.icons || self.config.symlink_target || !self.yank_paths.is_empty() {
                         extract_col0_name(&row[0])
                     } else {
                         String::new()
@@ -704,7 +714,7 @@ impl ResultsUI {
                     &mut row[0],
                     prefix,
                     self.config.prefix_style,
-                    prefix_inactive_style,
+                    self.inactive_prefix_style(&icon_name, is_selected),
                     is_current_row,
                 );
                 if self.config.icons {
@@ -757,7 +767,7 @@ impl ResultsUI {
                 rows.push(row);
             } else {
                 let col_count = row.len();
-                let icon_name_stacked = if (self.config.icons || self.config.symlink_target) && col_count > 0 {
+                let icon_name_stacked = if (self.config.icons || self.config.symlink_target || !self.yank_paths.is_empty()) && col_count > 0 {
                     extract_col0_name(&row[0])
                 } else {
                     String::new()
@@ -779,7 +789,7 @@ impl ResultsUI {
                         &mut col,
                         prefix.clone(),
                         self.config.prefix_style,
-                        prefix_inactive_style,
+                        self.inactive_prefix_style(&icon_name_stacked, is_selected),
                         is_current_row,
                     );
                     if self.config.icons && col_idx == 0 {
@@ -888,7 +898,7 @@ impl ResultsUI {
                     .rev()
                     .find_map(|(i, w)| (*w != 0).then_some(i));
 
-                let icon_name_hz = if self.config.icons || self.config.symlink_target {
+                let icon_name_hz = if self.config.icons || self.config.symlink_target || !self.yank_paths.is_empty() {
                     row.first()
                         .and_then(|t| t.lines.first())
                         .map(|l| l.spans.iter().map(|s| s.content.as_ref()).collect::<String>())
@@ -908,16 +918,11 @@ impl ResultsUI {
 
                         // prefix after hscroll
                         if x == 0 {
-                            let inactive_prefix_style = if is_selected && !is_current_row {
-                                self.config.selected_prefix_style
-                            } else {
-                                self.config.prefix_inactive_style
-                            };
                             prefix_span(
                                 &mut t,
                                 prefix.clone(),
                                 self.config.prefix_style,
-                                inactive_prefix_style,
+                                self.inactive_prefix_style(&icon_name_hz, is_selected && !is_current_row),
                                 is_current_row,
                             );
                             if self.config.icons {
@@ -964,7 +969,7 @@ impl ResultsUI {
                     0
                 };
 
-                let icon_name_stacked = if self.config.icons || self.config.symlink_target {
+                let icon_name_stacked = if self.config.icons || self.config.symlink_target || !self.yank_paths.is_empty() {
                     row.first()
                         .and_then(|t| t.lines.first())
                         .map(|l| l.spans.iter().map(|s| s.content.as_ref()).collect::<String>())
@@ -996,16 +1001,11 @@ impl ResultsUI {
                     remaining_height -= height;
 
                     let is_current_row = self.is_current(i);
-                    let inactive_prefix_style = if is_selected && !is_current_row {
-                        self.config.selected_prefix_style
-                    } else {
-                        self.config.prefix_inactive_style
-                    };
                     prefix_span(
                         &mut col,
                         prefix.clone(),
                         self.config.prefix_style,
-                        inactive_prefix_style,
+                        self.inactive_prefix_style(&icon_name_stacked, is_selected && !is_current_row),
                         is_current_row,
                     );
                     if self.config.icons && x == 0 {

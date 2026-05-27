@@ -78,6 +78,10 @@ pub enum MMAction {
     Transform(String),
     /// Execute command and parse output as configuration
     TransformConfig(String),
+
+    /// Set the set of col-0 paths shown with the yank prefix style (FM mode).
+    /// Value is a newline-separated list of paths (empty string clears).
+    FmSetYankPaths(String),
 }
 
 pub struct ActionContext {
@@ -346,6 +350,13 @@ pub fn action_handler(
                 }
             }
         }
+        MMAction::FmSetYankPaths(raw) => {
+            state.picker_ui.results.yank_paths = raw
+                .split('\n')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+        }
     }
 }
 
@@ -413,7 +424,7 @@ enum_from_str_display! {
 
 
     tuples:
-    Bind, Unbind, PushBind, PopBind, ExecuteOrConfirm, ExecuteAndQuit, BecomeOr, Transform, TransformConfig, SetStyledPrompt, SetStyledStatus, PushHeader, PushFooter, RunPreview;
+    Bind, Unbind, PushBind, PopBind, ExecuteOrConfirm, ExecuteAndQuit, BecomeOr, Transform, TransformConfig, SetStyledPrompt, SetStyledStatus, PushHeader, PushFooter, RunPreview, FmSetYankPaths;
 
     defaults:
     ;
