@@ -42,6 +42,10 @@ pub struct Cli {
     /// Display documentation
     #[arg(long, short, value_enum)]
     pub doc: Option<Doc>,
+
+    /// Sort input lines alphabetically before injecting into the picker.
+    #[arg(long)]
+    pub sort: bool,
 }
 
 #[derive(Debug, Clone, clap::ValueEnum, PartialEq)]
@@ -109,6 +113,7 @@ impl Cli {
                 "--test-keys",
                 "--last-key",
                 "--no-read",
+                "--sort",
                 "--help",
                 "-F",
             ]

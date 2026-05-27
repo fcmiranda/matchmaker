@@ -92,6 +92,10 @@ pub struct StartConfig {
     pub trim: bool,
 
     pub mode: Option<String>,
+
+    /// Sort input lines alphabetically before injecting into the picker.
+    /// Only applies when reading from stdin (not from a command).
+    pub sort: bool,
 }
 
 /// Exit conditions of the render loop.
@@ -827,6 +831,10 @@ pub struct BorderSetting {
     pub modifier: Modifier,
     #[serde(deserialize_with = "camelcase_normalized")]
     pub bg: Color,
+    /// Foreground color for the dynamic item title shown in the preview border.
+    /// When `Color::Reset` (the default) the title inherits the border color.
+    #[serde(deserialize_with = "camelcase_normalized")]
+    pub title_fg: Color,
 }
 
 impl BorderSetting {
@@ -843,6 +851,43 @@ impl BorderSetting {
 
             ret = ret.title(title)
         };
+
+        if !self.is_empty() {
+            ret = ret
+                .borders(self.sides())
+                .border_type(self.r#type.unwrap_or_default())
+                .border_style(ratatui::style::Style::default().fg(self.color))
+        }
+
+        ret
+    }
+
+    /// Like `as_block` but uses `title_override` (the dynamic item text) when
+    /// provided, falling back to the static `self.title` when `None`.
+    /// The title is styled with `title_fg` (or the border color when `title_fg`
+    /// is `Color::Reset`).
+    pub fn block_with_title<'a>(&'a self, title_override: Option<&'a str>) -> ratatui::widgets::Block<'a> {
+        let mut ret = ratatui::widgets::Block::default()
+            .padding(self.padding.0)
+            .style(Style::default().bg(self.bg).add_modifier(self.modifier));
+
+        let title_text: Option<&'a str> = title_override.or_else(|| {
+            if self.title.is_empty() {
+                None
+            } else {
+                Some(&self.title)
+            }
+        });
+
+        if let Some(t) = title_text {
+            let fg = if self.title_fg == Color::Reset {
+                self.color
+            } else {
+                self.title_fg
+            };
+            let title = Span::styled(t, Style::default().fg(fg).add_modifier(self.title_modifier));
+            ret = ret.title(title);
+        }
 
         if !self.is_empty() {
             ret = ret

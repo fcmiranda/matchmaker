@@ -32,6 +32,10 @@ pub struct PreviewUI {
     show: bool,
 
     pub current_dimension: Option<u16>,
+
+    /// Dynamic title set from the current item's first column; shown in the
+    /// preview border when the border is configured.
+    title: Option<String>,
 }
 
 impl PreviewUI {
@@ -101,6 +105,7 @@ impl PreviewUI {
             jump: Default::default(),
             show,
             current_dimension: None,
+            title: None,
         }
     }
 
@@ -153,6 +158,11 @@ impl PreviewUI {
     }
 
     // -------- Setting getters -----------
+    /// Set the dynamic item title shown in the preview border.
+    pub fn set_title(&mut self, title: Option<String>) {
+        self.title = title;
+    }
+
     /// None if not show OR if max = 0 (disabled layour)
     pub fn setting(&self) -> Option<&PreviewSetting> {
         // if let Some(ret) = self.config.layout.get(self.layout_idx)
@@ -531,7 +541,7 @@ impl PreviewUI {
         }
 
         let mut preview = Paragraph::new(lines);
-        preview = preview.block(self.border().as_block());
+        preview = preview.block(self.border().block_with_title(self.title.as_deref()));
         if self.config.wrap {
             preview = preview
                 .wrap(Wrap { trim: false })

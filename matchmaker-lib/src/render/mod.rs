@@ -944,6 +944,12 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                 if let Some(preview_ui) = preview_ui.as_mut() {
                     state.update_preview_visible(preview_ui);
                     if preview_ui.visible() {
+                        // Set the dynamic title from the first column of the current item.
+                        let item_title = picker_ui
+                            .worker
+                            .get_nth(picker_ui.results.index())
+                            .map(|item| picker_ui.worker.columns[0].raw(item).into_owned());
+                        preview_ui.set_title(item_title);
                         render_preview(frame, preview, preview_ui);
                     }
                 }

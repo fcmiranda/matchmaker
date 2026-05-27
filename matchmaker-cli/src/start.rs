@@ -165,6 +165,10 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
         config.tui.layout = None;
     }
 
+    if cli.sort {
+        config.start.sort = true;
+    }
+
     if cli.dump_config {
         let contents = toml::to_string_pretty(&config).expect("failed to serialize to TOML");
 
@@ -304,6 +308,7 @@ pub async fn start(config: Config, no_read: bool) -> Result<(), MatchError> {
                 trim,
                 mut additional_commands,
                 mode,
+                sort,
             },
         mut exit,
         mut envs,
@@ -547,13 +552,24 @@ pub async fn start(config: Config, no_read: bool) -> Result<(), MatchError> {
 
     // ----------- read -----------------------
     let handle = if !atty::is(atty::Stream::Stdin) && !no_read {
-        let stdin = std::io::stdin();
-        map_reader(
-            stdin,
-            push_fn,
-            input_separator,
-            abort_empty.then_some(render_tx),
-        )
+        if sort {
+            // Read all stdin, sort the lines, then inject via an in-memory cursor.
+            let mut bytes = Vec::new();
+            let _ = std::io::Read::read_to_end(&mut std::io::stdin(), &mut bytes);
+            let sep = input_separator.unwrap_or('\n');
+            let mut lines: Vec<&[u8]> = bytes.split(|&b| b == sep as u8).collect();
+            // Drop a trailing empty slice produced by a trailing newline.
+            if lines.last().is_some_and(|l| l.is_empty()) {
+                lines.pop();
+            }
+            lines.sort_unstable();
+            let sorted: Vec<u8> = lines.join(&(sep as u8));
+            let cursor = std::io::Cursor::new(sorted);
+            map_reader(cursor, push_fn, input_separator, abort_empty.then_some(render_tx))
+        } else {
+            let stdin = std::io::stdin();
+            map_reader(stdin, push_fn, input_separator, abort_empty.then_some(render_tx))
+        }
     } else if !command.is_empty()
         && let Some(stdout) = Command::from_script(&command)
             .envs(envs)

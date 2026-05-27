@@ -28,6 +28,7 @@ _mm() {
 '--no-read[Force the default command to run]' \
 '(-v)*-q[Reduce the verbosity level]' \
 '(-q)*-v[Increase the verbosity level]' \
+'--sort[Sort input lines alphabetically before injecting into the picker]' \
 '-h[Print help]' \
 '--help[Print help]' \
 '*::args -- args passed to the start command:_default' \

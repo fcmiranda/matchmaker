@@ -12,4 +12,5 @@ complete -c mm -l last-key
 complete -c mm -l no-read -d 'Force the default command to run'
 complete -c mm -s q -d 'Reduce the verbosity level'
 complete -c mm -s v -d 'Increase the verbosity level'
+complete -c mm -l sort -d 'Sort input lines alphabetically before injecting into the picker'
 complete -c mm -s h -l help -d 'Print help'
