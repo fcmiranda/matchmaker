@@ -317,18 +317,25 @@ fn parse_blink_rate(s: &str) -> BlinkRate {
 fn apply_nav_props(props: &[String], config: &mut Config) {
     config.render.ui.nav_mode = true;
     config.render.ui.nav_bar = None;
+    config.render.action.border.sides = Some(ratatui::widgets::Borders::NONE);
 
     for raw in props {
         for prop in raw.split(',').filter(|s| !s.is_empty()) {
             match prop.split_once(':') {
                 None => match prop {
-                    "bar" => config.render.ui.nav_bar = Some(ratatui::widgets::BorderType::Thick),
+                    "bar" => {
+                        config.render.ui.nav_bar = Some(ratatui::widgets::BorderType::Thick);
+                        config.render.action.border.sides = Some(ratatui::widgets::Borders::BOTTOM);
+                    }
                     "blink" => config.render.ui.nav_blink = true,
                     "bold" => config.render.ui.nav_bold = true,
                     "notify" => config.render.ui.nav_notify = true,
                     _ => eprintln!("warning: unknown --nav property '{}'", prop),
                 },
-                Some(("bar", s)) => config.render.ui.nav_bar = Some(parse_border_type(s)),
+                Some(("bar", s)) => {
+                    config.render.ui.nav_bar = Some(parse_border_type(s));
+                    config.render.action.border.sides = Some(ratatui::widgets::Borders::BOTTOM);
+                }
                 Some(("blink", s)) => {
                     config.render.ui.nav_blink = true;
                     config.render.ui.nav_blink_rate = parse_blink_rate(s);
