@@ -389,13 +389,15 @@ impl ResultsUI {
 
         let nav_bar_span = nav_bar_style.map(|(border_type, style)| {
             let border_char = match border_type {
-                ratatui::widgets::BorderType::Plain => "│",
-                ratatui::widgets::BorderType::Rounded => "│",
-                ratatui::widgets::BorderType::Double => "║",
-                ratatui::widgets::BorderType::Thick => "┃",
-                ratatui::widgets::BorderType::QuadrantInside => "▐",
-                ratatui::widgets::BorderType::QuadrantOutside => "▌",
-                _ => "│",
+                ratatui::widgets::BorderType::Plain => "│".to_string(),
+                ratatui::widgets::BorderType::Rounded => "│".to_string(),
+                ratatui::widgets::BorderType::Double => "║".to_string(),
+                ratatui::widgets::BorderType::Thick => {
+                    self.config.multi_prefix.chars().next().map(|c| c.to_string()).unwrap_or_else(|| "┃".to_string())
+                }
+                ratatui::widgets::BorderType::QuadrantInside => "▐".to_string(),
+                ratatui::widgets::BorderType::QuadrantOutside => "▌".to_string(),
+                _ => "│".to_string(),
             };
             ratatui::text::Span::styled(border_char, style)
         });

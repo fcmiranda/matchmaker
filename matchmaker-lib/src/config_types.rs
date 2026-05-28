@@ -182,27 +182,44 @@ impl<'de> Deserialize<'de> for Padding {
         D: Deserializer<'de>,
     {
         use serde::de::Error;
-        #[derive(Deserialize)]
-        #[serde(untagged)]
-        enum PaddingFormat {
-            Object(rPadding),
-            Sequence(Vec<u16>),
-            Single(u16),
-        }
+         #[derive(Deserialize)]
+         struct PaddingFields {
+             #[serde(default)]
+             top: u16,
+             #[serde(default)]
+             right: u16,
+             #[serde(default)]
+             bottom: u16,
+             #[serde(default)]
+             left: u16,
+         }
 
-        let format = PaddingFormat::deserialize(deserializer)?;
+         #[derive(Deserialize)]
+         #[serde(untagged)]
+         enum PaddingFormat {
+             Object(PaddingFields),
+             Sequence(Vec<u16>),
+             Single(u16),
+         }
 
-        let inner = match format {
-            // Handle { "top": 10 } or {}
-            PaddingFormat::Object(obj) => obj,
+         let format = PaddingFormat::deserialize(deserializer)?;
 
-            // Handle a raw number: 10
-            PaddingFormat::Single(v) => rPadding {
-                top: v,
-                right: v,
-                bottom: v,
-                left: v,
-            },
+         let inner = match format {
+             // Handle { "top": 10 } or {}
+             PaddingFormat::Object(obj) => rPadding {
+                 top: obj.top,
+                 right: obj.right,
+                 bottom: obj.bottom,
+                 left: obj.left,
+             },
+
+             // Handle a raw number: 10
+             PaddingFormat::Single(v) => rPadding {
+                 top: v,
+                 right: v,
+                 bottom: v,
+                 left: v,
+             },
 
             // Handle arrays: [10], [10, 20], or [10, 20, 30, 40]
             PaddingFormat::Sequence(repr) => match repr.len() {

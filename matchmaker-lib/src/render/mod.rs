@@ -1225,6 +1225,7 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                 let nav_bold = ui.config.nav_bold;
                 let nav_bar = ui.config.nav_bar;
                 let nav_marker = ui.config.nav_marker.clone();
+                let nav_char = picker_ui.results.config.multi_prefix.chars().next().unwrap_or('│').to_string();
                 let input_focus_info = nav_mode.then_some(FocusInfo {
                     focused: state.focus == Focus::Input,
                     blink_phase: state.focus_blink,
@@ -1233,6 +1234,7 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                     bold: nav_bold,
                     bar: nav_bar,
                     marker: String::new(),
+                    nav_char: nav_char.clone(),
                 });
                 let results_focus_info = nav_mode.then_some(FocusInfo {
                     focused: state.focus == Focus::Results,
@@ -1242,6 +1244,7 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                     bold: nav_bold,
                     bar: nav_bar,
                     marker: nav_marker,
+                    nav_char,
                 });
 
                 if picker_ui.action_visible {
@@ -1413,6 +1416,7 @@ struct FocusInfo {
     bold: bool,
     bar: Option<ratatui::widgets::BorderType>,
     marker: String,
+    nav_char: String,
 }
 
 impl FocusInfo {
@@ -1567,11 +1571,22 @@ fn render_input(
             if fi.bold {
                 style = style.add_modifier(Modifier::BOLD);
             }
-            let indicator = Block::default()
-                .borders(Borders::LEFT)
-                .border_type(border_type)
-                .border_style(style);
-            frame.render_widget(indicator, area);
+            if border_type == ratatui::widgets::BorderType::Thick {
+                let indicator_rect = Rect {
+                    x: area.x,
+                    y: area.y,
+                    width: 1,
+                    height: area.height,
+                };
+                let span = Span::styled(fi.nav_char.clone(), style);
+                frame.render_widget(Paragraph::new(span), indicator_rect);
+            } else {
+                let indicator = Block::default()
+                    .borders(Borders::LEFT)
+                    .border_type(border_type)
+                    .border_style(style);
+                frame.render_widget(indicator, area);
+            }
         }
     }
 
