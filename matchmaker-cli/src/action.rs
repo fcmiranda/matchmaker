@@ -100,9 +100,16 @@ pub enum MMAction {
 #[derive(Debug, Clone, PartialEq)]
 pub enum FmActionMode {
     Create,
-    Delete { paths: Vec<String> },
-    Rename { from: String },
-    Extract { src: String },
+    Delete {
+        paths: Vec<String>,
+    },
+    Rename {
+        from: String,
+        remaining: Vec<String>,
+    },
+    Extract {
+        src: String,
+    },
 }
 
 pub struct ActionContext {
@@ -441,8 +448,13 @@ pub fn action_handler(
             }
         }
         MMAction::FmRenameStart => {
-            if let Some(from) = fm_current_items(state).into_iter().next() {
-                *fm_action = Some(FmActionMode::Rename { from: from.clone() });
+            let mut items = fm_current_items(state);
+            if !items.is_empty() {
+                let from = items.remove(0);
+                *fm_action = Some(FmActionMode::Rename {
+                    from: from.clone(),
+                    remaining: items,
+                });
                 show_action_box(state, "󰑕 ", from.trim_end_matches('/'));
             }
         }
@@ -906,7 +918,7 @@ fn commit_fm_action(
                 }
             }
         }
-        FmActionMode::Rename { from } => {
+        FmActionMode::Rename { from, remaining } => {
             if !input.is_empty() && input != from {
                 if let Err(e) =
                     crate::fm::move_path(std::path::Path::new(&from), std::path::Path::new(&input))
@@ -918,6 +930,22 @@ fn commit_fm_action(
                         to: PathBuf::from(&input),
                     });
                 }
+            }
+
+            if !remaining.is_empty() {
+                let mut remaining_mut = remaining.clone();
+                let next_from = remaining_mut.remove(0);
+                *fm_action = Some(FmActionMode::Rename {
+                    from: next_from.clone(),
+                    remaining: remaining_mut,
+                });
+                state
+                    .picker_ui
+                    .action
+                    .set(Some(next_from.trim_end_matches('/').to_string()), 0);
+                state.picker_ui.action_visible = true;
+                let _ = render_tx.send(RenderCommand::Action(Action::Reload(String::new())));
+                return;
             }
         }
         FmActionMode::Extract { src } => {
