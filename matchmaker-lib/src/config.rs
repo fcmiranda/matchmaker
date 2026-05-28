@@ -287,7 +287,7 @@ impl Default for UiConfig {
             border: Default::default(),
             tick_rate: 60,
             nav_mode: false,
-            nav_color: Color::Reset,
+            nav_color: Color::Yellow,
             nav_blink: false,
             nav_blink_rate: BlinkRate::Normal,
             nav_bold: false,

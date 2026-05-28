@@ -69,7 +69,7 @@ pub struct Cli {
     ///   --nav bar blink:slow
     ///   --nav bar:plain color:#a6e3a1 marker:'>' bold
     #[arg(long, value_name = "PROP", num_args = 0..)]
-    pub nav: Vec<String>,
+    pub nav: Option<Vec<String>>,
 
     /// Navigation-mode key bindings in the form "char:action".
     /// Example: --nav-bind 'h:ChDir(..)' --nav-bind 'l:ChDir({=});Reload'

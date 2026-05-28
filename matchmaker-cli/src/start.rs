@@ -28,7 +28,7 @@ use cba::{bo::load_type, broc::CommandExt};
 use log::debug;
 use matchmaker::{
     Action, ConfigInjector, MatchError, Matchmaker, OddEnds, PickOptions, SSS, acs,
-    binds::{BindMap, BindMapExt, display_binds, key},
+    binds::{BindMap, BindMapExt, display_binds},
     config::{BlinkRate, CommandSetting, EnvValue, MatcherConfig, StartConfig},
     event::{EventLoop, RenderSender},
     make_previewer,
@@ -178,8 +178,8 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
         apply_color_spec(&mut config, spec);
     }
 
-    if !cli.nav.is_empty() {
-        apply_nav_props(&cli.nav, &mut config);
+    if let Some(nav) = &cli.nav {
+        apply_nav_props(nav, &mut config);
     }
 
     for nb in &cli.nav_bind {
@@ -230,13 +230,6 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
         nb(" ", matchmaker::acs![Action::Toggle]);
     }
 
-    if config.render.ui.nav_mode {
-        config.binds.insert(
-            key!(tab).into(),
-            matchmaker::acs![matchmaker::Action::ToggleFocus],
-        );
-    }
-
     if cli.dump_config {
         let contents = toml::to_string_pretty(&config).expect("failed to serialize to TOML");
 
@@ -248,6 +241,12 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
 
     // check binds
     config.binds = BindMap::default_binds().modify(|x| x.extend(config.binds));
+    if config.render.ui.nav_mode {
+        config.binds.insert(
+            "tab".parse().expect("tab trigger should parse"),
+            matchmaker::acs![matchmaker::Action::ToggleFocus],
+        );
+    }
     config.binds.check_cycles().map_err(anyhow::Error::msg)?;
     config.binds.retain(|_, actions| !actions.is_empty());
     config.binds.resolve_semantics();
@@ -312,6 +311,11 @@ fn parse_blink_rate(s: &str) -> BlinkRate {
 
 fn apply_nav_props(props: &[String], config: &mut Config) {
     config.render.ui.nav_mode = true;
+
+    if props.is_empty() {
+        config.render.ui.nav_bar = Some(ratatui::widgets::BorderType::Thick);
+        return;
+    }
 
     for raw in props {
         for prop in raw.split(',').filter(|s| !s.is_empty()) {
