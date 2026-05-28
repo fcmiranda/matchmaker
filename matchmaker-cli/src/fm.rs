@@ -551,7 +551,7 @@ impl Overlay for RenameOverlay {
     }
 }
 
-pub struct ExtractOverlay {
+pub struct UnzipOverlay {
     current: CurrentItem,
     src: String,
     dest: String,
@@ -559,7 +559,7 @@ pub struct ExtractOverlay {
     tx: RenderSender<MMAction>,
 }
 
-impl ExtractOverlay {
+impl UnzipOverlay {
     pub fn new(current: CurrentItem, tx: RenderSender<MMAction>) -> Self {
         Self {
             current,
@@ -576,13 +576,13 @@ impl ExtractOverlay {
             return OverlayEffect::Disable;
         }
         if let Err(e) = fs::create_dir_all(&dest) {
-            log::error!("fm extract: create dir '{dest}': {e}");
+            log::error!("fm unzip: create dir '{dest}': {e}");
             return OverlayEffect::Disable;
         }
         let src = &self.src;
         let result = extract_archive(src, &dest);
         if let Err(e) = result {
-            log::error!("fm extract '{src}' -> '{dest}': {e}");
+            log::error!("fm unzip '{src}' -> '{dest}': {e}");
         }
         let _ = self
             .tx
@@ -591,7 +591,7 @@ impl ExtractOverlay {
     }
 }
 
-impl Overlay for ExtractOverlay {
+impl Overlay for UnzipOverlay {
     type A = MMAction;
 
     fn on_enable(&mut self, area: &Rect) {
@@ -728,6 +728,75 @@ pub fn extract_archive(src: &str, dest_dir: &str) -> std::io::Result<()> {
     } else {
         Err(std::io::Error::other(format!(
             "extractor exited with status {status}"
+        )))
+    }
+}
+
+pub fn create_archive(archive_name: &str, paths: &[String]) -> std::io::Result<()> {
+    use std::process::Command;
+    let lower = archive_name.to_ascii_lowercase();
+    let is_tar = lower.ends_with(".tar.gz")
+        || lower.ends_with(".tgz")
+        || lower.ends_with(".tar.bz2")
+        || lower.ends_with(".tbz2")
+        || lower.ends_with(".tar.xz")
+        || lower.ends_with(".tar.zst")
+        || lower.ends_with(".tar");
+
+    let final_name = if is_tar || lower.ends_with(".zip") || lower.ends_with(".7z") {
+        archive_name.to_string()
+    } else {
+        format!("{}.zip", archive_name)
+    };
+
+    let lower_final = final_name.to_ascii_lowercase();
+    let status = if lower_final.ends_with(".tar.gz") || lower_final.ends_with(".tgz") {
+        Command::new("tar")
+            .arg("-czf")
+            .arg(&final_name)
+            .args(paths)
+            .status()
+    } else if lower_final.ends_with(".tar.bz2") || lower_final.ends_with(".tbz2") {
+        Command::new("tar")
+            .arg("-cjf")
+            .arg(&final_name)
+            .args(paths)
+            .status()
+    } else if lower_final.ends_with(".tar.xz") {
+        Command::new("tar")
+            .arg("-cJf")
+            .arg(&final_name)
+            .args(paths)
+            .status()
+    } else if lower_final.ends_with(".tar") {
+        Command::new("tar")
+            .arg("-cf")
+            .arg(&final_name)
+            .args(paths)
+            .status()
+    } else if lower_final.ends_with(".zip") {
+        Command::new("zip")
+            .arg("-r")
+            .arg(&final_name)
+            .args(paths)
+            .status()
+    } else if lower_final.ends_with(".7z") {
+        Command::new("7z")
+            .arg("a")
+            .arg(&final_name)
+            .args(paths)
+            .status()
+    } else {
+        return Err(std::io::Error::other(format!(
+            "unsupported archive creation format: {final_name}"
+        )));
+    }?;
+
+    if status.success() {
+        Ok(())
+    } else {
+        Err(std::io::Error::other(format!(
+            "archiver exited with status {status}"
         )))
     }
 }

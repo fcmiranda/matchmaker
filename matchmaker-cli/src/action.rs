@@ -88,7 +88,8 @@ pub enum MMAction {
     FmCreateStart,
     FmDeleteStart,
     FmRenameStart,
-    FmExtractStart,
+    FmUnzipStart,
+    FmZipStart,
     FmYank,
     FmUnyank,
     FmCut,
@@ -107,8 +108,11 @@ pub enum FmActionMode {
         from: String,
         remaining: Vec<String>,
     },
-    Extract {
+    Unzip {
         src: String,
+    },
+    Zip {
+        paths: Vec<String>,
     },
 }
 
@@ -458,10 +462,22 @@ pub fn action_handler(
                 show_action_box(state, "󰑕 ", from.trim_end_matches('/'));
             }
         }
-        MMAction::FmExtractStart => {
+        MMAction::FmUnzipStart => {
             if let Some(src) = fm_current_items(state).into_iter().next() {
-                *fm_action = Some(FmActionMode::Extract { src: src.clone() });
+                *fm_action = Some(FmActionMode::Unzip { src: src.clone() });
                 show_action_box(state, "󰋺 ", crate::fm::archive_stem(&src));
+            }
+        }
+        MMAction::FmZipStart => {
+            let paths = fm_current_items(state);
+            if !paths.is_empty() {
+                let default_name = if paths.len() == 1 {
+                    format!("{}.zip", crate::fm::archive_stem(&paths[0]))
+                } else {
+                    "archive.zip".to_string()
+                };
+                *fm_action = Some(FmActionMode::Zip { paths });
+                show_action_box(state, "󰋪 ", &default_name);
             }
         }
         MMAction::FmYank => {
@@ -697,7 +713,7 @@ enum_from_str_display! {
     MMAction;
 
     units:
-    CycleSort, HistoryUp, HistoryDown, Accept, ReloadPrev, FmCreateStart, FmDeleteStart, FmRenameStart, FmExtractStart, FmYank, FmUnyank, FmCut, FmPaste, FmUndo, FmRedo;
+    CycleSort, HistoryUp, HistoryDown, Accept, ReloadPrev, FmCreateStart, FmDeleteStart, FmRenameStart, FmUnzipStart, FmZipStart, FmYank, FmUnyank, FmCut, FmPaste, FmUndo, FmRedo;
 
 
     tuples:
@@ -948,12 +964,19 @@ fn commit_fm_action(
                 return;
             }
         }
-        FmActionMode::Extract { src } => {
+        FmActionMode::Unzip { src } => {
             if !input.is_empty() {
                 if let Err(e) = std::fs::create_dir_all(&input) {
-                    error!("fm extract: create dir '{input}': {e}");
+                    error!("fm unzip: create dir '{input}': {e}");
                 } else if let Err(e) = crate::fm::extract_archive(&src, &input) {
-                    error!("fm extract '{src}' -> '{input}': {e}");
+                    error!("fm unzip '{src}' -> '{input}': {e}");
+                }
+            }
+        }
+        FmActionMode::Zip { paths } => {
+            if !input.is_empty() {
+                if let Err(e) = crate::fm::create_archive(&input, &paths) {
+                    error!("fm zip '{input}': {e}");
                 }
             }
         }

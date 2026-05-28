@@ -226,7 +226,8 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
         nb("d", matchmaker::acs![Action::Semantic("fm_delete".into())]);
         nb("a", matchmaker::acs![Action::Semantic("fm_create".into())]);
         nb("r", matchmaker::acs![Action::Semantic("fm_rename".into())]);
-        nb("e", matchmaker::acs![Action::Semantic("fm_extract".into())]);
+        nb("z", matchmaker::acs![Action::Semantic("fm_zip".into())]);
+        nb("Z", matchmaker::acs![Action::Semantic("fm_unzip".into())]);
         nb(" ", matchmaker::acs![Action::Toggle]);
         nb("y", matchmaker::acs![Action::Semantic("fm_yank".into())]);
         nb("Y", matchmaker::acs![Action::Semantic("fm_unyank".into())]);
@@ -774,7 +775,8 @@ pub async fn start(config: Config, no_read: bool) -> Result<(), MatchError> {
             Action::Semantic(ref s) if s == "fm_create" => acs![MMAction::FmCreateStart],
             Action::Semantic(ref s) if s == "fm_delete" => acs![MMAction::FmDeleteStart],
             Action::Semantic(ref s) if s == "fm_rename" => acs![MMAction::FmRenameStart],
-            Action::Semantic(ref s) if s == "fm_extract" => acs![MMAction::FmExtractStart],
+            Action::Semantic(ref s) if s == "fm_unzip" => acs![MMAction::FmUnzipStart],
+            Action::Semantic(ref s) if s == "fm_zip" => acs![MMAction::FmZipStart],
             Action::Semantic(ref s) if s == "fm_yank" => acs![MMAction::FmYank],
             Action::Semantic(ref s) if s == "fm_unyank" => acs![MMAction::FmUnyank],
             Action::Semantic(ref s) if s == "fm_cut" => acs![MMAction::FmCut],
