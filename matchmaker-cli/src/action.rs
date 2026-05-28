@@ -393,12 +393,12 @@ pub fn action_handler(
         }
         MMAction::FmCreateStart => {
             *fm_action = Some(FmActionMode::Create);
-            show_action_box(state, "New: ", "");
+            show_action_box(state, " ", "");
         }
         MMAction::FmDeleteStart => {
             let paths = fm_current_items(state);
             if !paths.is_empty() {
-                let label = format!("{{red:Delete}} {}? (Enter/Esc)", paths[0]);
+                let label = format!("{{red:}} {}? (Enter/Esc)", paths[0]);
                 *fm_action = Some(FmActionMode::Delete { paths });
                 show_styled_action_box(state, &label, "");
             }
@@ -406,13 +406,13 @@ pub fn action_handler(
         MMAction::FmRenameStart => {
             if let Some(from) = fm_current_items(state).into_iter().next() {
                 *fm_action = Some(FmActionMode::Rename { from: from.clone() });
-                show_action_box(state, "Rename: ", from.trim_end_matches('/'));
+                show_action_box(state, "󰑕 ", from.trim_end_matches('/'));
             }
         }
         MMAction::FmExtractStart => {
             if let Some(src) = fm_current_items(state).into_iter().next() {
                 *fm_action = Some(FmActionMode::Extract { src: src.clone() });
-                show_action_box(state, "Extract to: ", crate::fm::archive_stem(&src));
+                show_action_box(state, "󰋺 ", crate::fm::archive_stem(&src));
             }
         }
         MMAction::FmYank => {
