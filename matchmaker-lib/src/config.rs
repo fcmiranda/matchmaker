@@ -341,7 +341,7 @@ impl Default for QueryConfig {
             border: Default::default(),
             style: Default::default(),
             prompt_style: StyleSetting {
-                modifier: Modifier::ITALIC,
+                modifier: Modifier::empty(),
                 ..Default::default()
             },
             prompt: "> ".to_string(),
