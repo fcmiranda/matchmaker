@@ -32,7 +32,7 @@ use matchmaker::{
     config::{BlinkRate, CommandSetting, EnvValue, MatcherConfig, StartConfig},
     event::{EventLoop, RenderSender},
     make_previewer,
-    message::Interrupt,
+    message::{Event, Interrupt},
     nucleo::{
         ColumnIndexable,
         injector::{AnsiInjector, Either, IndexedInjector, Injector, SegmentedInjector},
@@ -642,7 +642,54 @@ pub async fn start(config: Config, no_read: bool) -> Result<(), MatchError> {
         Some(render_tx.clone()),
     );
     mm._register_become_handler(cli_formatter.clone());
-    mm.register_chdir_handler(cli_formatter.clone());
+    let chdir_formatter = cli_formatter.clone();
+    mm.register_interrupt_handler(Interrupt::ChDir, move |state| {
+        let template = state.payload().clone();
+        if template.is_empty() { return; }
+        let path = use_formatter(&chdir_formatter, state, &template, None);
+        if path.is_empty() { return; }
+
+        let path_obj = Path::new(&path);
+        let mut target_to_select = None;
+        if path_obj == Path::new("..") {
+            if let Ok(cwd) = std::env::current_dir() {
+                if let Some(name) = cwd.file_name() {
+                    target_to_select = Some(name.to_string_lossy().to_string());
+                }
+            }
+        }
+
+        log::debug!("ChDir: {path}");
+        if let Err(e) = std::env::set_current_dir(&path) {
+            log::warn!("ChDir({path}) failed: {e}");
+        } else if let Some(t) = target_to_select {
+            unsafe { std::env::set_var("MM_TARGET_ITEM", t); }
+        } else {
+            unsafe { std::env::remove_var("MM_TARGET_ITEM"); }
+        }
+    });
+
+    let sync_formatter = cli_formatter.clone();
+    mm.register_event_handler(Event::Synced, move |state, _| {
+        if let Ok(target) = std::env::var("MM_TARGET_ITEM") {
+            let count = state.picker_ui.worker.counts().0;
+            let mut found = false;
+            for i in 0..count {
+                state.picker_ui.results.cursor_jump(i);
+                let val = use_formatter(&sync_formatter, state, "{=}", None);
+                let val_trimmed = val.trim_end_matches('/');
+                let target_trimmed = target.trim_end_matches('/');
+                if val_trimmed == target_trimmed {
+                    found = true;
+                    break;
+                }
+            }
+            if !found && count > 0 {
+                state.picker_ui.results.cursor_jump(0);
+            }
+            unsafe { std::env::remove_var("MM_TARGET_ITEM"); }
+        }
+    });
 
     // reload handler
     let reload_formatter = cli_formatter.clone();
