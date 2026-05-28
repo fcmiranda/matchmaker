@@ -392,15 +392,33 @@ impl ResultsUI {
                 ratatui::widgets::BorderType::Plain => "│".to_string(),
                 ratatui::widgets::BorderType::Rounded => "│".to_string(),
                 ratatui::widgets::BorderType::Double => "║".to_string(),
-                ratatui::widgets::BorderType::Thick => {
-                    self.config.multi_prefix.chars().next().map(|c| c.to_string()).unwrap_or_else(|| "┃".to_string())
-                }
+                ratatui::widgets::BorderType::Thick => "▌".to_string(),
                 ratatui::widgets::BorderType::QuadrantInside => "▐".to_string(),
                 ratatui::widgets::BorderType::QuadrantOutside => "▌".to_string(),
                 _ => "│".to_string(),
             };
             ratatui::text::Span::styled(border_char, style)
         });
+
+        let dynamic_multi_prefix = if let Some((border_type, _)) = nav_bar_style {
+            let border_char = match border_type {
+                ratatui::widgets::BorderType::Plain => "│",
+                ratatui::widgets::BorderType::Rounded => "│",
+                ratatui::widgets::BorderType::Double => "║",
+                ratatui::widgets::BorderType::Thick => "▌",
+                ratatui::widgets::BorderType::QuadrantInside => "▐",
+                ratatui::widgets::BorderType::QuadrantOutside => "▌",
+                _ => "│",
+            };
+            if let Some(_first_char) = self.config.multi_prefix.chars().next() {
+                let rest: String = self.config.multi_prefix.chars().skip(1).collect();
+                format!("{}{}", border_char, rest)
+            } else {
+                format!("{} ", border_char)
+            }
+        } else {
+            self.config.multi_prefix.clone()
+        };
 
         let width_limits = if as_cols {
             self.max_widths()
@@ -520,19 +538,6 @@ impl ResultsUI {
             t
         };
 
-        let style_row = |mut row: Row<'a>, is_current: bool| {
-            if is_current {
-                match self.config.row_connection {
-                    RowConnectionStyle::Capped => {
-                        row = row.style(self.config.inactive_current_style)
-                    }
-                    RowConnectionStyle::Full => row = row.style(self.config.current_style),
-                    _ => {}
-                }
-            }
-            row
-        };
-
         // log::trace!("results initial: {}, {}, {}, {}, {}", self.bottom, self.cursor, total_height, self.height, results.len());
         let h_at_cursor = height_of(&results[self.cursor as usize]);
         let h_after_cursor = results[self.cursor as usize + 1..]
@@ -577,7 +582,7 @@ impl ResultsUI {
                     let mut remaining_height = h - trunc_height;
                     let is_selected = selector.contains(item);
                     let prefix = if is_selected {
-                        self.config.multi_prefix.clone().to_string()
+                        dynamic_multi_prefix.clone()
                     } else {
                         self.default_prefix(0)
                     };
@@ -734,7 +739,7 @@ impl ResultsUI {
             let (row, item) = &mut results[0];
             let is_selected = selector.contains(item);
             let prefix = if is_selected {
-                self.config.multi_prefix.clone().to_string()
+                dynamic_multi_prefix.clone()
             } else {
                 self.default_prefix(0)
             };
@@ -908,7 +913,7 @@ impl ResultsUI {
             // determine prefix
             let is_selected = selector.contains(item);
             let prefix = if is_selected {
-                self.config.multi_prefix.clone().to_string()
+                dynamic_multi_prefix.clone()
             } else {
                 self.default_prefix(i)
             };

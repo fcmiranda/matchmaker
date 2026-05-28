@@ -996,11 +996,21 @@ mod test {
         );
         bind_map.resolve_semantics();
 
-        // key(a) should resolve directly to [Trace("desc"), Accept]
+        // key(a) should resolve directly to [Trace("desc"), Accept, Trace("")]
         let actions = bind_map.get(&key!(a).into()).unwrap();
-        assert_eq!(actions.len(), 2);
+        assert_eq!(actions.len(), 3);
         assert_eq!(actions.0[0], Action::Trace("desc".into()));
         assert_eq!(actions.0[1], Action::Accept);
+        assert_eq!(actions.0[2], Action::Trace(String::new()));
+
+        // @s1 should also resolve directly to [Trace("desc"), Accept, Trace("")]
+        let s1_trigger = Trigger {
+            kind: TriggerKind::Semantic("s1".into()),
+            mode: String::new(),
+        };
+        let s1_actions = bind_map.get(&s1_trigger).unwrap();
+        assert_eq!(s1_actions.len(), 3);
+        assert_eq!(s1_actions.0[0], Action::Trace("desc".into()));
     }
 
     #[test]
