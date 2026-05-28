@@ -184,7 +184,9 @@ impl<'a, T: SSS, S: Selection> PickerUI<'a, T, S> {
         } = self;
 
         let action_height = if *action_visible {
-            1 + query.config.border.height() + action_config.preview_height
+            1 + query.config.border.height()
+                + action_config.preview_height
+                + action_config.border.height()
         } else {
             0
         };

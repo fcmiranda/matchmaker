@@ -969,21 +969,34 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                     // Apply width percentage — centered within the allocated row(s).
                     let action_w = cfg.width_pct.compute_clamped(action.width, 1, 0);
                     let x_pad = action.width.saturating_sub(action_w) / 2;
-                    let action_input_rect = Rect {
+                    let action_full_rect = Rect {
                         x: action.x + x_pad,
                         y: action.y,
                         width: action_w,
-                        height: (action.height).min(1),
+                        height: action.height,
+                    };
+                    // Render the separator border (default: bottom line) over the full area.
+                    // It only draws at the edges of `action_full_rect`, so the input and
+                    // preview content rendered afterwards is not obscured.
+                    if !cfg.border.is_empty() {
+                        frame.render_widget(cfg.border.as_static_block(), action_full_rect);
+                    }
+
+                    let action_input_rect = Rect {
+                        x: action_full_rect.x,
+                        y: action_full_rect.y,
+                        width: action_w,
+                        height: action_full_rect.height.min(1),
                     };
                     render_input(frame, action_input_rect, &mut picker_ui.action, None);
 
                     // Render preview area below if preview_height > 0.
-                    if cfg.preview_height > 0 && action.height > 1 {
+                    if cfg.preview_height > 0 && action.height > 2 {
                         let preview_rect = Rect {
-                            x: action.x + x_pad,
-                            y: action.y + 1,
+                            x: action_full_rect.x,
+                            y: action_full_rect.y + 1,
                             width: action_w,
-                            height: action.height.saturating_sub(1),
+                            height: cfg.preview_height,
                         };
                         let block = ratatui::widgets::Block::bordered();
                         frame.render_widget(block, preview_rect);

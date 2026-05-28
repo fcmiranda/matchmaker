@@ -289,6 +289,11 @@ pub struct ActionBoxConfig {
     pub width_pct: Percentage,
     /// Number of extra lines reserved below the input for a preview area. Default: 0 (no preview).
     pub preview_height: u16,
+    /// Border drawn at the bottom of the action box, acting as a visual separator.
+    /// Defaults to a plain bottom line. Set `color` to colorize it.
+    #[partial(recurse)]
+    #[partial(alias = "b")]
+    pub border: BorderSetting,
 }
 
 impl Default for ActionBoxConfig {
@@ -296,6 +301,10 @@ impl Default for ActionBoxConfig {
         Self {
             width_pct: Percentage::new(100),
             preview_height: 0,
+            border: BorderSetting {
+                sides: Some(Borders::BOTTOM),
+                ..Default::default()
+            },
         }
     }
 }
