@@ -229,6 +229,7 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
         nb("e", matchmaker::acs![Action::Semantic("fm_extract".into())]);
         nb(" ", matchmaker::acs![Action::Toggle]);
         nb("y", matchmaker::acs![Action::Semantic("fm_yank".into())]);
+        nb("Y", matchmaker::acs![Action::Semantic("fm_unyank".into())]);
         nb("x", matchmaker::acs![Action::Semantic("fm_cut".into())]);
         nb("p", matchmaker::acs![Action::Semantic("fm_paste".into())]);
         nb("u", matchmaker::acs![Action::Semantic("fm_undo".into())]);
@@ -762,6 +763,7 @@ pub async fn start(config: Config, no_read: bool) -> Result<(), MatchError> {
             Action::Semantic(ref s) if s == "fm_rename" => acs![MMAction::FmRenameStart],
             Action::Semantic(ref s) if s == "fm_extract" => acs![MMAction::FmExtractStart],
             Action::Semantic(ref s) if s == "fm_yank" => acs![MMAction::FmYank],
+            Action::Semantic(ref s) if s == "fm_unyank" => acs![MMAction::FmUnyank],
             Action::Semantic(ref s) if s == "fm_cut" => acs![MMAction::FmCut],
             Action::Semantic(ref s) if s == "fm_paste" => acs![MMAction::FmPaste],
             Action::Semantic(ref s) if s == "fm_undo" => acs![MMAction::FmUndo],

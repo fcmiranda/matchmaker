@@ -607,7 +607,7 @@ impl ResultsUI {
                             self.active_prefix_style(&icon_name, is_selected),
                             self.inactive_prefix_style(&icon_name, is_selected),
                             is_current_row,
-                            if !is_selected && (icon_name.is_empty() || !self.yank_paths.contains(&icon_name)) { nav_bar_span.clone() } else { None },
+                            if !is_selected { nav_bar_span.clone() } else { None },
                         );
                         if self.config.icons {
                             insert_icon_span(&mut row[0], &icon_name);
@@ -640,7 +640,7 @@ impl ResultsUI {
                                         self.active_prefix_style(&icon_name, is_selected),
                                         self.inactive_prefix_style(&icon_name, is_selected),
                                         is_current_row,
-                                        if !is_selected && (icon_name.is_empty() || !self.yank_paths.contains(&icon_name)) { nav_bar_span.clone() } else { None },
+                                        if !is_selected { nav_bar_span.clone() } else { None },
                                     );
                                 }
                                 t
@@ -688,7 +688,7 @@ impl ResultsUI {
                                 self.active_prefix_style(&icon_name_stacked, is_selected),
                                 self.inactive_prefix_style(&icon_name_stacked, is_selected),
                                 is_current_row,
-                                if !is_selected && (icon_name_stacked.is_empty() || !self.yank_paths.contains(&icon_name_stacked)) { nav_bar_span.clone() } else { None },
+                                if !is_selected { nav_bar_span.clone() } else { None },
                             );
                             if self.config.icons && col_idx == 0 {
                                 insert_icon_span(col, &icon_name_stacked);
@@ -760,7 +760,7 @@ impl ResultsUI {
                     self.active_prefix_style(&icon_name, is_selected),
                     self.inactive_prefix_style(&icon_name, is_selected),
                     is_current_row,
-                    if !is_selected && (icon_name.is_empty() || !self.yank_paths.contains(&icon_name)) { nav_bar_span.clone() } else { None },
+                    if !is_selected { nav_bar_span.clone() } else { None },
                 );
                 if self.config.icons {
                     insert_icon_span(&mut row[0], &icon_name);
@@ -793,7 +793,7 @@ impl ResultsUI {
                                 self.active_prefix_style(&icon_name, is_selected),
                                 self.inactive_prefix_style(&icon_name, is_selected),
                                 is_current_row,
-                                if !is_selected && (icon_name.is_empty() || !self.yank_paths.contains(&icon_name)) { nav_bar_span.clone() } else { None },
+                                if !is_selected { nav_bar_span.clone() } else { None },
                             );
                         }
                         t
@@ -841,7 +841,7 @@ impl ResultsUI {
                         self.active_prefix_style(&icon_name_stacked, is_selected),
                         self.inactive_prefix_style(&icon_name_stacked, is_selected),
                         is_current_row,
-                        if !is_selected && (icon_name_stacked.is_empty() || !self.yank_paths.contains(&icon_name_stacked)) { nav_bar_span.clone() } else { None },
+                        if !is_selected { nav_bar_span.clone() } else { None },
                     );
                     if self.config.icons && col_idx == 0 {
                         insert_icon_span(col, &icon_name_stacked);
@@ -986,7 +986,7 @@ impl ResultsUI {
                                     is_selected && !is_current_row,
                                 ),
                                 is_current_row,
-                                if !is_selected && (icon_name_hz.is_empty() || !self.yank_paths.contains(&icon_name_hz)) { nav_bar_span.clone() } else { None },
+                                if !is_selected { nav_bar_span.clone() } else { None },
                             );
                             if self.config.icons {
                                 insert_icon_span(&mut t, &icon_name_hz);
@@ -1081,7 +1081,7 @@ impl ResultsUI {
                             is_selected && !is_current_row,
                         ),
                         is_current_row,
-                        if !is_selected && (icon_name_stacked.is_empty() || !self.yank_paths.contains(&icon_name_stacked)) { nav_bar_span.clone() } else { None },
+                        if !is_selected { nav_bar_span.clone() } else { None },
                     );
                     if self.config.icons && x == 0 {
                         insert_icon_span(&mut col, &icon_name_stacked);

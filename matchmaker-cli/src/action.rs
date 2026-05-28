@@ -82,6 +82,7 @@ pub enum MMAction {
     /// Set the set of col-0 paths shown with the yank prefix style (FM mode).
     /// Value is a newline-separated list of paths (empty string clears).
     FmSetYankPaths(String),
+    FmRemoveYankPaths(String),
 
     /// File-manager action-box operations.
     FmCreateStart,
@@ -89,6 +90,7 @@ pub enum MMAction {
     FmRenameStart,
     FmExtractStart,
     FmYank,
+    FmUnyank,
     FmCut,
     FmPaste,
     FmUndo,
@@ -391,6 +393,16 @@ pub fn action_handler(
                 .filter(|s| !s.is_empty())
                 .collect();
         }
+        MMAction::FmRemoveYankPaths(raw) => {
+            let to_remove: std::collections::HashSet<String> = raw
+                .split('\n')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+            for item in to_remove {
+                state.picker_ui.results.yank_paths.remove(&item);
+            }
+        }
         MMAction::FmCreateStart => {
             *fm_action = Some(FmActionMode::Create);
             show_action_box(state, " ", "");
@@ -398,7 +410,11 @@ pub fn action_handler(
         MMAction::FmDeleteStart => {
             let paths = fm_current_items(state);
             if !paths.is_empty() {
-                let label = format!("{{red:}} {}? (Enter/Esc)", paths[0]);
+                let label = if paths.len() > 1 {
+                    format!("{{red:}} Delete {} selected items? (Enter/Esc)", paths.len())
+                } else {
+                    format!("{{red:}} {}? (Enter/Esc)", paths[0])
+                };
                 *fm_action = Some(FmActionMode::Delete { paths });
                 show_styled_action_box(state, &label, "");
             }
@@ -429,6 +445,24 @@ pub fn action_handler(
                 )));
                 if *fm_notify {
                     let msg = fm_notify_msg("Copied", &items, "{green}");
+                    let _ = render_tx.send(RenderCommand::Action(Action::Custom(
+                        MMAction::SetStyledStatus(msg),
+                    )));
+                }
+            }
+        }
+        MMAction::FmUnyank => {
+            let items = fm_current_items(state);
+            if !items.is_empty() {
+                // If it's in the clipboard, do we remove it?
+                // For simplicity, we just remove it from yank_paths visually.
+                // Or we can remove it from the clipboard if the clipboard exactly matches?
+                // The primary goal is visual unyanking.
+                let _ = render_tx.send(RenderCommand::Action(Action::Custom(
+                    MMAction::FmRemoveYankPaths(items.join("\n")),
+                )));
+                if *fm_notify {
+                    let msg = fm_notify_msg("Un-yanked", &items, "{green}");
                     let _ = render_tx.send(RenderCommand::Action(Action::Custom(
                         MMAction::SetStyledStatus(msg),
                     )));
@@ -606,11 +640,11 @@ enum_from_str_display! {
     MMAction;
 
     units:
-    CycleSort, HistoryUp, HistoryDown, Accept, ReloadPrev, FmCreateStart, FmDeleteStart, FmRenameStart, FmExtractStart, FmYank, FmCut, FmPaste, FmUndo, FmRedo;
+    CycleSort, HistoryUp, HistoryDown, Accept, ReloadPrev, FmCreateStart, FmDeleteStart, FmRenameStart, FmExtractStart, FmYank, FmUnyank, FmCut, FmPaste, FmUndo, FmRedo;
 
 
     tuples:
-    Bind, Unbind, PushBind, PopBind, ExecuteOrConfirm, ExecuteAndQuit, BecomeOr, Transform, TransformConfig, SetStyledPrompt, SetStyledStatus, PushHeader, PushFooter, RunPreview, FmSetYankPaths;
+    Bind, Unbind, PushBind, PopBind, ExecuteOrConfirm, ExecuteAndQuit, BecomeOr, Transform, TransformConfig, SetStyledPrompt, SetStyledStatus, PushHeader, PushFooter, RunPreview, FmSetYankPaths, FmRemoveYankPaths;
 
     defaults:
     ;
