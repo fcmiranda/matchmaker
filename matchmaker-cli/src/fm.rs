@@ -256,10 +256,10 @@ impl Overlay for DeleteOverlay {
     }
 
     fn draw(&mut self, frame: &mut Frame, area: Rect) {
-        let label = format!(" Delete '{}' ? [y/N] ", self.name);
+        let label = format!("  '{}' ? [y/N] ", self.name);
         let para = Paragraph::new(Line::from(vec![
             Span::styled(
-                " Delete ",
+                "  ",
                 Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
             ),
             Span::raw("'"),
@@ -272,7 +272,7 @@ impl Overlay for DeleteOverlay {
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Red))
                 .title(Span::styled(
-                    " Delete ",
+                    "  ",
                     Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
                 )),
         );
@@ -377,7 +377,7 @@ impl Overlay for CreateOverlay {
         } else {
             " (file)"
         };
-        const PROMPT: &str = " New: ";
+        const PROMPT: &str = "  ";
         let inner_w = (area.width.saturating_sub(2 + PROMPT.len() as u16)) as usize;
         let visible = visible_suffix(&self.input, inner_w);
         let para = Paragraph::new(Line::from(vec![
@@ -395,7 +395,7 @@ impl Overlay for CreateOverlay {
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Green))
                 .title(Span::styled(
-                    " Create ",
+                    "  ",
                     Style::default()
                         .fg(Color::Green)
                         .add_modifier(Modifier::BOLD),
@@ -503,7 +503,7 @@ impl Overlay for RenameOverlay {
     }
 
     fn draw(&mut self, frame: &mut Frame, area: Rect) {
-        const PROMPT: &str = " Rename: ";
+        const PROMPT: &str = " 󰑕 ";
         let inner_w = (area.width.saturating_sub(2 + PROMPT.len() as u16)) as usize;
         let visible = visible_suffix(&self.input, inner_w);
         let para = Paragraph::new(Line::from(vec![
@@ -520,7 +520,7 @@ impl Overlay for RenameOverlay {
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Cyan))
                 .title(Span::styled(
-                    " Rename ",
+                    " 󰑕 ",
                     Style::default()
                         .fg(Color::Cyan)
                         .add_modifier(Modifier::BOLD),
@@ -627,7 +627,7 @@ impl Overlay for ExtractOverlay {
     }
 
     fn draw(&mut self, frame: &mut Frame, area: Rect) {
-        const PROMPT: &str = " Extract to: ";
+        const PROMPT: &str = " 󰋺 ";
         let inner_w = (area.width.saturating_sub(2 + PROMPT.len() as u16)) as usize;
         let visible_dest = visible_suffix(&self.dest, inner_w);
         let para = Paragraph::new(Line::from(vec![
@@ -644,7 +644,7 @@ impl Overlay for ExtractOverlay {
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Yellow))
                 .title(Span::styled(
-                    format!(" Extract: {} ", self.src),
+                    format!(" 󰋺 {} ", self.src),
                     Style::default()
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
