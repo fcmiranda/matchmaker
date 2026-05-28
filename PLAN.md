@@ -646,7 +646,8 @@ Four structs implementing `matchmaker::OverlayUI` (index 0–3):
 | 0 | `d` | `DeleteOverlay` | Confirm dialog → move to temp backup path → push `UndoAction::DeletedFile` |
 | 1 | `a` | `CreateOverlay` | Text input → `fs::create_dir_all` or `File::create` → push `UndoAction::CreatedFile` |
 | 2 | `r` | `RenameOverlay` | Text input pre-filled with filename → `fs::rename` → push `UndoAction::Renamed` |
-| 3 | `e` | `ExtractOverlay` | Confirm dialog → detect format (zip/tar.gz/tar.bz2/tar.xz/gz/bz2/tar) → extract |
+| 3 | `z` | `ZipOverlay`    | Confirm dialog → compress selected/current items to a .zip archive |
+| 4 | `Z` | `UnzipOverlay`  | Confirm dialog → detect format (zip/tar.gz/tar.bz2/tar.xz/gz/bz2/tar) → extract |
 
 Each overlay:
 - Sends `Action::Reload("")` on success.
@@ -746,13 +747,15 @@ overrides using `.entry().or_insert()`:
 d → Overlay(0)   (delete)
 a → Overlay(1)   (create)
 r → Overlay(2)   (rename)
-e → Overlay(3)   (extract)
+z → Semantic("fm_zip") (zip)
+Z → Semantic("fm_unzip") (unzip)
 Space → Toggle
-y → Semantic("fm_yank")
-x → Semantic("fm_cut")
-p → Semantic("fm_paste")
-ctrl-z → Semantic("fm_undo")
-ctrl-y → Semantic("fm_redo")
+y → Semantic("fm_yank") (yank)
+Y → Semantic("fm_unyank") (unyank)
+x → Semantic("fm_cut") (cut)
+p → Semantic("fm_paste") (paste)
+ctrl-z → Semantic("fm_undo") (undo)
+ctrl-y → Semantic("fm_redo") (redo)
 ```
 
 ---

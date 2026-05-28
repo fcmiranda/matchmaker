@@ -149,10 +149,10 @@ When `config.render.ui.focus_mode` is true:
 
 1. File-manager focus binds inserted with `.entry().or_insert()` (user
    `--focus-bind` overrides are applied first and preserved):
-   `d`→`Overlay(0)`, `a`→`Overlay(1)`, `r`→`Overlay(2)`, `e`→`Overlay(3)`,
-   `Space`→`Toggle`, `y`→`Semantic("fm_yank")`, `x`→`Semantic("fm_cut")`,
-   `p`→`Semantic("fm_paste")`, `ctrl-z`→`Semantic("fm_undo")`,
-   `ctrl-y`→`Semantic("fm_redo")`.
+   `d`→`Overlay(0)`, `a`→`Overlay(1)`, `r`→`Overlay(2)`, `z`→`Semantic("fm_zip")`,
+   `Z`→`Semantic("fm_unzip")`, `Space`→`Toggle`, `y`→`Semantic("fm_yank")`,
+   `Y`→`Semantic("fm_unyank")`, `x`→`Semantic("fm_cut")`, `p`→`Semantic("fm_paste")`,
+   `ctrl-z`→`Semantic("fm_undo")`, `ctrl-y`→`Semantic("fm_redo")`.
 2. `Tab` is forcibly bound to `ToggleFocus` (overriding any config-file
    binding such as the default `Toggle+Down`).
 3. FM overlays are registered (see §2).
@@ -200,7 +200,8 @@ pub fn move_into(src: &Path, dest_dir: &Path) -> std::io::Result<()> { ... }
 | 0 | `d` | `DeleteOverlay` | Confirmation prompt; moves file to a temp backup path (undo-safe delete) |
 | 1 | `a` | `CreateOverlay` | Single-line text input; creates file or directory (trailing `/` → mkdir) |
 | 2 | `r` | `RenameOverlay` | Single-line text input pre-filled with current filename; renames in-place |
-| 3 | `e` | `ExtractOverlay` | Confirmation prompt; extracts zip / tar.gz / tar.bz2 / tar.xz / gz / bz2 / tar |
+| 3 | `z` | `ZipOverlay`    | Confirmation prompt to compress selected item(s) to a .zip archive |
+| 4 | `Z` | `UnzipOverlay`  | Confirmation prompt; extracts zip / tar.gz / tar.bz2 / tar.xz / gz / bz2 / tar |
 
 Each overlay:
 - Implements the `matchmaker::OverlayUI` trait.
