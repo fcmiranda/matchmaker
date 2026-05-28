@@ -49,25 +49,129 @@ pub enum UndoAction {
 
 pub type UndoStack = Arc<Mutex<Vec<UndoAction>>>;
 
+fn get_deletion_date() -> String {
+    let now = std::time::SystemTime::now();
+    let duration = now.duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
+    let secs = duration.as_secs();
+    
+    let days = secs / 86400;
+    let sec_in_day = secs % 86400;
+    
+    let hour = sec_in_day / 3600;
+    let min = (sec_in_day % 3600) / 60;
+    let sec = sec_in_day % 60;
+    
+    let mut year = 1970;
+    let mut days_left = days;
+    loop {
+        let leap = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+        let days_in_year = if leap { 366 } else { 365 };
+        if days_left < days_in_year {
+            break;
+        }
+        days_left -= days_in_year;
+        year += 1;
+    }
+    
+    let leap = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+    let month_days = if leap {
+        [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    } else {
+        [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    };
+    
+    let mut month = 1;
+    for &d in &month_days {
+        if days_left < d {
+            break;
+        }
+        days_left -= d;
+        month += 1;
+    }
+    let day = days_left + 1;
+    
+    format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}", year, month, day, hour, min, sec)
+}
+
+fn percent_encode(s: &str) -> String {
+    let mut res = String::new();
+    for b in s.bytes() {
+        match b {
+            b'a'..=b'z' | b'A'..=b'Z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' | b'/' => {
+                res.push(b as char);
+            }
+            _ => {
+                res.push_str(&format!("%{:02X}", b));
+            }
+        }
+    }
+    res
+}
+
 pub fn move_to_trash(path: &Path) -> std::io::Result<PathBuf> {
-    let trash_dir = std::env::temp_dir().join("mm_trash");
-    fs::create_dir_all(&trash_dir)?;
-    let ts = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis())
-        .unwrap_or(0);
+    let trash_dir = dirs::data_local_dir()
+        .map(|d| d.join("Trash"))
+        .unwrap_or_else(|| std::env::temp_dir().join("mm_trash"));
+    
+    let files_dir = trash_dir.join("files");
+    let info_dir = trash_dir.join("info");
+    
+    fs::create_dir_all(&files_dir)?;
+    fs::create_dir_all(&info_dir)?;
+    
     let name = path
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_else(|| "item".to_string());
-    let backup = trash_dir.join(format!("{ts}_{name}"));
-    fs::rename(path, &backup)?;
+    
+    let mut backup = files_dir.join(&name);
+    let mut info_file = info_dir.join(format!("{}.trashinfo", name));
+    if backup.exists() {
+        let mut n = 1u32;
+        loop {
+            let candidate_name = format!("{}_{}", n, name);
+            let candidate_backup = files_dir.join(&candidate_name);
+            let candidate_info = info_dir.join(format!("{}.trashinfo", candidate_name));
+            if !candidate_backup.exists() {
+                backup = candidate_backup;
+                info_file = candidate_info;
+                break;
+            }
+            n += 1;
+        }
+    }
+    
+    let absolute_path = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    
+    move_path(path, &backup)?;
+    
+    let path_str = absolute_path.to_string_lossy();
+    let encoded_path = percent_encode(&path_str);
+    let date_str = get_deletion_date();
+    let info_content = format!(
+        "[Trash Info]\nPath={}\nDeletionDate={}\n",
+        encoded_path, date_str
+    );
+    
+    fs::write(info_file, info_content)?;
+    
     Ok(backup)
 }
 
 pub fn apply_undo(action: &UndoAction) -> std::io::Result<()> {
     match action {
-        UndoAction::DeletedFile { original, backup } => fs::rename(backup, original),
+        UndoAction::DeletedFile { original, backup } => {
+            move_path(backup, original)?;
+            if let Some(name) = backup.file_name() {
+                if let Some(parent) = backup.parent() {
+                    if let Some(grandparent) = parent.parent() {
+                        let info_file = grandparent.join("info").join(format!("{}.trashinfo", name.to_string_lossy()));
+                        let _ = fs::remove_file(info_file);
+                    }
+                }
+            }
+            Ok(())
+        }
         UndoAction::CreatedFile { path } => {
             if path.is_dir() {
                 fs::remove_dir_all(path)
@@ -75,7 +179,7 @@ pub fn apply_undo(action: &UndoAction) -> std::io::Result<()> {
                 fs::remove_file(path)
             }
         }
-        UndoAction::Renamed { from, to } => fs::rename(to, from),
+        UndoAction::Renamed { from, to } => move_path(to, from),
         UndoAction::Copied { dest } => {
             if dest.is_dir() {
                 fs::remove_dir_all(dest)
@@ -83,7 +187,7 @@ pub fn apply_undo(action: &UndoAction) -> std::io::Result<()> {
                 fs::remove_file(dest)
             }
         }
-        UndoAction::Moved { from, to } => fs::rename(to, from),
+        UndoAction::Moved { from, to } => move_path(to, from),
     }
 }
 
@@ -341,7 +445,7 @@ impl RenameOverlay {
         if new_name.is_empty() || new_name == self.original {
             return OverlayEffect::Disable;
         }
-        if let Err(e) = fs::rename(&self.original, &new_name) {
+        if let Err(e) = move_path(Path::new(&self.original), Path::new(&new_name)) {
             log::error!("fm rename '{}' -> '{new_name}': {e}", self.original);
         } else if let Ok(mut stack) = self.undo_stack.lock() {
             stack.push(UndoAction::Renamed {
@@ -564,7 +668,7 @@ impl Overlay for ExtractOverlay {
     }
 }
 
-fn archive_stem(name: &str) -> &str {
+pub fn archive_stem(name: &str) -> &str {
     let base = Path::new(name)
         .file_name()
         .and_then(|s| s.to_str())
@@ -580,7 +684,7 @@ fn archive_stem(name: &str) -> &str {
         .unwrap_or(base)
 }
 
-fn extract_archive(src: &str, dest_dir: &str) -> std::io::Result<()> {
+pub fn extract_archive(src: &str, dest_dir: &str) -> std::io::Result<()> {
     let lower = src.to_ascii_lowercase();
     let status = if lower.ends_with(".tar.gz")
         || lower.ends_with(".tar.bz2")
@@ -635,13 +739,28 @@ pub fn copy_into(src: &Path, dest_dir: &Path) -> std::io::Result<()> {
     }
 }
 
+pub fn move_path(src: &Path, dst: &Path) -> std::io::Result<()> {
+    match fs::rename(src, dst) {
+        Ok(_) => Ok(()),
+        Err(_) => {
+            if src.is_dir() {
+                copy_dir_all(src, dst)?;
+                fs::remove_dir_all(src)
+            } else {
+                fs::copy(src, dst)?;
+                fs::remove_file(src)
+            }
+        }
+    }
+}
+
 pub fn move_into(src: &Path, dest_dir: &Path) -> std::io::Result<()> {
     let file_name = src
         .file_name()
         .ok_or_else(|| std::io::Error::other("no file name"))?;
 
     let dest = unique_dest(dest_dir, Path::new(file_name));
-    fs::rename(src, &dest)
+    move_path(src, &dest)
 }
 
 fn unique_dest(dir: &Path, name: &Path) -> PathBuf {

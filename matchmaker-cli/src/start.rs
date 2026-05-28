@@ -223,11 +223,22 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
                 .entry(k.to_string())
                 .or_insert(actions);
         };
-        nb("d", matchmaker::acs![Action::Overlay(0)]);
-        nb("a", matchmaker::acs![Action::Overlay(1)]);
-        nb("r", matchmaker::acs![Action::Overlay(2)]);
-        nb("e", matchmaker::acs![Action::Overlay(3)]);
+        nb("d", matchmaker::acs![Action::Semantic("fm_delete".into())]);
+        nb("a", matchmaker::acs![Action::Semantic("fm_create".into())]);
+        nb("r", matchmaker::acs![Action::Semantic("fm_rename".into())]);
+        nb("e", matchmaker::acs![Action::Semantic("fm_extract".into())]);
         nb(" ", matchmaker::acs![Action::Toggle]);
+        nb("y", matchmaker::acs![Action::Semantic("fm_yank".into())]);
+        nb("x", matchmaker::acs![Action::Semantic("fm_cut".into())]);
+        nb("p", matchmaker::acs![Action::Semantic("fm_paste".into())]);
+        nb(
+            "ctrl-z",
+            matchmaker::acs![Action::Semantic("fm_undo".into())],
+        );
+        nb(
+            "ctrl-y",
+            matchmaker::acs![Action::Semantic("fm_redo".into())],
+        );
     }
 
     if cli.dump_config {
@@ -311,11 +322,6 @@ fn parse_blink_rate(s: &str) -> BlinkRate {
 
 fn apply_nav_props(props: &[String], config: &mut Config) {
     config.render.ui.nav_mode = true;
-
-    if props.is_empty() {
-        config.render.ui.nav_bar = Some(ratatui::widgets::BorderType::Thick);
-        return;
-    }
 
     for raw in props {
         for prop in raw.split(',').filter(|s| !s.is_empty()) {
@@ -436,6 +442,7 @@ pub fn process_envs(mut envs: HashMap<String, EnvValue>) -> HashMap<String, Stri
 
 pub async fn start(config: Config, no_read: bool) -> Result<(), MatchError> {
     let nav_mode = config.render.ui.nav_mode;
+    let nav_notify = config.render.ui.nav_notify;
 
     let Config {
         render,
@@ -624,36 +631,6 @@ pub async fn start(config: Config, no_read: bool) -> Result<(), MatchError> {
     let render_tx = options.render_tx();
     let push_fn = inject_line(header_lines, render_tx.clone(), injector);
 
-    if nav_mode {
-        use crate::fm::{CreateOverlay, CurrentItem, DeleteOverlay, ExtractOverlay, RenameOverlay};
-
-        let current_item: CurrentItem = Arc::new(Mutex::new(None));
-
-        let ci_clone = current_item.clone();
-        mm.register_event_handler(matchmaker::message::Event::CursorChange, move |state, _| {
-            let name = state.current_raw().map(|item| item.to_cow().to_string());
-            if let Ok(mut lock) = ci_clone.lock() {
-                *lock = name;
-            }
-        });
-
-        let tx = render_tx.clone();
-        let undo_stack = Arc::new(Mutex::new(Vec::new()));
-        options = options
-            .overlay(DeleteOverlay::new(
-                current_item.clone(),
-                tx.clone(),
-                undo_stack.clone(),
-            ))
-            .overlay(CreateOverlay::new(tx.clone(), undo_stack.clone()))
-            .overlay(RenameOverlay::new(
-                current_item.clone(),
-                tx.clone(),
-                undo_stack.clone(),
-            ))
-            .overlay(ExtractOverlay::new(current_item.clone(), tx.clone()));
-    }
-
     // ---------------------- register handlers ---------------------------
     // print handler (no quoting)
     mm._register_print_handler(
@@ -720,12 +697,26 @@ pub async fn start(config: Config, no_read: bool) -> Result<(), MatchError> {
         output_template,
         print_handle: print_handle.clone(),
         output_separator: output_separator.clone(),
+        clipboard: Arc::new(Mutex::new(None)),
+        fm_notify: nav_notify,
+        undo_stack: Arc::new(Mutex::new(Vec::new())),
+        redo_stack: Arc::new(Mutex::new(Vec::new())),
+        fm_action: None,
     };
 
     options = options
         .ext_handler(move |x, y| action_handler(x, y, &mut action_context))
         .ext_aliaser(|a, _state| match a {
             Action::Accept => acs![MMAction::Accept],
+            Action::Semantic(ref s) if s == "fm_create" => acs![MMAction::FmCreateStart],
+            Action::Semantic(ref s) if s == "fm_delete" => acs![MMAction::FmDeleteStart],
+            Action::Semantic(ref s) if s == "fm_rename" => acs![MMAction::FmRenameStart],
+            Action::Semantic(ref s) if s == "fm_extract" => acs![MMAction::FmExtractStart],
+            Action::Semantic(ref s) if s == "fm_yank" => acs![MMAction::FmYank],
+            Action::Semantic(ref s) if s == "fm_cut" => acs![MMAction::FmCut],
+            Action::Semantic(ref s) if s == "fm_paste" => acs![MMAction::FmPaste],
+            Action::Semantic(ref s) if s == "fm_undo" => acs![MMAction::FmUndo],
+            Action::Semantic(ref s) if s == "fm_redo" => acs![MMAction::FmRedo],
             _ => acs![a],
         });
 

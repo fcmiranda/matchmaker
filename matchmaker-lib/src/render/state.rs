@@ -136,7 +136,7 @@ impl State {
             dragging: None,
             overlay_index: None,
             col: None,
-            focus: Focus::Input,
+            focus: Focus::Results,
             focus_blink: true,
             focus_tick: 0,
 

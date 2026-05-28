@@ -105,6 +105,20 @@ impl ResultsUI {
         }
     }
 
+    fn active_prefix_style(
+        &self,
+        col0_name: &str,
+        is_selected: bool,
+    ) -> crate::config::StyleSetting {
+        if !col0_name.is_empty() && self.yank_paths.contains(col0_name) {
+            self.config.yank_prefix_style
+        } else if is_selected {
+            self.config.selected_prefix_style
+        } else {
+            self.config.prefix_style
+        }
+    }
+
     // as given by ratatui area
     pub fn update_dimensions(&mut self, area: &Rect) {
         let [bw, bh] = [self.config.border.height(), self.config.border.width()];
@@ -576,7 +590,7 @@ impl ResultsUI {
                         prefix_span(
                             &mut row[0],
                             prefix.clone(),
-                            self.config.prefix_style,
+                            self.active_prefix_style(&icon_name, is_selected),
                             self.inactive_prefix_style(&icon_name, is_selected),
                             is_current_row,
                         );
@@ -608,8 +622,8 @@ impl ResultsUI {
                                     prefix_span(
                                         &mut t,
                                         prefix.clone(),
-                                        self.config.prefix_style,
-                                        self.config.prefix_inactive_style,
+                                        self.active_prefix_style(&icon_name, is_selected),
+                                        self.inactive_prefix_style(&icon_name, is_selected),
                                         is_current_row,
                                     );
                                 }
@@ -655,7 +669,7 @@ impl ResultsUI {
                             prefix_span(
                                 &mut col,
                                 prefix.clone(),
-                                self.config.prefix_style,
+                                self.active_prefix_style(&icon_name_stacked, is_selected),
                                 self.inactive_prefix_style(&icon_name_stacked, is_selected),
                                 is_current_row,
                             );
@@ -726,7 +740,7 @@ impl ResultsUI {
                 prefix_span(
                     &mut row[0],
                     prefix.clone(),
-                    self.config.prefix_style,
+                    self.active_prefix_style(&icon_name, is_selected),
                     self.inactive_prefix_style(&icon_name, is_selected),
                     is_current_row,
                 );
@@ -758,8 +772,8 @@ impl ResultsUI {
                             prefix_span(
                                 &mut t,
                                 prefix.clone(),
-                                self.config.prefix_style,
-                                self.config.prefix_inactive_style,
+                                self.active_prefix_style(&icon_name, is_selected),
+                                self.inactive_prefix_style(&icon_name, is_selected),
                                 is_current_row,
                             );
                         }
@@ -805,7 +819,7 @@ impl ResultsUI {
                     prefix_span(
                         &mut col,
                         prefix.clone(),
-                        self.config.prefix_style,
+                        self.active_prefix_style(&icon_name_stacked, is_selected),
                         self.inactive_prefix_style(&icon_name_stacked, is_selected),
                         is_current_row,
                     );
@@ -946,7 +960,7 @@ impl ResultsUI {
                             prefix_span(
                                 &mut t,
                                 prefix.clone(),
-                                self.config.prefix_style,
+                                self.active_prefix_style(&icon_name_hz, is_selected),
                                 self.inactive_prefix_style(
                                     &icon_name_hz,
                                     is_selected && !is_current_row,
@@ -1040,7 +1054,7 @@ impl ResultsUI {
                     prefix_span(
                         &mut col,
                         prefix.clone(),
-                        self.config.prefix_style,
+                        self.active_prefix_style(&icon_name_stacked, is_selected),
                         self.inactive_prefix_style(
                             &icon_name_stacked,
                             is_selected && !is_current_row,

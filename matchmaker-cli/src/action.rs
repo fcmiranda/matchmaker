@@ -1,4 +1,4 @@
-use std::{process::Command, str::FromStr};
+use std::{path::PathBuf, process::Command, str::FromStr};
 
 use cba::{
     StringError, bait::ResultExt, bring::split::split_on_unescaped_delimiter, broc::CommandExt,
@@ -82,6 +82,25 @@ pub enum MMAction {
     /// Set the set of col-0 paths shown with the yank prefix style (FM mode).
     /// Value is a newline-separated list of paths (empty string clears).
     FmSetYankPaths(String),
+
+    /// File-manager action-box operations.
+    FmCreateStart,
+    FmDeleteStart,
+    FmRenameStart,
+    FmExtractStart,
+    FmYank,
+    FmCut,
+    FmPaste,
+    FmUndo,
+    FmRedo,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum FmActionMode {
+    Create,
+    Delete { paths: Vec<String> },
+    Rename { from: String },
+    Extract { src: String },
 }
 
 pub struct ActionContext {
@@ -91,6 +110,11 @@ pub struct ActionContext {
     pub output_template: Option<String>,
     pub print_handle: AppendOnly<String>,
     pub output_separator: String,
+    pub clipboard: crate::fm::Clipboard,
+    pub fm_notify: bool,
+    pub undo_stack: crate::fm::UndoStack,
+    pub redo_stack: crate::fm::UndoStack,
+    pub fm_action: Option<FmActionMode>,
 }
 
 pub fn action_handler(
@@ -103,10 +127,20 @@ pub fn action_handler(
         output_template,
         print_handle,
         output_separator,
+        clipboard,
+        fm_notify,
+        undo_stack,
+        redo_stack,
+        fm_action,
     }: &mut ActionContext,
 ) {
     match a {
         MMAction::Accept => {
+            if state.picker_ui.action_visible {
+                commit_fm_action(state, render_tx, undo_stack, redo_stack, fm_action);
+                return;
+            }
+
             let repeat = |s: String| {
                 if atty::is(atty::Stream::Stdout) {
                     print_handle.push(s);
@@ -357,6 +391,158 @@ pub fn action_handler(
                 .filter(|s| !s.is_empty())
                 .collect();
         }
+        MMAction::FmCreateStart => {
+            *fm_action = Some(FmActionMode::Create);
+            show_action_box(state, "New: ", "");
+        }
+        MMAction::FmDeleteStart => {
+            let paths = fm_current_items(state);
+            if !paths.is_empty() {
+                let label = format!("{{red:Delete}} {}? (Enter/Esc)", paths[0]);
+                *fm_action = Some(FmActionMode::Delete { paths });
+                show_styled_action_box(state, &label, "");
+            }
+        }
+        MMAction::FmRenameStart => {
+            if let Some(from) = fm_current_items(state).into_iter().next() {
+                *fm_action = Some(FmActionMode::Rename { from: from.clone() });
+                show_action_box(state, "Rename: ", from.trim_end_matches('/'));
+            }
+        }
+        MMAction::FmExtractStart => {
+            if let Some(src) = fm_current_items(state).into_iter().next() {
+                *fm_action = Some(FmActionMode::Extract { src: src.clone() });
+                show_action_box(state, "Extract to: ", crate::fm::archive_stem(&src));
+            }
+        }
+        MMAction::FmYank => {
+            let items = fm_current_items(state);
+            if !items.is_empty() {
+                if let Ok(mut cb) = clipboard.lock() {
+                    *cb = Some(crate::fm::FmClipboard {
+                        items: items.iter().map(PathBuf::from).collect(),
+                        op: crate::fm::ClipOp::Copy,
+                    });
+                }
+                let _ = render_tx.send(RenderCommand::Action(Action::Custom(
+                    MMAction::FmSetYankPaths(items.join("\n")),
+                )));
+                if *fm_notify {
+                    let msg = fm_notify_msg("Copied", &items, "{green}");
+                    let _ = render_tx.send(RenderCommand::Action(Action::Custom(
+                        MMAction::SetStyledStatus(msg),
+                    )));
+                }
+            }
+        }
+        MMAction::FmCut => {
+            let items = fm_current_items(state);
+            if !items.is_empty() {
+                if let Ok(mut cb) = clipboard.lock() {
+                    *cb = Some(crate::fm::FmClipboard {
+                        items: items.iter().map(PathBuf::from).collect(),
+                        op: crate::fm::ClipOp::Cut,
+                    });
+                }
+                let _ = render_tx.send(RenderCommand::Action(Action::Custom(
+                    MMAction::FmSetYankPaths(items.join("\n")),
+                )));
+                if *fm_notify {
+                    let msg = fm_notify_msg("Cut", &items, "{yellow}");
+                    let _ = render_tx.send(RenderCommand::Action(Action::Custom(
+                        MMAction::SetStyledStatus(msg),
+                    )));
+                }
+            }
+        }
+        MMAction::FmPaste => {
+            let clip = clipboard.lock().ok().and_then(|g| g.clone());
+            if let Some(clip) = clip {
+                let cwd = std::env::current_dir().unwrap_or_default();
+                let mut had_error = false;
+                for src in &clip.items {
+                    let result = match clip.op {
+                        crate::fm::ClipOp::Copy => crate::fm::copy_into(src, &cwd),
+                        crate::fm::ClipOp::Cut => crate::fm::move_into(src, &cwd),
+                    };
+                    if let Err(e) = result {
+                        error!("fm paste '{}': {e}", src.display());
+                        had_error = true;
+                    }
+                }
+                if clip.op == crate::fm::ClipOp::Cut && !had_error {
+                    if let Ok(mut cb) = clipboard.lock() {
+                        *cb = None;
+                    }
+                    let _ = render_tx.send(RenderCommand::Action(Action::Custom(
+                        MMAction::FmSetYankPaths(String::new()),
+                    )));
+                }
+                if *fm_notify {
+                    let names: Vec<String> = clip
+                        .items
+                        .iter()
+                        .filter_map(|p| p.file_name())
+                        .map(|n| n.to_string_lossy().into_owned())
+                        .collect();
+                    let verb = match clip.op {
+                        crate::fm::ClipOp::Copy => "Pasted",
+                        crate::fm::ClipOp::Cut => "Moved",
+                    };
+                    let color = if had_error { "{red}" } else { "{cyan}" };
+                    let msg = fm_notify_msg(verb, &names, color);
+                    let _ = render_tx.send(RenderCommand::Action(Action::Custom(
+                        MMAction::SetStyledStatus(msg),
+                    )));
+                }
+                let _ = render_tx.send(RenderCommand::Action(Action::Reload(String::new())));
+            }
+        }
+        MMAction::FmUndo => {
+            let action = undo_stack.lock().ok().and_then(|mut s| s.pop());
+            if let Some(action) = action {
+                if let Ok(mut rs) = redo_stack.lock() {
+                    rs.push(action.clone());
+                }
+                if let Err(e) = crate::fm::apply_undo(&action) {
+                    error!("fm undo: {e}");
+                }
+                let _ = render_tx.send(RenderCommand::Action(Action::Reload(String::new())));
+            }
+        }
+        MMAction::FmRedo => {
+            let action = redo_stack.lock().ok().and_then(|mut s| s.pop());
+            if let Some(action) = action {
+                let redo_action = match &action {
+                    crate::fm::UndoAction::DeletedFile { original, backup } => {
+                        crate::fm::UndoAction::DeletedFile {
+                            original: backup.clone(),
+                            backup: original.clone(),
+                        }
+                    }
+                    crate::fm::UndoAction::CreatedFile { path } => {
+                        crate::fm::UndoAction::CreatedFile { path: path.clone() }
+                    }
+                    crate::fm::UndoAction::Renamed { from, to } => crate::fm::UndoAction::Renamed {
+                        from: to.clone(),
+                        to: from.clone(),
+                    },
+                    crate::fm::UndoAction::Copied { dest } => {
+                        crate::fm::UndoAction::Copied { dest: dest.clone() }
+                    }
+                    crate::fm::UndoAction::Moved { from, to } => crate::fm::UndoAction::Moved {
+                        from: to.clone(),
+                        to: from.clone(),
+                    },
+                };
+                if let Err(e) = crate::fm::apply_undo(&redo_action) {
+                    error!("fm redo: {e}");
+                } else if let Ok(mut us) = undo_stack.lock() {
+                    us.push(redo_action);
+                }
+                let _ = render_tx.send(RenderCommand::Action(Action::Reload(String::new())));
+            }
+        }
     }
 }
 
@@ -420,7 +606,7 @@ enum_from_str_display! {
     MMAction;
 
     units:
-    CycleSort, HistoryUp, HistoryDown, Accept, ReloadPrev;
+    CycleSort, HistoryUp, HistoryDown, Accept, ReloadPrev, FmCreateStart, FmDeleteStart, FmRenameStart, FmExtractStart, FmYank, FmCut, FmPaste, FmUndo, FmRedo;
 
 
     tuples:
@@ -558,6 +744,128 @@ macro_rules! enum_from_str_display {
 use enum_from_str_display;
 
 use crate::formatter::format_cli;
+
+fn show_action_box(state: &mut MMState<'_, '_>, prompt: &str, initial: &str) {
+    state.picker_ui.action_visible = true;
+    state
+        .picker_ui
+        .action
+        .set(Some(initial.to_string()), u16::MAX);
+    state
+        .picker_ui
+        .action
+        .set_prompt(Some(Line::raw(prompt.to_string())));
+}
+
+fn show_styled_action_box(state: &mut MMState<'_, '_>, prompt: &str, initial: &str) {
+    state.picker_ui.action_visible = true;
+    state
+        .picker_ui
+        .action
+        .set(Some(initial.to_string()), u16::MAX);
+    state
+        .picker_ui
+        .action
+        .set_prompt_line(StatusUI::parse_template_to_status_line(prompt));
+}
+
+fn close_action_box(state: &mut MMState<'_, '_>, fm_action: &mut Option<FmActionMode>) {
+    state.picker_ui.action_visible = false;
+    state.picker_ui.action.set(Some(String::new()), 0);
+    state.picker_ui.action.set_prompt(None);
+    *fm_action = None;
+}
+
+fn commit_fm_action(
+    state: &mut MMState<'_, '_>,
+    render_tx: &matchmaker::event::RenderSender<MMAction>,
+    undo_stack: &crate::fm::UndoStack,
+    _redo_stack: &crate::fm::UndoStack,
+    fm_action: &mut Option<FmActionMode>,
+) {
+    let input = state.picker_ui.action.input.trim().to_string();
+    let Some(mode) = fm_action.clone() else {
+        close_action_box(state, fm_action);
+        return;
+    };
+
+    match mode {
+        FmActionMode::Create => {
+            if !input.is_empty() {
+                let result = if input.ends_with('/') {
+                    std::fs::create_dir_all(&input)
+                } else {
+                    if let Some(parent) = std::path::Path::new(&input).parent()
+                        && !parent.as_os_str().is_empty()
+                    {
+                        let _ = std::fs::create_dir_all(parent);
+                    }
+                    std::fs::File::create(&input).map(|_| ())
+                };
+                if let Err(e) = result {
+                    error!("fm create '{input}': {e}");
+                } else if let Ok(mut stack) = undo_stack.lock() {
+                    stack.push(crate::fm::UndoAction::CreatedFile {
+                        path: PathBuf::from(&input),
+                    });
+                }
+            }
+        }
+        FmActionMode::Delete { paths } => {
+            for path in paths {
+                let path_buf = PathBuf::from(&path);
+                match crate::fm::move_to_trash(&path_buf) {
+                    Ok(backup) => {
+                        if let Ok(mut stack) = undo_stack.lock() {
+                            stack.push(crate::fm::UndoAction::DeletedFile {
+                                original: path_buf,
+                                backup,
+                            });
+                        }
+                    }
+                    Err(e) => error!("fm delete '{}': {e}", path),
+                }
+            }
+        }
+        FmActionMode::Rename { from } => {
+            if !input.is_empty() && input != from {
+                if let Err(e) = crate::fm::move_path(std::path::Path::new(&from), std::path::Path::new(&input)) {
+                    error!("fm rename '{}' -> '{input}': {e}", from);
+                } else if let Ok(mut stack) = undo_stack.lock() {
+                    stack.push(crate::fm::UndoAction::Renamed {
+                        from: PathBuf::from(&from),
+                        to: PathBuf::from(&input),
+                    });
+                }
+            }
+        }
+        FmActionMode::Extract { src } => {
+            if !input.is_empty() {
+                if let Err(e) = std::fs::create_dir_all(&input) {
+                    error!("fm extract: create dir '{input}': {e}");
+                } else if let Err(e) = crate::fm::extract_archive(&src, &input) {
+                    error!("fm extract '{src}' -> '{input}': {e}");
+                }
+            }
+        }
+    }
+
+    close_action_box(state, fm_action);
+    let _ = render_tx.send(RenderCommand::Action(Action::Reload(String::new())));
+}
+
+fn fm_current_items(state: &MMState<'_, '_>) -> Vec<String> {
+    state.map_selected_to_vec(|_, x| x.to_cow().to_string())
+}
+
+fn fm_notify_msg(verb: &str, names: &[String], color: &str) -> String {
+    let reset = "{reset}";
+    match names.len() {
+        0 => String::new(),
+        1 => format!("{color}{verb}: {}{reset}", names[0]),
+        n => format!("{color}{verb}: {} items ({}){reset}", n, names[0]),
+    }
+}
 
 #[cfg(test)]
 mod tests {

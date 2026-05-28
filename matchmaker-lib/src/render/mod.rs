@@ -231,7 +231,8 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                 &mut buffer,
                 state.focus,
                 &ui.config.nav_binds,
-                overlay_ui.as_ref().map_or(false, |o| o.index().is_some()),
+                picker_ui.action_visible
+                    || overlay_ui.as_ref().map_or(false, |o| o.index().is_some()),
             );
 
             if let Some(aliaser) = &mut ext_aliaser {
@@ -544,6 +545,8 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                     }
                     let PickerUI {
                         query,
+                        action: action_input,
+                        action_visible,
                         results,
                         worker,
                         selector: selections,
@@ -887,17 +890,76 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
 
                         // Edit
                         Action::SetQuery(context) => {
-                            query.set(context, u16::MAX);
+                            if *action_visible {
+                                action_input.set(context, u16::MAX);
+                            } else {
+                                query.set(context, u16::MAX);
+                            }
                         }
-                        Action::ForwardChar => query.forward_char(),
-                        Action::BackwardChar => query.backward_char(),
-                        Action::ForwardWord => query.forward_word(),
-                        Action::BackwardWord => query.backward_word(),
-                        Action::DeleteChar => query.delete(),
-                        Action::DeleteWord => query.delete_word(),
-                        Action::DeleteLineStart => query.delete_line_start(),
-                        Action::DeleteLineEnd => query.delete_line_end(),
-                        Action::Cancel => query.cancel(),
+                        Action::ForwardChar => {
+                            if *action_visible {
+                                action_input.forward_char()
+                            } else {
+                                query.forward_char()
+                            }
+                        }
+                        Action::BackwardChar => {
+                            if *action_visible {
+                                action_input.backward_char()
+                            } else {
+                                query.backward_char()
+                            }
+                        }
+                        Action::ForwardWord => {
+                            if *action_visible {
+                                action_input.forward_word()
+                            } else {
+                                query.forward_word()
+                            }
+                        }
+                        Action::BackwardWord => {
+                            if *action_visible {
+                                action_input.backward_word()
+                            } else {
+                                query.backward_word()
+                            }
+                        }
+                        Action::DeleteChar => {
+                            if *action_visible {
+                                action_input.delete()
+                            } else {
+                                query.delete()
+                            }
+                        }
+                        Action::DeleteWord => {
+                            if *action_visible {
+                                action_input.delete_word()
+                            } else {
+                                query.delete_word()
+                            }
+                        }
+                        Action::DeleteLineStart => {
+                            if *action_visible {
+                                action_input.delete_line_start()
+                            } else {
+                                query.delete_line_start()
+                            }
+                        }
+                        Action::DeleteLineEnd => {
+                            if *action_visible {
+                                action_input.delete_line_end()
+                            } else {
+                                query.delete_line_end()
+                            }
+                        }
+                        Action::Cancel => {
+                            if *action_visible {
+                                *action_visible = false;
+                                action_input.cancel();
+                            } else {
+                                query.cancel()
+                            }
+                        }
 
                         // Other
                         Action::Redraw => {
@@ -945,8 +1007,10 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                             }
                         }
                         Action::Char(c) => {
-                            if !(ui.config.nav_mode && state.focus == Focus::Results) {
-                                picker_ui.query.push_char(c)
+                            if *action_visible {
+                                action_input.push_char(c)
+                            } else if !(ui.config.nav_mode && state.focus == Focus::Results) {
+                                query.push_char(c)
                             }
                         }
                         Action::SetMode(s) => {
