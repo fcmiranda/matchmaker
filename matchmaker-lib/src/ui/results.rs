@@ -91,7 +91,11 @@ impl ResultsUI {
     /// Return the correct inactive prefix style for a given row.
     ///
     /// Priority: yank (highest) > selected > default.
-    fn inactive_prefix_style(&self, col0_name: &str, is_selected: bool) -> crate::config::StyleSetting {
+    fn inactive_prefix_style(
+        &self,
+        col0_name: &str,
+        is_selected: bool,
+    ) -> crate::config::StyleSetting {
         if !col0_name.is_empty() && self.yank_paths.contains(col0_name) {
             self.config.yank_prefix_style
         } else if is_selected {
@@ -170,13 +174,14 @@ impl ResultsUI {
             self.cursor as u32 + self.bottom
         }
     }
-    // pub fn cursor(&self) -> Option<u16> {
-    //     if self.cursor_disabled {
-    //         None
-    //     } else {
-    //         Some(self.cursor)
-    //     }
-    // }
+
+    pub fn cursor_offset(&self) -> Option<u16> {
+        if self.cursor_disabled {
+            None
+        } else {
+            Some(self.cursor)
+        }
+    }
 
     /// Returns whether scroll wrap caused it to jump to the end
     pub fn cursor_prev(&mut self) -> bool {
@@ -559,12 +564,14 @@ impl ResultsUI {
                             }
                         }
 
-                        let icon_name =
-                            if self.config.icons || self.config.symlink_target || !self.yank_paths.is_empty() {
-                                extract_col0_name(&row[0])
-                            } else {
-                                String::new()
-                            };
+                        let icon_name = if self.config.icons
+                            || self.config.symlink_target
+                            || !self.yank_paths.is_empty()
+                        {
+                            extract_col0_name(&row[0])
+                        } else {
+                            String::new()
+                        };
 
                         prefix_span(
                             &mut row[0],
@@ -623,7 +630,11 @@ impl ResultsUI {
                         rows.push(row);
                     } else {
                         let col_count = row.len();
-                        let icon_name_stacked = if (self.config.icons || self.config.symlink_target || !self.yank_paths.is_empty()) && col_count > 0 {
+                        let icon_name_stacked = if (self.config.icons
+                            || self.config.symlink_target
+                            || !self.yank_paths.is_empty())
+                            && col_count > 0
+                        {
                             extract_col0_name(&row[0])
                         } else {
                             String::new()
@@ -704,12 +715,14 @@ impl ResultsUI {
                     }
                 }
 
-                let icon_name =
-                    if self.config.icons || self.config.symlink_target || !self.yank_paths.is_empty() {
-                        extract_col0_name(&row[0])
-                    } else {
-                        String::new()
-                    };
+                let icon_name = if self.config.icons
+                    || self.config.symlink_target
+                    || !self.yank_paths.is_empty()
+                {
+                    extract_col0_name(&row[0])
+                } else {
+                    String::new()
+                };
                 prefix_span(
                     &mut row[0],
                     prefix.clone(),
@@ -767,7 +780,11 @@ impl ResultsUI {
                 rows.push(row);
             } else {
                 let col_count = row.len();
-                let icon_name_stacked = if (self.config.icons || self.config.symlink_target || !self.yank_paths.is_empty()) && col_count > 0 {
+                let icon_name_stacked = if (self.config.icons
+                    || self.config.symlink_target
+                    || !self.yank_paths.is_empty())
+                    && col_count > 0
+                {
                     extract_col0_name(&row[0])
                 } else {
                     String::new()
@@ -898,10 +915,18 @@ impl ResultsUI {
                     .rev()
                     .find_map(|(i, w)| (*w != 0).then_some(i));
 
-                let icon_name_hz = if self.config.icons || self.config.symlink_target || !self.yank_paths.is_empty() {
+                let icon_name_hz = if self.config.icons
+                    || self.config.symlink_target
+                    || !self.yank_paths.is_empty()
+                {
                     row.first()
                         .and_then(|t| t.lines.first())
-                        .map(|l| l.spans.iter().map(|s| s.content.as_ref()).collect::<String>())
+                        .map(|l| {
+                            l.spans
+                                .iter()
+                                .map(|s| s.content.as_ref())
+                                .collect::<String>()
+                        })
                         .unwrap_or_default()
                 } else {
                     String::new()
@@ -922,7 +947,10 @@ impl ResultsUI {
                                 &mut t,
                                 prefix.clone(),
                                 self.config.prefix_style,
-                                self.inactive_prefix_style(&icon_name_hz, is_selected && !is_current_row),
+                                self.inactive_prefix_style(
+                                    &icon_name_hz,
+                                    is_selected && !is_current_row,
+                                ),
                                 is_current_row,
                             );
                             if self.config.icons {
@@ -969,10 +997,18 @@ impl ResultsUI {
                     0
                 };
 
-                let icon_name_stacked = if self.config.icons || self.config.symlink_target || !self.yank_paths.is_empty() {
+                let icon_name_stacked = if self.config.icons
+                    || self.config.symlink_target
+                    || !self.yank_paths.is_empty()
+                {
                     row.first()
                         .and_then(|t| t.lines.first())
-                        .map(|l| l.spans.iter().map(|s| s.content.as_ref()).collect::<String>())
+                        .map(|l| {
+                            l.spans
+                                .iter()
+                                .map(|s| s.content.as_ref())
+                                .collect::<String>()
+                        })
                         .unwrap_or_default()
                 } else {
                     String::new()
@@ -1005,7 +1041,10 @@ impl ResultsUI {
                         &mut col,
                         prefix.clone(),
                         self.config.prefix_style,
-                        self.inactive_prefix_style(&icon_name_stacked, is_selected && !is_current_row),
+                        self.inactive_prefix_style(
+                            &icon_name_stacked,
+                            is_selected && !is_current_row,
+                        ),
                         is_current_row,
                     );
                     if self.config.icons && x == 0 {
@@ -1402,7 +1441,12 @@ fn maybe_append_symlink_target(
 fn extract_col0_name(col: &ratatui::text::Text<'_>) -> String {
     col.lines
         .first()
-        .map(|l| l.spans.iter().map(|s| s.content.as_ref()).collect::<String>())
+        .map(|l| {
+            l.spans
+                .iter()
+                .map(|s| s.content.as_ref())
+                .collect::<String>()
+        })
         .unwrap_or_default()
 }
 
@@ -1444,9 +1488,7 @@ fn icon_for_name(name: &str) -> (char, Color) {
 
     match basename.to_lowercase().as_str() {
         "cargo.toml" | "cargo.lock" => return ('\u{e7a8}', Color::Red),
-        "package.json" | "package-lock.json" | "yarn.lock" => {
-            return ('\u{e74e}', Color::Green)
-        }
+        "package.json" | "package-lock.json" | "yarn.lock" => return ('\u{e74e}', Color::Green),
         "makefile" | "gnumakefile" => return ('\u{e779}', Color::Yellow),
         "dockerfile" => return ('\u{e7b0}', Color::Cyan),
         ".gitignore" | ".gitmodules" | ".gitattributes" => return ('\u{e702}', Color::Red),
@@ -1474,9 +1516,7 @@ fn icon_for_name(name: &str) -> (char, Color) {
         }
         "mp4" | "mkv" | "avi" | "mov" | "webm" | "flv" => ('\u{f03d}', Color::Magenta),
         "mp3" | "flac" | "ogg" | "wav" | "aac" | "opus" => ('\u{f001}', Color::Magenta),
-        "zip" | "tar" | "gz" | "xz" | "bz2" | "zst" | "7z" | "rar" => {
-            ('\u{f410}', Color::Yellow)
-        }
+        "zip" | "tar" | "gz" | "xz" | "bz2" | "zst" | "7z" | "rar" => ('\u{f410}', Color::Yellow),
         "pdf" => ('\u{f1c1}', Color::Red),
         "c" | "h" => ('\u{e61e}', Color::Blue),
         "cpp" | "cc" | "cxx" | "hpp" | "hxx" => ('\u{e61d}', Color::Blue),

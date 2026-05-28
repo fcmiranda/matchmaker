@@ -4,7 +4,7 @@ use std::{
     io::Read,
     path::Path,
     process::{Command, Stdio, exit},
-    sync::Mutex,
+    sync::{Arc, Mutex},
 };
 
 use crate::{
@@ -20,10 +20,7 @@ use crate::{config::Config, paths::default_config_path};
 use cba::{
     _wbog,
     bait::{OptionExt, ResultExt, TransformExt},
-    bo::{
-        MapReaderError, map_chunks, map_reader_lines, read_to_chunks,
-        write_str,
-    },
+    bo::{MapReaderError, map_chunks, map_reader_lines, read_to_chunks, write_str},
     bog::BogOkExt,
     ebog, ibog, prints, wbog,
 };
@@ -31,8 +28,8 @@ use cba::{bo::load_type, broc::CommandExt};
 use log::debug;
 use matchmaker::{
     Action, ConfigInjector, MatchError, Matchmaker, OddEnds, PickOptions, SSS, acs,
-    binds::{BindMap, BindMapExt},
-    config::{CommandSetting, EnvValue, MatcherConfig, StartConfig},
+    binds::{BindMap, BindMapExt, display_binds, key},
+    config::{BlinkRate, CommandSetting, EnvValue, MatcherConfig, StartConfig},
     event::{EventLoop, RenderSender},
     make_previewer,
     message::Interrupt,
@@ -82,8 +79,7 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
         // defaults so the user only needs to specify what they want to change
         // (including individual [binds] entries).
         let mut base = Config::default();
-        let user: PartialConfig =
-            load_type(cfg_path, |s| toml::from_str(s))._ebog().or_exit();
+        let user: PartialConfig = load_type(cfg_path, |s| toml::from_str(s))._ebog().or_exit();
         base.apply(user);
         base
     } else {
@@ -182,6 +178,65 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
         apply_color_spec(&mut config, spec);
     }
 
+    if !cli.nav.is_empty() {
+        apply_nav_props(&cli.nav, &mut config);
+    }
+
+    for nb in &cli.nav_bind {
+        if let Some(colon) = nb.find(':') {
+            let key = nb[..colon].to_string();
+            let action_str = &nb[colon + 1..];
+            let parts = split_nav_bind_actions(action_str);
+
+            let mut actions = matchmaker::action::Actions::default();
+            let mut parse_ok = true;
+            for part in &parts {
+                match part.parse::<matchmaker::action::Action<matchmaker::action::NullActionExt>>()
+                {
+                    Ok(action) => actions.push(action),
+                    Err(e) => {
+                        eprintln!("warning: invalid --nav-bind action '{}': {}", part, e);
+                        parse_ok = false;
+                        break;
+                    }
+                }
+            }
+
+            if parse_ok && !actions.is_empty() {
+                config.render.ui.nav_binds.insert(key, actions);
+            }
+        } else {
+            eprintln!(
+                "warning: --nav-bind '{}' missing ':' separator (expected char:Action)",
+                nb
+            );
+        }
+    }
+
+    if config.render.ui.nav_mode {
+        use matchmaker::action::Actions;
+        let mut nb = |k: &str, actions: Actions<matchmaker::action::NullActionExt>| {
+            config
+                .render
+                .ui
+                .nav_binds
+                .entry(k.to_string())
+                .or_insert(actions);
+        };
+        nb("d", matchmaker::acs![Action::Overlay(0)]);
+        nb("a", matchmaker::acs![Action::Overlay(1)]);
+        nb("r", matchmaker::acs![Action::Overlay(2)]);
+        nb("e", matchmaker::acs![Action::Overlay(3)]);
+        nb(" ", matchmaker::acs![Action::Toggle]);
+    }
+
+    if config.render.ui.nav_mode {
+        config.binds.insert(
+            key!(tab).into(),
+            matchmaker::acs![matchmaker::Action::ToggleFocus],
+        );
+    }
+
     if cli.dump_config {
         let contents = toml::to_string_pretty(&config).expect("failed to serialize to TOML");
 
@@ -237,6 +292,80 @@ pub fn map_reader<E: SSS + std::fmt::Display>(
 }
 
 pub static COMMAND_ARGS: Mutex<Vec<std::ffi::OsString>> = Mutex::new(Vec::new());
+
+fn parse_border_type(s: &str) -> ratatui::widgets::BorderType {
+    match s.trim().to_ascii_lowercase().as_str() {
+        "plain" | "thin" => ratatui::widgets::BorderType::Plain,
+        "rounded" => ratatui::widgets::BorderType::Rounded,
+        "double" => ratatui::widgets::BorderType::Double,
+        _ => ratatui::widgets::BorderType::Thick,
+    }
+}
+
+fn parse_blink_rate(s: &str) -> BlinkRate {
+    match s.trim().to_ascii_lowercase().as_str() {
+        "slow" => BlinkRate::Slow,
+        "rapid" | "fast" => BlinkRate::Rapid,
+        _ => BlinkRate::Normal,
+    }
+}
+
+fn apply_nav_props(props: &[String], config: &mut Config) {
+    config.render.ui.nav_mode = true;
+
+    for raw in props {
+        for prop in raw.split(',').filter(|s| !s.is_empty()) {
+            match prop.split_once(':') {
+                None => match prop {
+                    "bar" => config.render.ui.nav_bar = Some(ratatui::widgets::BorderType::Thick),
+                    "blink" => config.render.ui.nav_blink = true,
+                    "bold" => config.render.ui.nav_bold = true,
+                    "notify" => config.render.ui.nav_notify = true,
+                    _ => eprintln!("warning: unknown --nav property '{}'", prop),
+                },
+                Some(("bar", s)) => config.render.ui.nav_bar = Some(parse_border_type(s)),
+                Some(("blink", s)) => {
+                    config.render.ui.nav_blink = true;
+                    config.render.ui.nav_blink_rate = parse_blink_rate(s);
+                }
+                Some(("marker", s)) => config.render.ui.nav_marker = s.to_string(),
+                Some(("prompt", s)) => config.render.ui.nav_prompt = s.to_string(),
+                Some(("color", s)) => match s.trim().parse::<ratatui::style::Color>() {
+                    Ok(color) => config.render.ui.nav_color = color,
+                    Err(e) => eprintln!("warning: invalid --nav color '{}': {}", s, e),
+                },
+                Some((k, _)) => eprintln!("warning: unknown --nav property '{}'", k),
+            }
+        }
+    }
+}
+
+/// Split a nav-bind action string on ';' while ignoring semicolons inside
+/// parentheses. This allows `Execute(cd {};ls)` to stay a single action.
+fn split_nav_bind_actions(s: &str) -> Vec<&str> {
+    let mut parts = Vec::new();
+    let mut depth: usize = 0;
+    let mut start = 0;
+
+    for (i, c) in s.char_indices() {
+        match c {
+            '(' => depth += 1,
+            ')' => depth = depth.saturating_sub(1),
+            ';' if depth == 0 => {
+                parts.push(s[start..i].trim());
+                start = i + 1;
+            }
+            _ => {}
+        }
+    }
+
+    let tail = s[start..].trim();
+    if !tail.is_empty() {
+        parts.push(tail);
+    }
+
+    parts
+}
 
 pub fn process_envs(mut envs: HashMap<String, EnvValue>) -> HashMap<String, String> {
     let mut processed_envs = HashMap::new();
@@ -302,6 +431,8 @@ pub fn process_envs(mut envs: HashMap<String, EnvValue>) -> HashMap<String, Stri
 }
 
 pub async fn start(config: Config, no_read: bool) -> Result<(), MatchError> {
+    let nav_mode = config.render.ui.nav_mode;
+
     let Config {
         render,
         tui,
@@ -489,6 +620,36 @@ pub async fn start(config: Config, no_read: bool) -> Result<(), MatchError> {
     let render_tx = options.render_tx();
     let push_fn = inject_line(header_lines, render_tx.clone(), injector);
 
+    if nav_mode {
+        use crate::fm::{CreateOverlay, CurrentItem, DeleteOverlay, ExtractOverlay, RenameOverlay};
+
+        let current_item: CurrentItem = Arc::new(Mutex::new(None));
+
+        let ci_clone = current_item.clone();
+        mm.register_event_handler(matchmaker::message::Event::CursorChange, move |state, _| {
+            let name = state.current_raw().map(|item| item.to_cow().to_string());
+            if let Ok(mut lock) = ci_clone.lock() {
+                *lock = name;
+            }
+        });
+
+        let tx = render_tx.clone();
+        let undo_stack = Arc::new(Mutex::new(Vec::new()));
+        options = options
+            .overlay(DeleteOverlay::new(
+                current_item.clone(),
+                tx.clone(),
+                undo_stack.clone(),
+            ))
+            .overlay(CreateOverlay::new(tx.clone(), undo_stack.clone()))
+            .overlay(RenameOverlay::new(
+                current_item.clone(),
+                tx.clone(),
+                undo_stack.clone(),
+            ))
+            .overlay(ExtractOverlay::new(current_item.clone(), tx.clone()));
+    }
+
     // ---------------------- register handlers ---------------------------
     // print handler (no quoting)
     mm._register_print_handler(
@@ -506,6 +667,7 @@ pub async fn start(config: Config, no_read: bool) -> Result<(), MatchError> {
         Some(render_tx.clone()),
     );
     mm._register_become_handler(cli_formatter.clone());
+    mm.register_chdir_handler(cli_formatter.clone());
 
     // reload handler
     let reload_formatter = cli_formatter.clone();
@@ -563,6 +725,10 @@ pub async fn start(config: Config, no_read: bool) -> Result<(), MatchError> {
             _ => acs![a],
         });
 
+    if nav_mode {
+        log::debug!("Navigation mode enabled");
+    }
+
     // ----------- read -----------------------
     let handle = if !atty::is(atty::Stream::Stdin) && !no_read {
         if sort {
@@ -578,10 +744,20 @@ pub async fn start(config: Config, no_read: bool) -> Result<(), MatchError> {
             lines.sort_unstable();
             let sorted: Vec<u8> = lines.join(&(sep as u8));
             let cursor = std::io::Cursor::new(sorted);
-            map_reader(cursor, push_fn, input_separator, abort_empty.then_some(render_tx))
+            map_reader(
+                cursor,
+                push_fn,
+                input_separator,
+                abort_empty.then_some(render_tx),
+            )
         } else {
             let stdin = std::io::stdin();
-            map_reader(stdin, push_fn, input_separator, abort_empty.then_some(render_tx))
+            map_reader(
+                stdin,
+                push_fn,
+                input_separator,
+                abort_empty.then_some(render_tx),
+            )
         }
     } else if !command.is_empty()
         && let Some(stdout) = Command::from_script(&command)

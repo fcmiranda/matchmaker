@@ -62,6 +62,19 @@ pub struct Cli {
     ///       header-label, nav, selected-fg, selected-bg, selected-prefix, yank, symlink
     #[arg(long, value_name = "SPEC")]
     pub color: Vec<String>,
+
+    /// Enable navigation mode and set properties.
+    /// Examples:
+    ///   --nav
+    ///   --nav bar blink:slow
+    ///   --nav bar:plain color:#a6e3a1 marker:'>' bold
+    #[arg(long, value_name = "PROP", num_args = 0..)]
+    pub nav: Vec<String>,
+
+    /// Navigation-mode key bindings in the form "char:action".
+    /// Example: --nav-bind 'h:ChDir(..)' --nav-bind 'l:ChDir({=});Reload'
+    #[arg(long = "nav-bind", value_name = "BIND")]
+    pub nav_bind: Vec<String>,
 }
 
 #[derive(Debug, Clone, clap::ValueEnum, PartialEq)]
@@ -95,6 +108,25 @@ impl Cli {
                 continue;
             }
 
+            // Special handling for --nav since it accepts zero or more values.
+            if s == "--nav" {
+                clap_args.push(arg.clone());
+                while let Some(next) = iter.peek() {
+                    let n = next.to_string_lossy();
+                    if n.starts_with('-') {
+                        break;
+                    }
+                    if let Some(next) = iter.next() {
+                        clap_args.push(next);
+                    }
+                }
+                continue;
+            }
+            if s.starts_with("--nav=") {
+                clap_args.push(arg.clone());
+                continue;
+            }
+
             macro_rules! try_parse {
                 ($name:literal, $prefix:expr) => {{
                     let eq_opt = concat!($prefix, $name, "=");
@@ -123,6 +155,7 @@ impl Cli {
             try_parse!("override", "--");
             try_parse!("o", "-");
             try_parse!("color", "--");
+            try_parse!("nav-bind", "--");
 
             // Flags
             if [
@@ -133,6 +166,7 @@ impl Cli {
                 "--sort",
                 "--icons",
                 "--symlink-target",
+                "--nav",
                 "--help",
                 "-F",
             ]

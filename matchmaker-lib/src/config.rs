@@ -1,7 +1,7 @@
 //! Config Types.
 //! See `src/bin/mm/config.rs` for an example
 
-use std::ffi::OsString;
+use std::{collections::HashMap, ffi::OsString};
 
 use matchmaker_partial_macros::partial;
 
@@ -9,6 +9,8 @@ pub use crate::config_types::*;
 pub use crate::utils::{Percentage, serde::StringOrVec};
 
 use crate::{
+    MAX_SPLITS,
+    action::{Action, Actions, NullActionExt},
     tui::IoStream,
     utils::serde::{escaped_opt_char, escaped_opt_string},
 };
@@ -210,16 +212,90 @@ pub struct UiConfig {
     pub border: BorderSetting,
     pub tick_rate: u8, // separate from render, but best place ig
 
+    /// Enable navigation mode: pressing `ToggleFocus` switches keyboard focus
+    /// between the input bar and the results list.
+    #[partial(alias = "fm")]
+    #[serde(alias = "focus_mode")]
+    pub nav_mode: bool,
+
     /// Navigation-mode indicator colour (set via `--color nav:` or `--nav color:`).
+    #[serde(deserialize_with = "camelcase_normalized")]
+    #[serde(alias = "focus_color")]
     pub nav_color: Color,
+
+    /// Make the navigation indicator blink.
+    #[partial(alias = "fm_blink")]
+    #[serde(alias = "focus_blink")]
+    pub nav_blink: bool,
+
+    /// Blink speed when `nav_blink = true`.
+    #[partial(alias = "fm_blink_rate")]
+    #[serde(alias = "focus_blink_rate")]
+    pub nav_blink_rate: BlinkRate,
+
+    /// Apply bold styling to navigation indicator.
+    #[partial(alias = "fm_bold")]
+    #[serde(alias = "focus_bold")]
+    pub nav_bold: bool,
+
+    /// Left-bar border style for the navigation indicator.
+    #[partial(alias = "fm_bar")]
+    #[serde(alias = "focus_bar")]
+    pub nav_bar: Option<BorderType>,
+
+    /// Marker rendered on the current result row when results pane is focused.
+    #[partial(alias = "fm_marker")]
+    #[serde(alias = "focus_marker")]
+    pub nav_marker: String,
+
+    /// Prompt text shown while the results pane is focused.
+    #[partial(alias = "fm_prompt")]
+    #[serde(alias = "focus_prompt")]
+    pub nav_prompt: String,
+
+    /// Key bindings active while navigation mode is enabled and results pane has focus.
+    #[serde(alias = "focus_binds")]
+    pub nav_binds: HashMap<String, Actions<NullActionExt>>,
+
+    /// Show notifications for file-manager clipboard actions.
+    #[serde(alias = "focus_notify")]
+    #[serde(alias = "fm_notify")]
+    pub nav_notify: bool,
 }
 
 impl Default for UiConfig {
     fn default() -> Self {
+        let mut nav_binds = HashMap::new();
+        nav_binds.insert("j".to_string(), Actions::from([Action::Down(1)]));
+        nav_binds.insert("k".to_string(), Actions::from([Action::Up(1)]));
+        nav_binds.insert(
+            "l".to_string(),
+            Actions::from([
+                Action::ChDir("{=}".to_string()),
+                Action::Reload("".to_string()),
+            ]),
+        );
+        nav_binds.insert(
+            "h".to_string(),
+            Actions::from([
+                Action::ChDir("..".to_string()),
+                Action::Reload("".to_string()),
+            ]),
+        );
+
         Self {
             border: Default::default(),
             tick_rate: 60,
+            nav_mode: false,
             nav_color: Color::Reset,
+            nav_blink: false,
+            nav_blink_rate: BlinkRate::Normal,
+            nav_bold: false,
+            nav_bar: None,
+            nav_marker: String::new(),
+            nav_prompt: String::new(),
+            nav_binds,
+            nav_notify: false,
         }
     }
 }
@@ -947,7 +1023,10 @@ impl BorderSetting {
     /// provided, falling back to the static `self.title` when `None`.
     /// The title is styled with `title_fg` (or the border color when `title_fg`
     /// is `Color::Reset`).
-    pub fn block_with_title<'a>(&'a self, title_override: Option<&'a str>) -> ratatui::widgets::Block<'a> {
+    pub fn block_with_title<'a>(
+        &'a self,
+        title_override: Option<&'a str>,
+    ) -> ratatui::widgets::Block<'a> {
         let mut ret = ratatui::widgets::Block::default()
             .padding(self.padding.0)
             .style(Style::default().bg(self.bg).add_modifier(self.modifier));

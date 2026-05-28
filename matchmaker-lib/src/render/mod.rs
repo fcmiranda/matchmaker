@@ -17,13 +17,127 @@ use tokio::sync::mpsc;
 
 #[cfg(feature = "bracketed-paste")]
 use crate::PasteHandler;
-use crate::action::{Action, ActionExt};
+use crate::action::{Action, ActionExt, NullActionExt};
 use crate::config::{CursorSetting, ExitConfig, RowConnectionStyle};
 use crate::event::{BindSender, EventSender};
 use crate::message::{BindDirective, Event, Interrupt, RenderCommand};
 use crate::tui::Tui;
 use crate::ui::{DisplayUI, OverlayUI, PickerUI, PreviewUI, QueryUI, ResultsUI, UI};
 use crate::{ActionAliaser, ActionExtHandler, Initializer, MatchError, SSS, Selection};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::Span;
+use ratatui::widgets::{Block, Borders, Paragraph};
+
+fn action_from_null<A: ActionExt>(action: Action<NullActionExt>) -> Option<Action<A>> {
+    Some(match action {
+        Action::Select => Action::Select,
+        Action::Deselect => Action::Deselect,
+        Action::Toggle => Action::Toggle,
+        Action::CycleAll => Action::CycleAll,
+        Action::ClearSelections => Action::ClearSelections,
+        Action::Accept => Action::Accept,
+        Action::Quit(x) => Action::Quit(x),
+        Action::ToggleWrap => Action::ToggleWrap,
+        Action::ToggleActionBox => Action::ToggleActionBox,
+        Action::ToggleFocus => Action::ToggleFocus,
+        Action::Up(x) => Action::Up(x),
+        Action::Down(x) => Action::Down(x),
+        Action::Pos(x) => Action::Pos(x),
+        Action::HalfPageDown => Action::HalfPageDown,
+        Action::HalfPageUp => Action::HalfPageUp,
+        Action::HScroll(x) => Action::HScroll(x),
+        Action::VScroll(x) => Action::VScroll(x),
+        Action::CyclePreview => Action::CyclePreview,
+        Action::Preview(x) => Action::Preview(x),
+        Action::Help(x) => Action::Help(x),
+        Action::SetPreview(x) => Action::SetPreview(x),
+        Action::SwitchPreview(x) => Action::SwitchPreview(x),
+        Action::TogglePreviewWrap => Action::TogglePreviewWrap,
+        Action::PreviewUp(x) => Action::PreviewUp(x),
+        Action::PreviewDown(x) => Action::PreviewDown(x),
+        Action::ExpandPreview(x) => Action::ExpandPreview(x),
+        Action::ShrinkPreview(x) => Action::ShrinkPreview(x),
+        Action::PreviewHalfPageUp => Action::PreviewHalfPageUp,
+        Action::PreviewHalfPageDown => Action::PreviewHalfPageDown,
+        Action::PreviewHScroll(x) => Action::PreviewHScroll(x),
+        Action::PreviewScroll(x) => Action::PreviewScroll(x),
+        Action::PreviewJump => Action::PreviewJump,
+        Action::NextColumn => Action::NextColumn,
+        Action::PrevColumn => Action::PrevColumn,
+        Action::SwitchColumn(x) => Action::SwitchColumn(x),
+        Action::ToggleColumn(x) => Action::ToggleColumn(x),
+        Action::ShowColumn(x) => Action::ShowColumn(x),
+        Action::Execute(x) => Action::Execute(x),
+        Action::ExecuteAsync(x) => Action::ExecuteAsync(x),
+        Action::ExecuteThen(x) => Action::ExecuteThen(x),
+        Action::ExecuteSilent(x) => Action::ExecuteSilent(x),
+        Action::Become(x) => Action::Become(x),
+        Action::BecomeSilent(x) => Action::BecomeSilent(x),
+        Action::Reload(x) => Action::Reload(x),
+        Action::ChDir(x) => Action::ChDir(x),
+        Action::Print(x) => Action::Print(x),
+        Action::PrintKey => Action::PrintKey,
+        Action::Store(x) => Action::Store(x),
+        Action::ForwardChar => Action::ForwardChar,
+        Action::BackwardChar => Action::BackwardChar,
+        Action::ForwardWord => Action::ForwardWord,
+        Action::BackwardWord => Action::BackwardWord,
+        Action::DeleteChar => Action::DeleteChar,
+        Action::DeleteWord => Action::DeleteWord,
+        Action::DeleteLineStart => Action::DeleteLineStart,
+        Action::DeleteLineEnd => Action::DeleteLineEnd,
+        Action::Cancel => Action::Cancel,
+        Action::SetQuery(x) => Action::SetQuery(x),
+        Action::QueryPos(x) => Action::QueryPos(x),
+        Action::Char(x) => Action::Char(x),
+        Action::Redraw => Action::Redraw,
+        Action::Custom(_) => return None,
+        Action::Overlay(x) => Action::Overlay(x),
+        Action::Semantic(x) => Action::Semantic(x),
+        Action::Trace(x) => Action::Trace(x),
+    })
+}
+
+/// Pre-process `buffer` for navigation mode: simulate `ToggleFocus` events encountered in the
+/// batch and expand `Action::Char` events into `nav_binds` actions while focus is on results.
+fn apply_focus_binds<A: ActionExt>(
+    buffer: &mut Vec<RenderCommand<A>>,
+    initial_focus: Focus,
+    focus_binds: &std::collections::HashMap<String, crate::action::Actions<NullActionExt>>,
+    overlay_active: bool,
+) {
+    if overlay_active {
+        return;
+    }
+
+    let mut out = Vec::with_capacity(buffer.len());
+    let mut sim_focus = initial_focus;
+
+    for cmd in buffer.drain(..) {
+        match cmd {
+            RenderCommand::Action(Action::ToggleFocus) => {
+                sim_focus = match sim_focus {
+                    Focus::Input => Focus::Results,
+                    Focus::Results => Focus::Input,
+                };
+                out.push(RenderCommand::Action(Action::ToggleFocus));
+            }
+            RenderCommand::Action(Action::Char(c)) if sim_focus == Focus::Results => {
+                let key = c.to_string();
+                if let Some(actions) = focus_binds.get(&key) {
+                    for action in actions.iter().cloned() {
+                        if let Some(action) = action_from_null::<A>(action) {
+                            out.push(RenderCommand::Action(action));
+                        }
+                    }
+                }
+            }
+            other => out.push(other),
+        }
+    }
+
+    *buffer = out;
+}
 
 fn apply_aliases<T: SSS, S: Selection, A: ActionExt>(
     buffer: &mut Vec<RenderCommand<A>>,
@@ -112,6 +226,29 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
             )
         };
 
+        if ui.config.nav_mode {
+            apply_focus_binds(
+                &mut buffer,
+                state.focus,
+                &ui.config.nav_binds,
+                overlay_ui.as_ref().map_or(false, |o| o.index().is_some()),
+            );
+
+            if let Some(aliaser) = &mut ext_aliaser {
+                apply_aliases(
+                    &mut buffer,
+                    aliaser,
+                    &mut state.dispatcher(
+                        &mut ui,
+                        &mut picker_ui,
+                        &mut footer_ui,
+                        &mut preview_ui,
+                        &controller_tx,
+                    ),
+                )
+            };
+        }
+
         if state.should_quit {
             log::debug!("Exiting due to should_quit");
             return if picker_ui.selector.is_disabled()
@@ -198,7 +335,10 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                                     // Fallback: use the legacy drag_width border-edge approach.
                                     let drag_width = p.drag_width();
                                     if drag_width > 0 {
-                                        let side = p.setting().map(|s| &s.layout.side).unwrap_or(&Side::Right);
+                                        let side = p
+                                            .setting()
+                                            .map(|s| &s.layout.side)
+                                            .unwrap_or(&Side::Right);
                                         match side {
                                             Side::Right => {
                                                 let drag_area = Rect {
@@ -212,7 +352,10 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                                             Side::Left => {
                                                 let drag_area = Rect {
                                                     x: layout.preview.x
-                                                        + layout.preview.width.saturating_sub(drag_width),
+                                                        + layout
+                                                            .preview
+                                                            .width
+                                                            .saturating_sub(drag_width),
                                                     y: layout.preview.y,
                                                     width: drag_width,
                                                     height: layout.preview.height,
@@ -232,7 +375,10 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                                                 let drag_area = Rect {
                                                     x: layout.preview.x,
                                                     y: layout.preview.y
-                                                        + layout.preview.height.saturating_sub(drag_width),
+                                                        + layout
+                                                            .preview
+                                                            .height
+                                                            .saturating_sub(drag_width),
                                                     width: layout.preview.width,
                                                     height: drag_width,
                                                 };
@@ -652,6 +798,9 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                         Action::Reload(payload) => {
                             state.set_interrupt(Interrupt::Reload, payload);
                         }
+                        Action::ChDir(payload) => {
+                            state.set_interrupt(Interrupt::ChDir, payload);
+                        }
                         Action::Print(payload) => {
                             state.set_interrupt(Interrupt::Print, payload);
                         }
@@ -754,6 +903,27 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                         Action::Redraw => {
                             tui.redraw();
                         }
+                        Action::ToggleFocus => {
+                            if ui.config.nav_mode {
+                                state.focus = match state.focus {
+                                    Focus::Input => Focus::Results,
+                                    Focus::Results => Focus::Input,
+                                };
+                                state.focus_blink = true;
+                                state.focus_tick = 0;
+
+                                let prompt = &ui.config.nav_prompt;
+                                if !prompt.is_empty() {
+                                    let prompt = match state.focus {
+                                        Focus::Results => {
+                                            Some(ratatui::text::Line::raw(prompt.clone()))
+                                        }
+                                        Focus::Input => None,
+                                    };
+                                    picker_ui.query.set_prompt(prompt);
+                                }
+                            }
+                        }
                         Action::Overlay(index) => {
                             if let Some(x) = overlay_ui.as_mut() {
                                 x.enable(index, &ui.area());
@@ -774,7 +944,11 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                                 );
                             }
                         }
-                        Action::Char(c) => picker_ui.query.push_char(c),
+                        Action::Char(c) => {
+                            if !(ui.config.nav_mode && state.focus == Focus::Results) {
+                                picker_ui.query.push_char(c)
+                            }
+                        }
                         Action::SetMode(s) => {
                             if let Ok(mut m) = crate::MODE.lock() {
                                 *m = s;
@@ -878,6 +1052,15 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
             tui.redraw();
         }
 
+        if ui.config.nav_mode {
+            let blink_ticks = ui.config.nav_blink_rate.ticks();
+            state.focus_tick = state.focus_tick.wrapping_add(1);
+            if state.focus_tick >= blink_ticks {
+                state.focus_tick = 0;
+                state.focus_blink = !state.focus_blink;
+            }
+        }
+
         let mut overlay_ui_ref = overlay_ui.as_mut();
         let mut cursor_y_offset = 0;
 
@@ -900,7 +1083,8 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                         Rect::default()
                     };
 
-                let [preview, picker_area, footer, gap_area] = if let Some(preview_ui) = preview_ui.as_mut()
+                let [preview, picker_area, footer, gap_area] = if let Some(preview_ui) =
+                    preview_ui.as_mut()
                     && preview_ui.visible()
                 {
                     let [preview, mut picker_area, gap_area] = preview_ui.split(_area);
@@ -959,11 +1143,38 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                     }
                 };
 
-                let status_inline_label: Option<Line<'_>> = if picker_ui.query.config.status_inline {
+                let status_inline_label: Option<Line<'_>> = if picker_ui.query.config.status_inline
+                {
                     Some(picker_ui.results.status_line())
                 } else {
                     None
                 };
+
+                let nav_color = ui.config.nav_color;
+                let nav_mode = ui.config.nav_mode;
+                let nav_do_blink = ui.config.nav_blink;
+                let nav_bold = ui.config.nav_bold;
+                let nav_bar = ui.config.nav_bar;
+                let nav_marker = ui.config.nav_marker.clone();
+                let input_focus_info = nav_mode.then_some(FocusInfo {
+                    focused: state.focus == Focus::Input,
+                    blink_phase: state.focus_blink,
+                    color: nav_color,
+                    do_blink: nav_do_blink,
+                    bold: nav_bold,
+                    bar: nav_bar,
+                    marker: String::new(),
+                });
+                let results_focus_info = nav_mode.then_some(FocusInfo {
+                    focused: state.focus == Focus::Results,
+                    blink_phase: state.focus_blink,
+                    color: nav_color,
+                    do_blink: nav_do_blink,
+                    bold: nav_bold,
+                    bar: nav_bar,
+                    marker: nav_marker,
+                });
+
                 if picker_ui.action_visible {
                     let cfg = &picker_ui.action_config;
                     // Apply width percentage — centered within the allocated row(s).
@@ -988,7 +1199,7 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                         width: action_w,
                         height: action_full_rect.height.min(1),
                     };
-                    render_input(frame, action_input_rect, &mut picker_ui.action, None);
+                    render_input(frame, action_input_rect, &mut picker_ui.action, None, None);
 
                     // Render preview area below if preview_height > 0.
                     if cfg.preview_height > 0 && action.height > 2 {
@@ -1007,13 +1218,20 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                     input,
                     &mut picker_ui.query,
                     status_inline_label,
+                    input_focus_info,
                 )
                 .y;
                 // When status_inline is active, skip the separate status row.
                 if !picker_ui.query.config.status_inline {
                     render_status(frame, status, &picker_ui.results, ui.area().width);
                 }
-                render_results(frame, results, &mut picker_ui, &mut click);
+                render_results(
+                    frame,
+                    results,
+                    &mut picker_ui,
+                    &mut click,
+                    results_focus_info,
+                );
                 render_display(frame, header, &mut picker_ui.header, &picker_ui.results);
                 render_display(frame, footer, &mut footer_ui, &picker_ui.results);
                 if let Some(preview_ui) = preview_ui.as_mut() {
@@ -1029,8 +1247,7 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
 
                         // Highlight the gap area when the mouse is hovering over it.
                         if !gap_area.is_empty() {
-                            let is_hovered = mouse_hover
-                                .is_some_and(|p| gap_area.contains(p));
+                            let is_hovered = mouse_hover.is_some_and(|p| gap_area.contains(p));
                             let is_dragging = state.dragging.is_some();
                             if is_hovered || is_dragging {
                                 use ratatui::style::Color as C;
@@ -1119,6 +1336,30 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
 
 // ------------------------- HELPERS ----------------------------
 
+struct FocusInfo {
+    focused: bool,
+    blink_phase: bool,
+    color: Color,
+    do_blink: bool,
+    bold: bool,
+    bar: Option<ratatui::widgets::BorderType>,
+    marker: String,
+}
+
+impl FocusInfo {
+    fn indicator_color(&self) -> Option<Color> {
+        if self.focused {
+            Some(if self.do_blink && !self.blink_phase {
+                Color::DarkGray
+            } else {
+                self.color
+            })
+        } else {
+            None
+        }
+    }
+}
+
 pub enum Click {
     None,
     ResultPos(u16),
@@ -1175,6 +1416,7 @@ fn render_results<T: SSS, S: Selection>(
     mut area: Rect,
     ui: &mut PickerUI<T, S>,
     click: &mut Click,
+    focus_info: Option<FocusInfo>,
 ) {
     let cap = matches!(ui.results.config.row_connection, RowConnectionStyle::Capped);
     let (widget, table_width) = ui.make_table(click);
@@ -1184,10 +1426,69 @@ fn render_results<T: SSS, S: Selection>(
     }
 
     frame.render_widget(widget, area);
+
+    if let Some(fi) = focus_info {
+        let bar_color = fi.indicator_color();
+
+        if let (Some(border_type), Some(color)) = (fi.bar, bar_color) {
+            let mut style = Style::default().fg(color);
+            if fi.bold {
+                style = style.add_modifier(Modifier::BOLD);
+            }
+            let indicator = Block::default()
+                .borders(Borders::LEFT)
+                .border_type(border_type)
+                .border_style(style);
+
+            let bar_height = (ui.results.status.matched_count as u16).min(area.height);
+            let bar_area = if ui.results.reverse() {
+                Rect {
+                    y: area.y + area.height - bar_height,
+                    height: bar_height,
+                    ..area
+                }
+            } else {
+                Rect {
+                    height: bar_height,
+                    ..area
+                }
+            };
+
+            frame.render_widget(indicator, bar_area);
+        }
+
+        if !fi.marker.is_empty()
+            && let Some(cursor_row) = ui.results.cursor_offset()
+        {
+            let marker_y = if ui.results.reverse() {
+                area.y + area.height.saturating_sub(1 + cursor_row)
+            } else {
+                area.y + cursor_row
+            };
+            if marker_y >= area.y && marker_y < area.y + area.height {
+                let marker_color = bar_color.unwrap_or(fi.color);
+                let marker_w = unicode_width::UnicodeWidthStr::width(fi.marker.as_str()) as u16;
+                let marker_rect = Rect {
+                    x: area.x,
+                    y: marker_y,
+                    width: marker_w.min(area.width),
+                    height: 1,
+                };
+                let span = Span::styled(fi.marker.clone(), Style::default().fg(marker_color));
+                frame.render_widget(Paragraph::new(span), marker_rect);
+            }
+        }
+    }
 }
 
 /// Returns the offset of the cursor against the drawing area
-fn render_input(frame: &mut Frame, area: Rect, ui: &mut QueryUI, status: Option<Line<'_>>) -> Position {
+fn render_input(
+    frame: &mut Frame,
+    area: Rect,
+    ui: &mut QueryUI,
+    status: Option<Line<'_>>,
+    focus_info: Option<FocusInfo>,
+) -> Position {
     ui.scroll_to_cursor();
     let widget = if let Some(label) = status {
         ui.make_input_with_status(label, area.width)
@@ -1195,11 +1496,29 @@ fn render_input(frame: &mut Frame, area: Rect, ui: &mut QueryUI, status: Option<
         ui.make_input()
     };
     let p = ui.cursor_offset(&area);
+
+    let show_cursor = focus_info.as_ref().map_or(true, |f| f.focused);
     if let CursorSetting::Default = ui.config.cursor {
-        frame.set_cursor_position(p)
+        if show_cursor {
+            frame.set_cursor_position(p)
+        }
     };
 
     frame.render_widget(widget, area);
+
+    if let Some(fi) = focus_info {
+        if let (Some(border_type), Some(color)) = (fi.bar, fi.indicator_color()) {
+            let mut style = Style::default().fg(color);
+            if fi.bold {
+                style = style.add_modifier(Modifier::BOLD);
+            }
+            let indicator = Block::default()
+                .borders(Borders::LEFT)
+                .border_type(border_type)
+                .border_style(style);
+            frame.render_widget(indicator, area);
+        }
+    }
 
     p
 }

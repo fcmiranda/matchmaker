@@ -33,6 +33,8 @@ pub enum Action<A: ActionExt = NullActionExt> {
     ToggleWrap,
     /// Toggle the action dialog box above the filter input
     ToggleActionBox,
+    /// Toggle keyboard focus between input and results when navigation mode is enabled
+    ToggleFocus,
 
     // Results Navigation
     /// Move selection index up
@@ -125,6 +127,8 @@ pub enum Action<A: ActionExt = NullActionExt> {
     BecomeSilent(String),
     /// Reload matcher/worker
     Reload(String),
+    /// Change current working directory
+    ChDir(String),
     /// Print via handler
     Print(String),
     /// Print key via handler
@@ -364,7 +368,7 @@ enum_from_str_display!(
 
     HalfPageDown, HalfPageUp,
 
-    ToggleWrap, TogglePreviewWrap, ToggleActionBox, CyclePreview, PreviewJump,
+    ToggleWrap, TogglePreviewWrap, ToggleActionBox, ToggleFocus, CyclePreview, PreviewJump,
 
     PreviewHalfPageUp, PreviewHalfPageDown,
 

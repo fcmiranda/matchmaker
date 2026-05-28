@@ -29,6 +29,16 @@ pub struct Layout {
     pub pane: Rect,
 }
 
+/// Which pane currently has keyboard focus when `nav_mode` is enabled.
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Focus {
+    /// The text input / filter bar has focus (default).
+    #[default]
+    Input,
+    /// The results picker list has focus.
+    Results,
+}
+
 /// In the "standard implementation", None represents unset, String: command, Text: display
 pub type PreviewSetPayload = Option<Result<String, Text<'static>>>;
 
@@ -46,6 +56,13 @@ pub struct State {
     pub(crate) dragging: Option<Position>,
     pub(crate) overlay_index: Option<usize>,
     pub(crate) synced: [bool; 2], // ran, synced
+
+    /// Current focus pane (used when `nav_mode` is enabled).
+    pub focus: Focus,
+    /// Current blink phase for the navigation indicator.
+    pub(crate) focus_blink: bool,
+    /// Tick counter driving the blink half-cycle.
+    pub(crate) focus_tick: u8,
 
     pub(crate) events: Event,
 
@@ -119,6 +136,9 @@ impl State {
             dragging: None,
             overlay_index: None,
             col: None,
+            focus: Focus::Input,
+            focus_blink: true,
+            focus_tick: 0,
 
             input: String::new(),
             iterations: 0,

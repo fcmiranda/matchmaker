@@ -1,13 +1,15 @@
 use log::error;
 use ratatui::{
     layout::Rect,
-    text::{Line, Span},
     style::Style,
+    text::{Line, Span},
     widgets::{Paragraph, Wrap},
 };
 
 use crate::{
-    config::{BorderSetting, PreviewConfig, PreviewInitialSetting, PreviewSetting, ShowCondition, Side},
+    config::{
+        BorderSetting, PreviewConfig, PreviewInitialSetting, PreviewSetting, ShowCondition, Side,
+    },
     preview::Preview,
     utils::text::wrapped_line_height,
 };
@@ -449,14 +451,13 @@ impl PreviewUI {
 
     pub fn drag_width(&self) -> u16 {
         self.config.drag_width.unwrap_or_else(|| {
-            let side = self.setting().map(|s| &s.layout.side).unwrap_or(&Side::Right);
+            let side = self
+                .setting()
+                .map(|s| &s.layout.side)
+                .unwrap_or(&Side::Right);
             match side {
-                Side::Left | Side::Right => {
-                    self.active_border().map(|b| b.width()).unwrap_or(0)
-                }
-                Side::Top | Side::Bottom => {
-                    self.active_border().map(|b| b.height()).unwrap_or(0)
-                }
+                Side::Left | Side::Right => self.active_border().map(|b| b.width()).unwrap_or(0),
+                Side::Top | Side::Bottom => self.active_border().map(|b| b.height()).unwrap_or(0),
             }
         })
     }
@@ -499,8 +500,7 @@ impl PreviewUI {
                     self.area.width + self.active_border().map(|b| b.width()).unwrap_or(0)
                 }
                 Side::Top | Side::Bottom => {
-                    self.area.height
-                        + self.active_border().map(|b| b.height()).unwrap_or(0)
+                    self.area.height + self.active_border().map(|b| b.height()).unwrap_or(0)
                 }
             }
         }
@@ -582,7 +582,9 @@ impl PreviewUI {
             Some("{item}") => Some(dynamic.to_string()),
             Some(t) if t.contains("{item}") => Some(t.replace("{item}", dynamic)),
             Some("$currentItemName") => Some(dynamic.to_string()),
-            Some(t) if t.contains("$currentItemName") => Some(t.replace("$currentItemName", dynamic)),
+            Some(t) if t.contains("$currentItemName") => {
+                Some(t.replace("$currentItemName", dynamic))
+            }
             Some(t) => Some(t.to_string()),
         };
 

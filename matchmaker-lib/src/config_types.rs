@@ -84,6 +84,25 @@ impl HorizontalSeparator {
     }
 }
 
+#[derive(Debug, Default, Clone, PartialEq, serde::Serialize, serde::Deserialize, Copy)]
+pub enum BlinkRate {
+    Slow,
+    #[default]
+    Normal,
+    Rapid,
+}
+
+impl BlinkRate {
+    /// Returns the number of ticks per half-cycle for this blink rate.
+    pub fn ticks(self) -> u8 {
+        match self {
+            BlinkRate::Slow => 90,
+            BlinkRate::Normal => 30,
+            BlinkRate::Rapid => 10,
+        }
+    }
+}
+
 #[derive(Debug, Default, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum RowConnectionStyle {
     #[default]

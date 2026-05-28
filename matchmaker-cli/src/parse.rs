@@ -23,6 +23,13 @@ static ALIASES: &[(&str, &str)] = &[
     ("px", "preview.layout.command"),
     ("P", "preview.layout"),
     ("h", "header.content"),
+    ("nav", "ui.nav_mode"),
+    ("nav-color", "ui.nav_color"),
+    ("nav-bar", "ui.nav_bar"),
+    ("nav-marker", "ui.nav_marker"),
+    ("nav-prompt", "ui.nav_prompt"),
+    ("fm", "ui.nav_mode"),
+    ("ui-fm-color", "ui.nav_color"),
 ];
 
 /// Get (path, value) pairs by consuming either a single word, splitting at '=' into a valid key, or a pair of consecutive words.

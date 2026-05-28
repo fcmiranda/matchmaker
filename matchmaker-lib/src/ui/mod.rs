@@ -192,13 +192,15 @@ impl<'a, T: SSS, S: Selection> PickerUI<'a, T, S> {
         };
 
         let mut constraints = [
-            Constraint::Length(action_height),                        // action (input + preview)
-            Constraint::Length(1 + query.config.border.height()),     // filter input
-            Constraint::Length(
-                if query.config.status_inline { 0 } else { results.status_config.show as u16 }
-            ),                                                         // status
-            Constraint::Length(header.height()),                      // header
-            Constraint::Fill(1),                                       // results
+            Constraint::Length(action_height), // action (input + preview)
+            Constraint::Length(1 + query.config.border.height()), // filter input
+            Constraint::Length(if query.config.status_inline {
+                0
+            } else {
+                results.status_config.show as u16
+            }), // status
+            Constraint::Length(header.height()), // header
+            Constraint::Fill(1),               // results
         ];
 
         if self.reverse() {

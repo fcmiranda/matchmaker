@@ -3,6 +3,7 @@ mod clap;
 mod color;
 mod config;
 mod crokey;
+mod fm;
 pub mod formatter;
 mod logger;
 mod parse;

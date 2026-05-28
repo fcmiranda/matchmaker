@@ -62,6 +62,7 @@ pub enum Interrupt {
     Execute,
     ExecuteAsync,
     ExecuteSilent,
+    ChDir,
     BecomeSilent,
     Print,
     Reload,

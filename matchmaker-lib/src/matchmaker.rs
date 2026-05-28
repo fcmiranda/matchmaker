@@ -1043,6 +1043,26 @@ impl<T: SSS, S: Selection + 'static> Matchmaker<T, S> {
         });
     }
 
+    /// Causes [`Action::ChDir`] to change the working directory in-place.
+    pub fn register_chdir_handler(&mut self, formatter: AttachmentFormatter<T, S>) {
+        self.register_interrupt_handler(Interrupt::ChDir, move |state| {
+            let template = state.payload().clone();
+            if template.is_empty() {
+                return;
+            }
+
+            let path = use_formatter(&formatter, state, &template, None);
+            if path.is_empty() {
+                return;
+            }
+
+            debug!("ChDir: {path}");
+            if let Err(e) = std::env::set_current_dir(&path) {
+                warn!("ChDir({path}) failed: {e}");
+            }
+        });
+    }
+
     /// Causes [`Action::Become`] to cause the program to become the program specified by its payload.
     /// Note:
     /// - not intended for direct use.

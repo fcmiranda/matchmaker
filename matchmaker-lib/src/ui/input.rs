@@ -375,7 +375,11 @@ impl QueryUI {
     /// Like `make_input` but right-aligns `right_label` (the inline status)
     /// inside the available area.  `area_width` is the rendered width of the
     /// input row (after border padding has been applied by the caller).
-    pub fn make_input_with_status<'a>(&'a self, right_label: Line<'a>, area_width: u16) -> Paragraph<'a> {
+    pub fn make_input_with_status<'a>(
+        &'a self,
+        right_label: Line<'a>,
+        area_width: u16,
+    ) -> Paragraph<'a> {
         use unicode_width::UnicodeWidthStr;
 
         let mut line = self.prompt.clone();
@@ -385,11 +389,7 @@ impl QueryUI {
         ));
 
         // Calculate how much of area_width the left part already consumes.
-        let left_width = line
-            .spans
-            .iter()
-            .map(|s| s.content.width())
-            .sum::<usize>() as u16;
+        let left_width = line.spans.iter().map(|s| s.content.width()).sum::<usize>() as u16;
 
         // Width of the right label.
         let label_width = right_label
