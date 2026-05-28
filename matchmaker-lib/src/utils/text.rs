@@ -89,7 +89,8 @@ pub fn prefix_span<'a, 'b: 'a>(
             line.spans.insert(0, Span::styled(rest, override_style));
             line.spans.insert(0, nav.clone());
         } else {
-            line.spans.insert(0, Span::styled(prefix.clone(), override_style));
+            line.spans
+                .insert(0, Span::styled(prefix.clone(), override_style));
         }
     }
 }

@@ -51,16 +51,18 @@ pub type UndoStack = Arc<Mutex<Vec<UndoAction>>>;
 
 fn get_deletion_date() -> String {
     let now = std::time::SystemTime::now();
-    let duration = now.duration_since(std::time::UNIX_EPOCH).unwrap_or_default();
+    let duration = now
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default();
     let secs = duration.as_secs();
-    
+
     let days = secs / 86400;
     let sec_in_day = secs % 86400;
-    
+
     let hour = sec_in_day / 3600;
     let min = (sec_in_day % 3600) / 60;
     let sec = sec_in_day % 60;
-    
+
     let mut year = 1970;
     let mut days_left = days;
     loop {
@@ -72,14 +74,14 @@ fn get_deletion_date() -> String {
         days_left -= days_in_year;
         year += 1;
     }
-    
+
     let leap = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
     let month_days = if leap {
         [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
     } else {
         [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
     };
-    
+
     let mut month = 1;
     for &d in &month_days {
         if days_left < d {
@@ -89,8 +91,11 @@ fn get_deletion_date() -> String {
         month += 1;
     }
     let day = days_left + 1;
-    
-    format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}", year, month, day, hour, min, sec)
+
+    format!(
+        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}",
+        year, month, day, hour, min, sec
+    )
 }
 
 fn percent_encode(s: &str) -> String {
@@ -112,18 +117,18 @@ pub fn move_to_trash(path: &Path) -> std::io::Result<PathBuf> {
     let trash_dir = dirs::data_local_dir()
         .map(|d| d.join("Trash"))
         .unwrap_or_else(|| std::env::temp_dir().join("mm_trash"));
-    
+
     let files_dir = trash_dir.join("files");
     let info_dir = trash_dir.join("info");
-    
+
     fs::create_dir_all(&files_dir)?;
     fs::create_dir_all(&info_dir)?;
-    
+
     let name = path
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_else(|| "item".to_string());
-    
+
     let mut backup = files_dir.join(&name);
     let mut info_file = info_dir.join(format!("{}.trashinfo", name));
     if backup.exists() {
@@ -140,11 +145,11 @@ pub fn move_to_trash(path: &Path) -> std::io::Result<PathBuf> {
             n += 1;
         }
     }
-    
+
     let absolute_path = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
-    
+
     move_path(path, &backup)?;
-    
+
     let path_str = absolute_path.to_string_lossy();
     let encoded_path = percent_encode(&path_str);
     let date_str = get_deletion_date();
@@ -152,9 +157,9 @@ pub fn move_to_trash(path: &Path) -> std::io::Result<PathBuf> {
         "[Trash Info]\nPath={}\nDeletionDate={}\n",
         encoded_path, date_str
     );
-    
+
     fs::write(info_file, info_content)?;
-    
+
     Ok(backup)
 }
 
@@ -165,7 +170,9 @@ pub fn apply_undo(action: &UndoAction) -> std::io::Result<()> {
             if let Some(name) = backup.file_name() {
                 if let Some(parent) = backup.parent() {
                     if let Some(grandparent) = parent.parent() {
-                        let info_file = grandparent.join("info").join(format!("{}.trashinfo", name.to_string_lossy()));
+                        let info_file = grandparent
+                            .join("info")
+                            .join(format!("{}.trashinfo", name.to_string_lossy()));
                         let _ = fs::remove_file(info_file);
                     }
                 }

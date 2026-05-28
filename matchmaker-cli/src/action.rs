@@ -387,17 +387,35 @@ pub fn action_handler(
             }
         }
         MMAction::FmSetYankPaths(raw) => {
+            let cwd = std::env::current_dir().unwrap_or_default();
             state.picker_ui.results.yank_paths = raw
                 .split('\n')
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty())
+                .map(|s| {
+                    let path = PathBuf::from(&s);
+                    if path.is_absolute() {
+                        s
+                    } else {
+                        cwd.join(path).to_string_lossy().to_string()
+                    }
+                })
                 .collect();
         }
         MMAction::FmRemoveYankPaths(raw) => {
+            let cwd = std::env::current_dir().unwrap_or_default();
             let to_remove: std::collections::HashSet<String> = raw
                 .split('\n')
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty())
+                .map(|s| {
+                    let path = PathBuf::from(&s);
+                    if path.is_absolute() {
+                        s
+                    } else {
+                        cwd.join(path).to_string_lossy().to_string()
+                    }
+                })
                 .collect();
             for item in to_remove {
                 state.picker_ui.results.yank_paths.remove(&item);
@@ -411,7 +429,10 @@ pub fn action_handler(
             let paths = fm_current_items(state);
             if !paths.is_empty() {
                 let label = if paths.len() > 1 {
-                    format!("{{red:}} Delete {} selected items? (Enter/Esc)", paths.len())
+                    format!(
+                        "{{red:}} Delete {} selected items? (Enter/Esc)",
+                        paths.len()
+                    )
                 } else {
                     format!("{{red:}} {}? (Enter/Esc)", paths[0])
                 };
@@ -434,9 +455,21 @@ pub fn action_handler(
         MMAction::FmYank => {
             let items = fm_current_items(state);
             if !items.is_empty() {
+                let cwd = std::env::current_dir().unwrap_or_default();
+                let abs_items: Vec<PathBuf> = items
+                    .iter()
+                    .map(|item| {
+                        let path = PathBuf::from(item);
+                        if path.is_absolute() {
+                            path
+                        } else {
+                            cwd.join(path)
+                        }
+                    })
+                    .collect();
                 if let Ok(mut cb) = clipboard.lock() {
                     *cb = Some(crate::fm::FmClipboard {
-                        items: items.iter().map(PathBuf::from).collect(),
+                        items: abs_items,
                         op: crate::fm::ClipOp::Copy,
                     });
                 }
@@ -472,9 +505,21 @@ pub fn action_handler(
         MMAction::FmCut => {
             let items = fm_current_items(state);
             if !items.is_empty() {
+                let cwd = std::env::current_dir().unwrap_or_default();
+                let abs_items: Vec<PathBuf> = items
+                    .iter()
+                    .map(|item| {
+                        let path = PathBuf::from(item);
+                        if path.is_absolute() {
+                            path
+                        } else {
+                            cwd.join(path)
+                        }
+                    })
+                    .collect();
                 if let Ok(mut cb) = clipboard.lock() {
                     *cb = Some(crate::fm::FmClipboard {
-                        items: items.iter().map(PathBuf::from).collect(),
+                        items: abs_items,
                         op: crate::fm::ClipOp::Cut,
                     });
                 }
@@ -863,7 +908,9 @@ fn commit_fm_action(
         }
         FmActionMode::Rename { from } => {
             if !input.is_empty() && input != from {
-                if let Err(e) = crate::fm::move_path(std::path::Path::new(&from), std::path::Path::new(&input)) {
+                if let Err(e) =
+                    crate::fm::move_path(std::path::Path::new(&from), std::path::Path::new(&input))
+                {
                     error!("fm rename '{}' -> '{input}': {e}", from);
                 } else if let Ok(mut stack) = undo_stack.lock() {
                     stack.push(crate::fm::UndoAction::Renamed {

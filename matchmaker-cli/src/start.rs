@@ -233,7 +233,10 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
         nb("x", matchmaker::acs![Action::Semantic("fm_cut".into())]);
         nb("p", matchmaker::acs![Action::Semantic("fm_paste".into())]);
         nb("u", matchmaker::acs![Action::Semantic("fm_undo".into())]);
-        nb("ctrl-r", matchmaker::acs![Action::Semantic("fm_redo".into())]);
+        nb(
+            "ctrl-r",
+            matchmaker::acs![Action::Semantic("fm_redo".into())],
+        );
     }
 
     if cli.dump_config {
@@ -654,9 +657,13 @@ pub async fn start(config: Config, no_read: bool) -> Result<(), MatchError> {
     let chdir_formatter = cli_formatter.clone();
     mm.register_interrupt_handler(Interrupt::ChDir, move |state| {
         let template = state.payload().clone();
-        if template.is_empty() { return; }
+        if template.is_empty() {
+            return;
+        }
         let path = use_formatter(&chdir_formatter, state, &template, None);
-        if path.is_empty() { return; }
+        if path.is_empty() {
+            return;
+        }
 
         let path_obj = Path::new(&path);
         let mut target_to_select = None;
@@ -672,9 +679,13 @@ pub async fn start(config: Config, no_read: bool) -> Result<(), MatchError> {
         if let Err(e) = std::env::set_current_dir(&path) {
             log::warn!("ChDir({path}) failed: {e}");
         } else if let Some(t) = target_to_select {
-            unsafe { std::env::set_var("MM_TARGET_ITEM", t); }
+            unsafe {
+                std::env::set_var("MM_TARGET_ITEM", t);
+            }
         } else {
-            unsafe { std::env::remove_var("MM_TARGET_ITEM"); }
+            unsafe {
+                std::env::remove_var("MM_TARGET_ITEM");
+            }
         }
     });
 
@@ -696,7 +707,9 @@ pub async fn start(config: Config, no_read: bool) -> Result<(), MatchError> {
             if !found && count > 0 {
                 state.picker_ui.results.cursor_jump(0);
             }
-            unsafe { std::env::remove_var("MM_TARGET_ITEM"); }
+            unsafe {
+                std::env::remove_var("MM_TARGET_ITEM");
+            }
         }
     });
 

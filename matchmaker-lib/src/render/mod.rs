@@ -1225,7 +1225,14 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                 let nav_bold = ui.config.nav_bold;
                 let nav_bar = ui.config.nav_bar;
                 let nav_marker = ui.config.nav_marker.clone();
-                let nav_char = picker_ui.results.config.multi_prefix.chars().next().unwrap_or('│').to_string();
+                let nav_char = picker_ui
+                    .results
+                    .config
+                    .multi_prefix
+                    .chars()
+                    .next()
+                    .unwrap_or('│')
+                    .to_string();
                 let input_focus_info = nav_mode.then_some(FocusInfo {
                     focused: state.focus == Focus::Input,
                     blink_phase: state.focus_blink,

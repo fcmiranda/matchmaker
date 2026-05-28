@@ -95,8 +95,22 @@ impl ResultsUI {
         &self,
         col0_name: &str,
         is_selected: bool,
+        cwd: &std::path::Path,
     ) -> crate::config::StyleSetting {
-        if !col0_name.is_empty() && self.yank_paths.contains(col0_name) {
+        let is_yanked = if !col0_name.is_empty() {
+            let path = std::path::Path::new(col0_name);
+            let abs_path = if path.is_absolute() {
+                path.to_path_buf()
+            } else {
+                cwd.join(path)
+            };
+            self.yank_paths
+                .contains(&abs_path.to_string_lossy().to_string())
+        } else {
+            false
+        };
+
+        if is_yanked {
             self.config.yank_prefix_style
         } else if is_selected {
             self.config.selected_prefix_style
@@ -109,8 +123,22 @@ impl ResultsUI {
         &self,
         col0_name: &str,
         is_selected: bool,
+        cwd: &std::path::Path,
     ) -> crate::config::StyleSetting {
-        if !col0_name.is_empty() && self.yank_paths.contains(col0_name) {
+        let is_yanked = if !col0_name.is_empty() {
+            let path = std::path::Path::new(col0_name);
+            let abs_path = if path.is_absolute() {
+                path.to_path_buf()
+            } else {
+                cwd.join(path)
+            };
+            self.yank_paths
+                .contains(&abs_path.to_string_lossy().to_string())
+        } else {
+            false
+        };
+
+        if is_yanked {
             self.config.yank_prefix_style
         } else if is_selected {
             self.config.selected_prefix_style
@@ -383,6 +411,7 @@ impl ResultsUI {
         click: &mut Click,
         nav_bar_style: Option<(ratatui::widgets::BorderType, ratatui::style::Style)>,
     ) -> Table<'a> {
+        let cwd = std::env::current_dir().unwrap_or_default();
         let offset = self.bottom as u32;
         let end = self.bottom + self.height as u32;
         let as_cols = !self.config.stacked_columns;
@@ -611,10 +640,14 @@ impl ResultsUI {
                         prefix_span(
                             &mut row[0],
                             prefix.clone(),
-                            self.active_prefix_style(&icon_name, is_selected),
-                            self.inactive_prefix_style(&icon_name, is_selected),
+                            self.active_prefix_style(&icon_name, is_selected, &cwd),
+                            self.inactive_prefix_style(&icon_name, is_selected, &cwd),
                             is_current_row,
-                            if !is_selected { nav_bar_span.clone() } else { None },
+                            if !is_selected {
+                                nav_bar_span.clone()
+                            } else {
+                                None
+                            },
                         );
                         if self.config.icons {
                             insert_icon_span(&mut row[0], &icon_name);
@@ -644,10 +677,14 @@ impl ResultsUI {
                                     prefix_span(
                                         &mut t,
                                         prefix.clone(),
-                                        self.active_prefix_style(&icon_name, is_selected),
-                                        self.inactive_prefix_style(&icon_name, is_selected),
+                                        self.active_prefix_style(&icon_name, is_selected, &cwd),
+                                        self.inactive_prefix_style(&icon_name, is_selected, &cwd),
                                         is_current_row,
-                                        if !is_selected { nav_bar_span.clone() } else { None },
+                                        if !is_selected {
+                                            nav_bar_span.clone()
+                                        } else {
+                                            None
+                                        },
                                     );
                                 }
                                 t
@@ -692,10 +729,14 @@ impl ResultsUI {
                             prefix_span(
                                 &mut col,
                                 prefix.clone(),
-                                self.active_prefix_style(&icon_name_stacked, is_selected),
-                                self.inactive_prefix_style(&icon_name_stacked, is_selected),
+                                self.active_prefix_style(&icon_name_stacked, is_selected, &cwd),
+                                self.inactive_prefix_style(&icon_name_stacked, is_selected, &cwd),
                                 is_current_row,
-                                if !is_selected { nav_bar_span.clone() } else { None },
+                                if !is_selected {
+                                    nav_bar_span.clone()
+                                } else {
+                                    None
+                                },
                             );
                             if self.config.icons && col_idx == 0 {
                                 insert_icon_span(col, &icon_name_stacked);
@@ -764,10 +805,14 @@ impl ResultsUI {
                 prefix_span(
                     &mut row[0],
                     prefix.clone(),
-                    self.active_prefix_style(&icon_name, is_selected),
-                    self.inactive_prefix_style(&icon_name, is_selected),
+                    self.active_prefix_style(&icon_name, is_selected, &cwd),
+                    self.inactive_prefix_style(&icon_name, is_selected, &cwd),
                     is_current_row,
-                    if !is_selected { nav_bar_span.clone() } else { None },
+                    if !is_selected {
+                        nav_bar_span.clone()
+                    } else {
+                        None
+                    },
                 );
                 if self.config.icons {
                     insert_icon_span(&mut row[0], &icon_name);
@@ -797,10 +842,14 @@ impl ResultsUI {
                             prefix_span(
                                 &mut t,
                                 prefix.clone(),
-                                self.active_prefix_style(&icon_name, is_selected),
-                                self.inactive_prefix_style(&icon_name, is_selected),
+                                self.active_prefix_style(&icon_name, is_selected, &cwd),
+                                self.inactive_prefix_style(&icon_name, is_selected, &cwd),
                                 is_current_row,
-                                if !is_selected { nav_bar_span.clone() } else { None },
+                                if !is_selected {
+                                    nav_bar_span.clone()
+                                } else {
+                                    None
+                                },
                             );
                         }
                         t
@@ -845,10 +894,14 @@ impl ResultsUI {
                     prefix_span(
                         &mut col,
                         prefix.clone(),
-                        self.active_prefix_style(&icon_name_stacked, is_selected),
-                        self.inactive_prefix_style(&icon_name_stacked, is_selected),
+                        self.active_prefix_style(&icon_name_stacked, is_selected, &cwd),
+                        self.inactive_prefix_style(&icon_name_stacked, is_selected, &cwd),
                         is_current_row,
-                        if !is_selected { nav_bar_span.clone() } else { None },
+                        if !is_selected {
+                            nav_bar_span.clone()
+                        } else {
+                            None
+                        },
                     );
                     if self.config.icons && col_idx == 0 {
                         insert_icon_span(col, &icon_name_stacked);
@@ -987,13 +1040,18 @@ impl ResultsUI {
                             prefix_span(
                                 &mut t,
                                 prefix.clone(),
-                                self.active_prefix_style(&icon_name_hz, is_selected),
+                                self.active_prefix_style(&icon_name_hz, is_selected, &cwd),
                                 self.inactive_prefix_style(
                                     &icon_name_hz,
                                     is_selected && !is_current_row,
+                                    &cwd,
                                 ),
                                 is_current_row,
-                                if !is_selected { nav_bar_span.clone() } else { None },
+                                if !is_selected {
+                                    nav_bar_span.clone()
+                                } else {
+                                    None
+                                },
                             );
                             if self.config.icons {
                                 insert_icon_span(&mut t, &icon_name_hz);
@@ -1082,13 +1140,18 @@ impl ResultsUI {
                     prefix_span(
                         &mut col,
                         prefix.clone(),
-                        self.active_prefix_style(&icon_name_stacked, is_selected),
+                        self.active_prefix_style(&icon_name_stacked, is_selected, &cwd),
                         self.inactive_prefix_style(
                             &icon_name_stacked,
                             is_selected && !is_current_row,
+                            &cwd,
                         ),
                         is_current_row,
-                        if !is_selected { nav_bar_span.clone() } else { None },
+                        if !is_selected {
+                            nav_bar_span.clone()
+                        } else {
+                            None
+                        },
                     );
                     if self.config.icons && x == 0 {
                         insert_icon_span(&mut col, &icon_name_stacked);
