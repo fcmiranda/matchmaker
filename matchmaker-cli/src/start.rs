@@ -225,14 +225,14 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
         };
         nb("d", matchmaker::acs![Action::Semantic("fm_delete".into())]);
         nb("a", matchmaker::acs![Action::Semantic("fm_create".into())]);
-        nb("R", matchmaker::acs![Action::Semantic("fm_rename".into())]);
+        nb("r", matchmaker::acs![Action::Semantic("fm_rename".into())]);
         nb("e", matchmaker::acs![Action::Semantic("fm_extract".into())]);
         nb(" ", matchmaker::acs![Action::Toggle]);
         nb("y", matchmaker::acs![Action::Semantic("fm_yank".into())]);
         nb("x", matchmaker::acs![Action::Semantic("fm_cut".into())]);
         nb("p", matchmaker::acs![Action::Semantic("fm_paste".into())]);
         nb("u", matchmaker::acs![Action::Semantic("fm_undo".into())]);
-        nb("r", matchmaker::acs![Action::Semantic("fm_redo".into())]);
+        nb("ctrl-r", matchmaker::acs![Action::Semantic("fm_redo".into())]);
     }
 
     if cli.dump_config {
@@ -316,6 +316,7 @@ fn parse_blink_rate(s: &str) -> BlinkRate {
 
 fn apply_nav_props(props: &[String], config: &mut Config) {
     config.render.ui.nav_mode = true;
+    config.render.ui.nav_bar = None;
 
     for raw in props {
         for prop in raw.split(',').filter(|s| !s.is_empty()) {
