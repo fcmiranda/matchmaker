@@ -60,6 +60,7 @@ impl<A: ActionExt> BindMap<A> {
             key!(shift-Home) => Action::PreviewJump,
             key!(shift-End) => Action::PreviewJump,
             key!(ctrl-p) => Action::SwitchPreview(None),
+            key!(ctrl-e) => Action::ToggleActionBox,
             key!('?') => Action::Help("".to_string()),
         );
 

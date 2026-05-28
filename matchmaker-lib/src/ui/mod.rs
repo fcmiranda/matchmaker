@@ -18,8 +18,8 @@ pub use ratatui::{
 use crate::{
     SSS, Selection, Selector,
     config::{
-        DisplayConfig, PreviewLayout, QueryConfig, RenderConfig, ResultsConfig, StatusConfig,
-        TerminalLayoutSettings, UiConfig,
+        ActionBoxConfig, DisplayConfig, PreviewLayout, QueryConfig, RenderConfig, ResultsConfig,
+        StatusConfig, TerminalLayoutSettings, UiConfig,
     },
     nucleo::Worker,
     preview::Preview,
@@ -77,6 +77,7 @@ impl UI {
             config.status,
             config.query,
             config.header,
+            config.action,
             matcher,
             worker,
             selection_set,
@@ -133,6 +134,9 @@ impl UI {
 }
 
 pub struct PickerUI<'a, T: SSS, S: Selection> {
+    pub action: QueryUI,
+    pub action_visible: bool,
+    pub action_config: ActionBoxConfig,
     pub results: ResultsUI,
     pub query: QueryUI,
     pub header: DisplayUI,
@@ -147,11 +151,19 @@ impl<'a, T: SSS, S: Selection> PickerUI<'a, T, S> {
         status_config: StatusConfig,
         input_config: QueryConfig,
         header_config: DisplayConfig,
+        action_config: ActionBoxConfig,
         matcher: &'a mut nucleo::Matcher,
         worker: Worker<T>,
         selections: Selector<T, S>,
     ) -> Self {
         Self {
+            action: QueryUI::new(QueryConfig {
+                prompt: "action> ".to_string(),
+                status_inline: false,
+                ..input_config.clone()
+            }),
+            action_visible: false,
+            action_config,
             results: ResultsUI::new(results_config, status_config),
             query: QueryUI::new(input_config),
             header: DisplayUI::new(header_config),
@@ -161,22 +173,30 @@ impl<'a, T: SSS, S: Selection> PickerUI<'a, T, S> {
         }
     }
 
-    pub fn layout(&self, area: Rect) -> [Rect; 4] {
+    pub fn layout(&self, area: Rect) -> [Rect; 5] {
         let PickerUI {
             query,
             header,
             results,
+            action_visible,
+            action_config,
             ..
         } = self;
 
+        let action_height = if *action_visible {
+            1 + query.config.border.height() + action_config.preview_height
+        } else {
+            0
+        };
+
         let mut constraints = [
-            Constraint::Length(1 + query.config.border.height()), // input
-            // When status_inline is true the status is shown inside the input bar.
+            Constraint::Length(action_height),                        // action (input + preview)
+            Constraint::Length(1 + query.config.border.height()),     // filter input
             Constraint::Length(
                 if query.config.status_inline { 0 } else { results.status_config.show as u16 }
-            ), // status
-            Constraint::Length(header.height()),
-            Constraint::Fill(1), // results
+            ),                                                         // status
+            Constraint::Length(header.height()),                      // header
+            Constraint::Fill(1),                                       // results
         ];
 
         if self.reverse() {

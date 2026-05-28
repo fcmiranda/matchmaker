@@ -16,6 +16,8 @@ use ratatui::layout::Position;
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Layout {
     pub preview: Rect,
+    /// Action dialog box above the filter input.
+    pub action: Rect,
     pub input: Rect,
     pub status: Rect,
     pub header: Rect,

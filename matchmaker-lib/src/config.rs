@@ -148,6 +148,8 @@ pub struct RenderConfig {
     pub footer: DisplayConfig,
     #[partial(alias = "h")]
     pub header: DisplayConfig,
+    /// Action dialog box above the filter input.
+    pub action: ActionBoxConfig,
 }
 
 impl RenderConfig {
@@ -277,6 +279,26 @@ impl Default for QueryConfig {
 }
 
 impl QueryConfig {}
+
+/// Configuration for the action dialog box shown above the filter input.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+#[partial(path, derive(Debug, Clone, PartialEq, Deserialize, Serialize))]
+pub struct ActionBoxConfig {
+    /// Width of the action box as a percentage of the terminal width (0–100). Default: 100.
+    pub width_pct: Percentage,
+    /// Number of extra lines reserved below the input for a preview area. Default: 0 (no preview).
+    pub preview_height: u16,
+}
+
+impl Default for ActionBoxConfig {
+    fn default() -> Self {
+        Self {
+            width_pct: Percentage::new(100),
+            preview_height: 0,
+        }
+    }
+}
 
 #[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]

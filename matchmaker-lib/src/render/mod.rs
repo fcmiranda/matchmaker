@@ -449,6 +449,9 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                         Action::ToggleWrap => {
                             results.wrap(!results.is_wrap());
                         }
+                        Action::ToggleActionBox => {
+                            picker_ui.action_visible = !picker_ui.action_visible;
+                        }
                         Action::Up(x) | Action::Down(x) => {
                             let next = matches!(action, Action::Down(_)) ^ results.reverse();
                             for _ in 0..x.into() {
@@ -919,11 +922,12 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                     [Rect::default(), _area, footer, Rect::default()]
                 };
 
-                let [input, status, header, results] = picker_ui.layout(picker_area);
+                let [action, input, status, header, results] = picker_ui.layout(picker_area);
 
                 // save dimensions and check if dimensions changed
                 did_resize = state.update_layout(Layout {
                     preview,
+                    action,
                     input,
                     status,
                     header,
@@ -935,6 +939,7 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
 
                 if did_resize {
                     picker_ui.results.update_dimensions(&results);
+                    picker_ui.action.update_width(action.width);
                     picker_ui.query.update_width(input.width);
                     footer_ui.update_width(
                         if footer_ui.config.row_connection == RowConnectionStyle::Capped {
@@ -959,6 +964,31 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                 } else {
                     None
                 };
+                if picker_ui.action_visible {
+                    let cfg = &picker_ui.action_config;
+                    // Apply width percentage — centered within the allocated row(s).
+                    let action_w = cfg.width_pct.compute_clamped(action.width, 1, 0);
+                    let x_pad = action.width.saturating_sub(action_w) / 2;
+                    let action_input_rect = Rect {
+                        x: action.x + x_pad,
+                        y: action.y,
+                        width: action_w,
+                        height: (action.height).min(1),
+                    };
+                    render_input(frame, action_input_rect, &mut picker_ui.action, None);
+
+                    // Render preview area below if preview_height > 0.
+                    if cfg.preview_height > 0 && action.height > 1 {
+                        let preview_rect = Rect {
+                            x: action.x + x_pad,
+                            y: action.y + 1,
+                            width: action_w,
+                            height: action.height.saturating_sub(1),
+                        };
+                        let block = ratatui::widgets::Block::bordered();
+                        frame.render_widget(block, preview_rect);
+                    }
+                }
                 cursor_y_offset = render_input(
                     frame,
                     input,

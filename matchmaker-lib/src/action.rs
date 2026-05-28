@@ -31,6 +31,8 @@ pub enum Action<A: ActionExt = NullActionExt> {
     // Results
     /// Toggle wrap
     ToggleWrap,
+    /// Toggle the action dialog box above the filter input
+    ToggleActionBox,
 
     // Results Navigation
     /// Move selection index up
@@ -362,7 +364,7 @@ enum_from_str_display!(
 
     HalfPageDown, HalfPageUp,
 
-    ToggleWrap, TogglePreviewWrap, CyclePreview, PreviewJump,
+    ToggleWrap, TogglePreviewWrap, ToggleActionBox, CyclePreview, PreviewJump,
 
     PreviewHalfPageUp, PreviewHalfPageDown,
 
