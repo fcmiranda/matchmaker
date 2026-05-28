@@ -568,7 +568,7 @@ impl ResultsUI {
 
                         prefix_span(
                             &mut row[0],
-                            prefix,
+                            prefix.clone(),
                             self.config.prefix_style,
                             self.inactive_prefix_style(&icon_name, is_selected),
                             is_current_row,
@@ -630,7 +630,7 @@ impl ResultsUI {
                         };
                         let mut push = vec![];
 
-                        for (rev_i, col) in row.into_iter().rev().enumerate() {
+                        for (rev_i, mut col) in row.into_iter().rev().enumerate() {
                             let col_idx = col_count.saturating_sub(1 + rev_i);
                             let mut height = col.height() as u16;
                             if remaining_height == 0 {
@@ -712,7 +712,7 @@ impl ResultsUI {
                     };
                 prefix_span(
                     &mut row[0],
-                    prefix,
+                    prefix.clone(),
                     self.config.prefix_style,
                     self.inactive_prefix_style(&icon_name, is_selected),
                     is_current_row,
@@ -774,7 +774,7 @@ impl ResultsUI {
                 };
                 let mut push = vec![];
 
-                for (rev_i, col) in row.into_iter().rev().enumerate() {
+                for (rev_i, mut col) in row.into_iter().rev().enumerate() {
                     let col_idx = col_count.saturating_sub(1 + rev_i);
                     let mut height = col.height() as u16;
                     if remaining_height == 0 {
