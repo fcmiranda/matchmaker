@@ -256,10 +256,10 @@ impl Overlay for DeleteOverlay {
     }
 
     fn draw(&mut self, frame: &mut Frame, area: Rect) {
-        let label = format!("  '{}' ? [y/N] ", self.name);
+        let label = format!("  '{}' ? [y/N] ", self.name);
         let para = Paragraph::new(Line::from(vec![
             Span::styled(
-                "  ",
+                "  ",
                 Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
             ),
             Span::raw("'"),
@@ -272,7 +272,7 @@ impl Overlay for DeleteOverlay {
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(Color::Red))
                 .title(Span::styled(
-                    "  ",
+                    "  ",
                     Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
                 )),
         );

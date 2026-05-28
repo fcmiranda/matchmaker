@@ -591,7 +591,12 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                             return Ok(ret);
                         }
                         Action::Quit(code) => {
-                            return Err(MatchError::Abort(code));
+                            if picker_ui.action_visible {
+                                picker_ui.action_visible = false;
+                                picker_ui.action.cancel();
+                            } else {
+                                return Err(MatchError::Abort(code));
+                            }
                         }
 
                         // Results

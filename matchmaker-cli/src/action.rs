@@ -398,7 +398,7 @@ pub fn action_handler(
         MMAction::FmDeleteStart => {
             let paths = fm_current_items(state);
             if !paths.is_empty() {
-                let label = format!("{{red:}} {}? (Enter/Esc)", paths[0]);
+                let label = format!("{{red:}} {}? (Enter/Esc)", paths[0]);
                 *fm_action = Some(FmActionMode::Delete { paths });
                 show_styled_action_box(state, &label, "");
             }
