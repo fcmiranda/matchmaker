@@ -225,20 +225,14 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
         };
         nb("d", matchmaker::acs![Action::Semantic("fm_delete".into())]);
         nb("a", matchmaker::acs![Action::Semantic("fm_create".into())]);
-        nb("r", matchmaker::acs![Action::Semantic("fm_rename".into())]);
+        nb("R", matchmaker::acs![Action::Semantic("fm_rename".into())]);
         nb("e", matchmaker::acs![Action::Semantic("fm_extract".into())]);
         nb(" ", matchmaker::acs![Action::Toggle]);
         nb("y", matchmaker::acs![Action::Semantic("fm_yank".into())]);
         nb("x", matchmaker::acs![Action::Semantic("fm_cut".into())]);
         nb("p", matchmaker::acs![Action::Semantic("fm_paste".into())]);
-        nb(
-            "ctrl-z",
-            matchmaker::acs![Action::Semantic("fm_undo".into())],
-        );
-        nb(
-            "ctrl-y",
-            matchmaker::acs![Action::Semantic("fm_redo".into())],
-        );
+        nb("u", matchmaker::acs![Action::Semantic("fm_undo".into())]);
+        nb("r", matchmaker::acs![Action::Semantic("fm_redo".into())]);
     }
 
     if cli.dump_config {
