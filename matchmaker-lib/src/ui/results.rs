@@ -650,7 +650,7 @@ impl ResultsUI {
                             },
                         );
                         if self.config.icons {
-                            insert_icon_span(&mut row[0], &icon_name);
+                            insert_icon_span(&mut row[0], &icon_name, !is_selected && nav_bar_span.is_some());
                         }
                         if self.config.symlink_target {
                             maybe_append_symlink_target(
@@ -739,7 +739,7 @@ impl ResultsUI {
                                 },
                             );
                             if self.config.icons && col_idx == 0 {
-                                insert_icon_span(col, &icon_name_stacked);
+                                insert_icon_span(col, &icon_name_stacked, !is_selected && nav_bar_span.is_some());
                             }
                             if self.config.symlink_target && col_idx == 0 {
                                 maybe_append_symlink_target(
@@ -815,7 +815,7 @@ impl ResultsUI {
                     },
                 );
                 if self.config.icons {
-                    insert_icon_span(&mut row[0], &icon_name);
+                    insert_icon_span(&mut row[0], &icon_name, !is_selected && nav_bar_span.is_some());
                 }
                 if self.config.symlink_target {
                     maybe_append_symlink_target(
@@ -904,7 +904,7 @@ impl ResultsUI {
                         },
                     );
                     if self.config.icons && col_idx == 0 {
-                        insert_icon_span(col, &icon_name_stacked);
+                        insert_icon_span(col, &icon_name_stacked, !is_selected && nav_bar_span.is_some());
                     }
                     if self.config.symlink_target && col_idx == 0 {
                         maybe_append_symlink_target(
@@ -932,6 +932,7 @@ impl ResultsUI {
         let mut i = self.bottom_clip.is_some() as usize;
 
         for (mut row, item) in results.drain(start_index as usize..) {
+            let is_current_row = self.is_current(i);
             // note that the index changes *next* frame
             if let Click::ResultPos(c) = click {
                 let c = if self.reverse() {
@@ -1054,7 +1055,7 @@ impl ResultsUI {
                                 },
                             );
                             if self.config.icons {
-                                insert_icon_span(&mut t, &icon_name_hz);
+                                insert_icon_span(&mut t, &icon_name_hz, !is_selected && nav_bar_span.is_some());
                             }
                             if self.config.symlink_target {
                                 maybe_append_symlink_target(
@@ -1154,7 +1155,7 @@ impl ResultsUI {
                         },
                     );
                     if self.config.icons && x == 0 {
-                        insert_icon_span(&mut col, &icon_name_stacked);
+                        insert_icon_span(&mut col, &icon_name_stacked, !is_selected && nav_bar_span.is_some());
                     }
                     if self.config.symlink_target && x == 0 {
                         maybe_append_symlink_target(
@@ -1356,7 +1357,7 @@ impl ResultsUI {
             ],
         );
 
-        fit_width(&substituted, self.indentation())
+        fit_width(&substituted, self.config.multi_prefix.width())
     }
 
     fn is_current(&self, i: usize) -> bool {
@@ -1556,17 +1557,17 @@ fn extract_col0_name(col: &ratatui::text::Text<'_>) -> String {
         .unwrap_or_default()
 }
 
-/// Insert a Nerd-Font icon span at position 1 (directly after the prefix) in
-/// every line of `col`. Callers must ensure `prefix_span` has already been
-/// called so that span 0 is the prefix.
-fn insert_icon_span(col: &mut ratatui::text::Text<'_>, name: &str) {
+/// Insert a Nerd-Font icon span after the prefix in every line of `col`.
+/// Callers must ensure `prefix_span` has already been called.
+fn insert_icon_span(col: &mut ratatui::text::Text<'_>, name: &str, has_nav_bar: bool) {
     let (icon, color) = icon_for_name(name);
     let icon_span = ratatui::text::Span::styled(
         format!("{icon} "),
         ratatui::style::Style::default().fg(color),
     );
+    let index = if has_nav_bar { 2 } else { 1 };
     for line in col.lines.iter_mut() {
-        line.spans.insert(1, icon_span.clone());
+        line.spans.insert(index.min(line.spans.len()), icon_span.clone());
     }
 }
 
