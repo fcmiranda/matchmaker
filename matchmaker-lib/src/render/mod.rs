@@ -1487,8 +1487,21 @@ fn render_results<T: SSS, S: Selection>(
     click: &mut Click,
     focus_info: Option<FocusInfo>,
 ) {
+    let nav_bar_style = focus_info.as_ref().and_then(|fi| {
+        let bar_color = fi.indicator_color();
+        if let (Some(border_type), Some(color)) = (fi.bar, bar_color) {
+            let mut style = Style::default().fg(color);
+            if fi.bold {
+                style = style.add_modifier(Modifier::BOLD);
+            }
+            Some((border_type, style))
+        } else {
+            None
+        }
+    });
+
     let cap = matches!(ui.results.config.row_connection, RowConnectionStyle::Capped);
-    let (widget, table_width) = ui.make_table(click);
+    let (widget, table_width) = ui.make_table(click, nav_bar_style);
 
     if cap {
         area.width = area.width.min(table_width);
@@ -1498,33 +1511,6 @@ fn render_results<T: SSS, S: Selection>(
 
     if let Some(fi) = focus_info {
         let bar_color = fi.indicator_color();
-
-        if let (Some(border_type), Some(color)) = (fi.bar, bar_color) {
-            let mut style = Style::default().fg(color);
-            if fi.bold {
-                style = style.add_modifier(Modifier::BOLD);
-            }
-            let indicator = Block::default()
-                .borders(Borders::LEFT)
-                .border_type(border_type)
-                .border_style(style);
-
-            let bar_height = (ui.results.status.matched_count as u16).min(area.height);
-            let bar_area = if ui.results.reverse() {
-                Rect {
-                    y: area.y + area.height - bar_height,
-                    height: bar_height,
-                    ..area
-                }
-            } else {
-                Rect {
-                    height: bar_height,
-                    ..area
-                }
-            };
-
-            frame.render_widget(indicator, bar_area);
-        }
 
         if !fi.marker.is_empty()
             && let Some(cursor_row) = ui.results.cursor_offset()

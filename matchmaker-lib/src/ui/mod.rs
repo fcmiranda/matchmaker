@@ -223,7 +223,11 @@ impl<'a, T: SSS, S: Selection> PickerUI<'a, T, S> {
 }
 
 impl<'a, T: SSS, O: Selection> PickerUI<'a, T, O> {
-    pub fn make_table(&mut self, click: &mut Click) -> (Table<'_>, u16) {
+    pub fn make_table(
+        &mut self,
+        click: &mut Click,
+        nav_bar_style: Option<(ratatui::widgets::BorderType, ratatui::style::Style)>,
+    ) -> (Table<'_>, u16) {
         let cursor_byte = self.query.byte_index(self.query.cursor() as usize);
         let active_column = self.worker.query.active_column_index(cursor_byte);
 
@@ -233,6 +237,7 @@ impl<'a, T: SSS, O: Selection> PickerUI<'a, T, O> {
             &mut self.selector,
             self.matcher,
             click,
+            nav_bar_style,
         );
         let width = self.results.table_width();
         (table, width)

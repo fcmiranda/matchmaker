@@ -76,12 +76,21 @@ pub fn prefix_span<'a, 'b: 'a>(
     style: StyleSetting,
     inactive_style: StyleSetting,
     is_current: bool,
+    nav_bar_span: Option<Span<'static>>,
 ) {
     let style = if is_current { style } else { inactive_style };
-    let prefix_span = Span::styled(prefix, style.r#override(Style::reset()));
+    let override_style = style.r#override(Style::reset());
 
     for line in original.lines.iter_mut() {
-        line.spans.insert(0, prefix_span.clone());
+        if let Some(nav) = &nav_bar_span {
+            let mut chars = prefix.chars();
+            chars.next(); // skip first char
+            let rest: String = chars.collect();
+            line.spans.insert(0, Span::styled(rest, override_style));
+            line.spans.insert(0, nav.clone());
+        } else {
+            line.spans.insert(0, Span::styled(prefix.clone(), override_style));
+        }
     }
 }
 
