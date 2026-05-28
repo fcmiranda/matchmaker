@@ -63,6 +63,8 @@ pub struct State {
     pub(crate) focus_blink: bool,
     /// Tick counter driving the blink half-cycle.
     pub(crate) focus_tick: u8,
+    /// Pending key prefix for multi-character sequences in focus mode.
+    pub pending_nav_key: Option<char>,
 
     pub(crate) events: Event,
 
@@ -139,6 +141,7 @@ impl State {
             focus: Focus::Results,
             focus_blink: true,
             focus_tick: 0,
+            pending_nav_key: None,
 
             input: String::new(),
             iterations: 0,

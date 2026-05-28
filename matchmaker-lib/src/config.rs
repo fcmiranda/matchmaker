@@ -282,6 +282,10 @@ impl Default for UiConfig {
                 Action::Reload("".to_string()),
             ]),
         );
+        nav_binds.insert("J".to_string(), Actions::from([Action::PreviewDown(1)]));
+        nav_binds.insert("K".to_string(), Actions::from([Action::PreviewUp(1)]));
+        nav_binds.insert("gg".to_string(), Actions::from([Action::Pos(0)]));
+        nav_binds.insert("G".to_string(), Actions::from([Action::Pos(-1)]));
 
         Self {
             border: Default::default(),

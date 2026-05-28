@@ -105,6 +105,7 @@ fn apply_focus_binds<A: ActionExt>(
     initial_focus: Focus,
     focus_binds: &std::collections::HashMap<String, crate::action::Actions<NullActionExt>>,
     overlay_active: bool,
+    pending_nav_key: &mut Option<char>,
 ) {
     if overlay_active {
         return;
@@ -123,11 +124,42 @@ fn apply_focus_binds<A: ActionExt>(
                 out.push(RenderCommand::Action(Action::ToggleFocus));
             }
             RenderCommand::Action(Action::Char(c)) if sim_focus == Focus::Results => {
-                let key = c.to_string();
-                if let Some(actions) = focus_binds.get(&key) {
-                    for action in actions.iter().cloned() {
-                        if let Some(action) = action_from_null::<A>(action) {
-                            out.push(RenderCommand::Action(action));
+                match pending_nav_key.take() {
+                    Some('g') => {
+                        if c == 'g' {
+                            let seq = "gg".to_string();
+                            if let Some(actions) = focus_binds.get(&seq) {
+                                for action in actions.iter().cloned() {
+                                    if let Some(action) = action_from_null::<A>(action) {
+                                        out.push(RenderCommand::Action(action));
+                                    }
+                                }
+                            } else {
+                                out.push(RenderCommand::Action(Action::Pos(0)));
+                            }
+                        } else {
+                            let key = c.to_string();
+                            if let Some(actions) = focus_binds.get(&key) {
+                                for action in actions.iter().cloned() {
+                                    if let Some(action) = action_from_null::<A>(action) {
+                                        out.push(RenderCommand::Action(action));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    _ => {
+                        if c == 'g' {
+                            *pending_nav_key = Some('g');
+                        } else {
+                            let key = c.to_string();
+                            if let Some(actions) = focus_binds.get(&key) {
+                                for action in actions.iter().cloned() {
+                                    if let Some(action) = action_from_null::<A>(action) {
+                                        out.push(RenderCommand::Action(action));
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -233,6 +265,7 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                 &ui.config.nav_binds,
                 picker_ui.action_visible
                     || overlay_ui.as_ref().map_or(false, |o| o.index().is_some()),
+                &mut state.pending_nav_key,
             );
 
             if let Some(aliaser) = &mut ext_aliaser {
@@ -1666,7 +1699,56 @@ fn split(rect: &mut Rect, height: u16, cut_top: bool) -> Rect {
 // -----------------------------------------------------------------------------------
 
 #[cfg(test)]
-mod test {}
+mod test {
+    use super::*;
+    use crate::action::{Action, Actions};
+    use crate::message::RenderCommand;
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_apply_focus_binds_sequences() {
+        use crate::action::NullActionExt;
+
+        let mut focus_binds = HashMap::new();
+        focus_binds.insert("gg".to_string(), Actions::from([Action::Pos(0)]));
+        focus_binds.insert("G".to_string(), Actions::from([Action::Pos(-1)]));
+        focus_binds.insert("J".to_string(), Actions::from([Action::PreviewDown(1)]));
+        focus_binds.insert("K".to_string(), Actions::from([Action::PreviewUp(1)]));
+
+        let mut pending = None;
+
+        // Test gg
+        let mut buffer = vec![
+            RenderCommand::<NullActionExt>::Action(Action::Char('g')),
+            RenderCommand::<NullActionExt>::Action(Action::Char('g')),
+        ];
+        apply_focus_binds(&mut buffer, Focus::Results, &focus_binds, false, &mut pending);
+        assert_eq!(buffer.len(), 1);
+        assert!(matches!(buffer[0], RenderCommand::Action(Action::Pos(0))));
+        assert_eq!(pending, None);
+
+        // Test G
+        let mut buffer = vec![RenderCommand::<NullActionExt>::Action(Action::Char('G'))];
+        apply_focus_binds(&mut buffer, Focus::Results, &focus_binds, false, &mut pending);
+        assert_eq!(buffer.len(), 1);
+        assert!(matches!(buffer[0], RenderCommand::Action(Action::Pos(-1))));
+        assert_eq!(pending, None);
+
+        // Test J
+        let mut buffer = vec![RenderCommand::<NullActionExt>::Action(Action::Char('J'))];
+        apply_focus_binds(&mut buffer, Focus::Results, &focus_binds, false, &mut pending);
+        assert_eq!(buffer.len(), 1);
+        assert!(matches!(buffer[0], RenderCommand::Action(Action::PreviewDown(1))));
+        assert_eq!(pending, None);
+
+        // Test K
+        let mut buffer = vec![RenderCommand::<NullActionExt>::Action(Action::Char('K'))];
+        apply_focus_binds(&mut buffer, Focus::Results, &focus_binds, false, &mut pending);
+        assert_eq!(buffer.len(), 1);
+        assert!(matches!(buffer[0], RenderCommand::Action(Action::PreviewUp(1))));
+        assert_eq!(pending, None);
+    }
+}
 
 // #[cfg(test)]
 // async fn send_every_second(tx: mpsc::UnboundedSender<RenderCommand>) {

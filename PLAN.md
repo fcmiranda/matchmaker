@@ -397,6 +397,10 @@ j  → Down(1)
 k  → Up(1)
 l  → ChDir("{=}") + Reload("")
 h  → ChDir("..") + Reload("")
+J  → PreviewDown(1)
+K  → PreviewUp(1)
+gg → Pos(0)
+G  → Pos(-1)
 ```
 
 Config alias `fm` → `nav` for backward compatibility.
