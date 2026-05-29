@@ -95,6 +95,22 @@ pub fn prefix_span<'a, 'b: 'a>(
     }
 }
 
+pub fn strip_prefix_from_text(original: &mut Text<'_>, prefix: &str) {
+    if prefix.is_empty() {
+        return;
+    }
+    for line in original.lines.iter_mut() {
+        if let Some(first_span) = line.spans.first_mut() {
+            if first_span.content.starts_with(prefix) {
+                first_span.content = match &first_span.content {
+                    Cow::Borrowed(s) => Cow::Borrowed(&s[prefix.len()..]),
+                    Cow::Owned(s) => Cow::Owned(s[prefix.len()..].to_string()),
+                };
+            }
+        }
+    }
+}
+
 /// Clip text to a given number of lines.
 /// reverse: take from the end
 pub fn clip_text_lines<'a, 'b: 'a>(original: &'a mut Text<'b>, max_lines: u16, from_end: bool) {

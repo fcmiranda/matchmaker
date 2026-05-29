@@ -20,7 +20,8 @@ phase so you can cross-reference with `PLAN.md`.
 10. [User Config Overlay](#10-user-config-overlay)
 11. [Default Bind Changes](#11-default-bind-changes)
 12. [Toggle Advances Cursor](#12-toggle-advances-cursor)
-13. [Combining Features — Real-World Recipes](#13-combining-features--real-world-recipes)
+13. [Customizable Spinners and Multi-Select Markers](#13-customizable-spinners-and-multi-select-markers)
+14. [Combining Features — Real-World Recipes](#14-combining-features--real-world-recipes)
 
 ---
 
@@ -475,7 +476,88 @@ mm b 'tab=Toggle' b 'shift-backtab=Toggle'
 
 ---
 
-## 13. Combining Features — Real-World Recipes
+## 13. Customizable Spinners and Multi-Select Markers
+
+**What it does:** Introduces high-performance time-based row spinners and customizable unselected markers.
+- **Unselected Markers**: You can customize the prefix displayed for rows that are not selected (or have not yet been selected). By default, this is `"  "` (two spaces). You can also style this unselected prefix.
+- **Customizable Spinners**: Rows with text starting with a designated `spinner_prefix` (e.g. `?`) will automatically strip that prefix and display an animated, time-based spinner frame instead of the standard selection prefix. The animation updates seamlessly via a highly optimized frame tick.
+
+### Available Spinners
+Supported named spinner styles:
+- `dot` (default): ⣾ ⣽ ⣻ ⢿ ⡿ ⣟ ⣯ ⣷
+- `line`: | / - \
+- `jump`: ⢄ ⢂ ⢁ ⡁ ⡈ ⡐ ⡠
+- `pulse`: █ ▓ ▒ ░
+- `points`: ∙∙∙ ●∙∙ ∙●∙ ∙∙● ∙∙∙
+- `meter`: ▱▱▱ ▰▱▱ ▰▰▱ ▰▰▰
+- `hamburger`: ☱ ☲ ☴ ☲
+- `ellipsis`:  . .. ...
+- `globe`: 🌍 🌎 🌏
+- `moon`: 🌑 🌒 🌓 🌔 🌕 🌖 🌗 🌘
+- `monkey`: 🙈 🙉 🙊
+- `arc`: ◜ ◠ ◝ ◞ ◡ ◟
+- `nerd`: 󰇙
+- `nerdarc`: ◜   ◝ ◞ ◡ ◟  
+- `minidot`: ⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏
+
+### CLI
+
+```bash
+# Style unselected items with a custom prefix marker
+mm results.unselected_prefix="-" --color unselected-prefix:DarkGray
+
+# Direct matchmaker equivalent of:
+# printf '@Building…\nReady item' | bfzf --spinner-prefix '@'
+printf '@Building…\nReady item' | mm results.spinner_prefix='@'
+
+# Use the earth (globe) spinner colored Cyan
+printf '@Building…\nReady item' | \
+  mm results.spinner_prefix='@' \
+     results.spinner=globe \
+     --color spinner:Cyan
+
+# Use the moon phases spinner colored Yellow
+printf '@Building…\nReady item' | \
+  mm results.spinner_prefix='@' \
+     results.spinner=moon \
+     --color spinner:Yellow
+
+# Use the meter loading bar spinner colored Green
+printf '@Building…\nReady item' | \
+  mm results.spinner_prefix='@' \
+     results.spinner=meter \
+     --color spinner:Green
+
+# Use the shy monkey emoji spinner colored Magenta
+printf '@Building…\nReady item' | \
+  mm results.spinner_prefix='@' \
+     results.spinner=monkey \
+     --color spinner:Magenta
+
+# Use the arc spinner styled Bold Blue
+printf '@Building…\nReady item' | \
+  mm results.spinner_prefix='@' \
+     results.spinner=arc \
+     results.spinner_style.fg=Blue \
+     results.spinner_style.modifier=BOLD
+```
+
+### Config
+
+```toml
+[results]
+unselected_prefix = "-"
+unselected_prefix_style.fg = "DarkGray"
+
+spinner = "moon"
+spinner_prefix = "?"
+spinner_style.fg = "Yellow"
+spinner_style.modifier = "BOLD"
+```
+
+---
+
+## 14. Combining Features — Real-World Recipes
 
 ### File manager-style picker
 
@@ -594,6 +676,11 @@ journalctl --no-pager -n 500 | \
 | `preview.layout[n].title` | `Option<String>` | `None` (dynamic current item name) |
 | `results.selected_style` | `StyleSetting` | `modifier: BOLD` |
 | `results.selected_prefix_style` | `StyleSetting` | `fg: Cyan, modifier: BOLD` |
+| `results.unselected_prefix` | `string` | `"  "` |
+| `results.unselected_prefix_style` | `StyleSetting` | — |
+| `results.spinner_prefix` | `string` | `""` |
+| `results.spinner` | `string` | `"dot"` |
+| `results.spinner_style` | `StyleSetting` | — |
 | `results.yank_prefix_style` | `StyleSetting` | `fg: Yellow, modifier: BOLD` |
 | `results.symlink_target_style` | `StyleSetting` | `fg: DarkGray` |
 | `ui.nav_color` | `Color` | `Reset` |
@@ -606,7 +693,7 @@ preview-border  preview-label
 list-border  list-label
 input-border  input-label
 header-border  header-label
-nav  selected-fg  selected-bg  selected-prefix  yank  symlink
+nav  selected-fg  selected-bg  selected-prefix  unselected-prefix  spinner  yank  symlink
 ```
 
 ### New actions (for use in `[binds]` or `mm b '...'`)

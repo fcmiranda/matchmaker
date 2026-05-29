@@ -472,7 +472,11 @@ pub struct ResultsConfig {
     // prefixes
     #[serde(deserialize_with = "deserialize_string_or_char_as_double_width")]
     pub multi_prefix: String,
+    pub unselected_prefix: String,
     pub default_prefix: String,
+
+    pub spinner_prefix: String,
+    pub spinner: String,
 
     #[serde(alias = "prefix")]
     #[partial(recurse)]
@@ -481,6 +485,12 @@ pub struct ResultsConfig {
     #[serde(alias = "prefix_inactive")]
     #[partial(recurse)]
     pub prefix_inactive_style: StyleSetting,
+
+    #[partial(recurse)]
+    pub unselected_prefix_style: StyleSetting,
+
+    #[partial(recurse)]
+    pub spinner_style: StyleSetting,
 
     /// Enable selections
     pub multi: bool,
@@ -586,9 +596,14 @@ impl Default for ResultsConfig {
             border: Default::default(),
 
             multi_prefix: "▌ ".to_string(),
+            unselected_prefix: "  ".to_string(),
             default_prefix: Default::default(),
+            spinner_prefix: "".to_string(),
+            spinner: "dot".to_string(),
             prefix_style: Default::default(),
             prefix_inactive_style: Default::default(),
+            unselected_prefix_style: Default::default(),
+            spinner_style: Default::default(),
             multi: true,
 
             style: Default::default(),

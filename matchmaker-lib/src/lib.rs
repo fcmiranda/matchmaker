@@ -11,6 +11,7 @@ pub mod event;
 pub mod message;
 pub mod render;
 pub mod ui;
+pub mod spinner;
 // picker
 pub mod nucleo;
 pub mod preview;

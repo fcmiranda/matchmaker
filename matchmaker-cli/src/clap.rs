@@ -59,7 +59,8 @@ pub struct Cli {
     /// Example: --color border:#cba6f7,hl-fg:#a6e3a1,nav:#89b4fa
     /// Keys: fg, bg, hl-fg, hl-bg, border, label, preview-border, preview-label,
     ///       list-border, list-label, input-border, input-label, header-border,
-    ///       header-label, nav, selected-fg, selected-bg, selected-prefix, yank, symlink
+    ///       header-label, nav, selected-fg, selected-bg, selected-prefix,
+    ///       unselected-prefix, spinner, yank, symlink
     #[arg(long, value_name = "SPEC")]
     pub color: Vec<String>,
 

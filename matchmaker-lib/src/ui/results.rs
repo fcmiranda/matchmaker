@@ -95,8 +95,12 @@ impl ResultsUI {
         &self,
         col0_name: &str,
         is_selected: bool,
+        is_spinner: bool,
         cwd: &std::path::Path,
     ) -> crate::config::StyleSetting {
+        if is_spinner {
+            return self.config.spinner_style;
+        }
         let is_yanked = if !col0_name.is_empty() {
             let path = std::path::Path::new(col0_name);
             let abs_path = if path.is_absolute() {
@@ -123,8 +127,12 @@ impl ResultsUI {
         &self,
         col0_name: &str,
         is_selected: bool,
+        is_spinner: bool,
         cwd: &std::path::Path,
     ) -> crate::config::StyleSetting {
+        if is_spinner {
+            return self.config.spinner_style;
+        }
         let is_yanked = if !col0_name.is_empty() {
             let path = std::path::Path::new(col0_name);
             let abs_path = if path.is_absolute() {
@@ -449,6 +457,27 @@ impl ResultsUI {
             self.config.multi_prefix.clone()
         };
 
+        macro_rules! get_prefix {
+            ($row:expr, $is_selected:expr, $idx:expr) => {{
+                let mut icon_name = if $row.is_empty() { String::new() } else { extract_col0_name(&$row[0]) };
+                let is_spinner = !self.config.spinner_prefix.is_empty() && icon_name.starts_with(&self.config.spinner_prefix);
+                if is_spinner && !$row.is_empty() {
+                    crate::utils::text::strip_prefix_from_text(&mut $row[0], &self.config.spinner_prefix);
+                    icon_name = extract_col0_name(&$row[0]);
+                }
+                let prefix = if is_spinner {
+                    let frame = crate::spinner::Spinner::from_name(&self.config.spinner).current_frame();
+                    let f = format!("{frame} ");
+                    crate::utils::string::fit_width(&f, self.config.multi_prefix.width())
+                } else if $is_selected {
+                    dynamic_multi_prefix.clone()
+                } else {
+                    self.default_prefix($idx)
+                };
+                (prefix, icon_name, is_spinner)
+            }}
+        }
+
         let width_limits = if as_cols {
             self.max_widths()
         } else {
@@ -610,11 +639,7 @@ impl ResultsUI {
                 if trunc_height < h {
                     let mut remaining_height = h - trunc_height;
                     let is_selected = selector.contains(item);
-                    let prefix = if is_selected {
-                        dynamic_multi_prefix.clone()
-                    } else {
-                        self.default_prefix(0)
-                    };
+                    let (prefix, icon_name, is_spinner) = get_prefix!(row, is_selected, 0);
 
                     total_height += remaining_height;
 
@@ -628,20 +653,11 @@ impl ResultsUI {
                             }
                         }
 
-                        let icon_name = if self.config.icons
-                            || self.config.symlink_target
-                            || !self.yank_paths.is_empty()
-                        {
-                            extract_col0_name(&row[0])
-                        } else {
-                            String::new()
-                        };
-
                         prefix_span(
                             &mut row[0],
                             prefix.clone(),
-                            self.active_prefix_style(&icon_name, is_selected, &cwd),
-                            self.inactive_prefix_style(&icon_name, is_selected, &cwd),
+                            self.active_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
+                            self.inactive_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
                             is_current_row,
                             if !is_selected {
                                 nav_bar_span.clone()
@@ -677,8 +693,8 @@ impl ResultsUI {
                                     prefix_span(
                                         &mut t,
                                         prefix.clone(),
-                                        self.active_prefix_style(&icon_name, is_selected, &cwd),
-                                        self.inactive_prefix_style(&icon_name, is_selected, &cwd),
+                                        self.active_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
+                                        self.inactive_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
                                         is_current_row,
                                         if !is_selected {
                                             nav_bar_span.clone()
@@ -704,15 +720,6 @@ impl ResultsUI {
                         rows.push(row);
                     } else {
                         let col_count = row.len();
-                        let icon_name_stacked = if (self.config.icons
-                            || self.config.symlink_target
-                            || !self.yank_paths.is_empty())
-                            && col_count > 0
-                        {
-                            extract_col0_name(&row[0])
-                        } else {
-                            String::new()
-                        };
                         let mut push = vec![];
 
                         for (rev_i, mut col) in row.into_iter().rev().enumerate() {
@@ -729,8 +736,8 @@ impl ResultsUI {
                             prefix_span(
                                 &mut col,
                                 prefix.clone(),
-                                self.active_prefix_style(&icon_name_stacked, is_selected, &cwd),
-                                self.inactive_prefix_style(&icon_name_stacked, is_selected, &cwd),
+                                self.active_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
+                                self.inactive_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
                                 is_current_row,
                                 if !is_selected {
                                     nav_bar_span.clone()
@@ -739,12 +746,12 @@ impl ResultsUI {
                                 },
                             );
                             if self.config.icons && col_idx == 0 {
-                                insert_icon_span(col, &icon_name_stacked, !is_selected && nav_bar_span.is_some());
+                                insert_icon_span(col, &icon_name, !is_selected && nav_bar_span.is_some());
                             }
                             if self.config.symlink_target && col_idx == 0 {
                                 maybe_append_symlink_target(
                                     col,
-                                    &icon_name_stacked,
+                                    &icon_name,
                                     self.config.symlink_target_style.into(),
                                 );
                             }
@@ -779,11 +786,7 @@ impl ResultsUI {
             let h = height_of(&results[0]);
             let (row, item) = &mut results[0];
             let is_selected = selector.contains(item);
-            let prefix = if is_selected {
-                dynamic_multi_prefix.clone()
-            } else {
-                self.default_prefix(0)
-            };
+            let (prefix, icon_name, is_spinner) = get_prefix!(row, is_selected, 0);
 
             total_height += remaining_height;
 
@@ -794,19 +797,11 @@ impl ResultsUI {
                     }
                 }
 
-                let icon_name = if self.config.icons
-                    || self.config.symlink_target
-                    || !self.yank_paths.is_empty()
-                {
-                    extract_col0_name(&row[0])
-                } else {
-                    String::new()
-                };
                 prefix_span(
                     &mut row[0],
                     prefix.clone(),
-                    self.active_prefix_style(&icon_name, is_selected, &cwd),
-                    self.inactive_prefix_style(&icon_name, is_selected, &cwd),
+                    self.active_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
+                    self.inactive_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
                     is_current_row,
                     if !is_selected {
                         nav_bar_span.clone()
@@ -842,8 +837,8 @@ impl ResultsUI {
                             prefix_span(
                                 &mut t,
                                 prefix.clone(),
-                                self.active_prefix_style(&icon_name, is_selected, &cwd),
-                                self.inactive_prefix_style(&icon_name, is_selected, &cwd),
+                                self.active_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
+                                self.inactive_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
                                 is_current_row,
                                 if !is_selected {
                                     nav_bar_span.clone()
@@ -868,34 +863,25 @@ impl ResultsUI {
                 };
                 rows.push(row);
             } else {
-                let col_count = row.len();
-                let icon_name_stacked = if (self.config.icons
-                    || self.config.symlink_target
-                    || !self.yank_paths.is_empty())
-                    && col_count > 0
-                {
-                    extract_col0_name(&row[0])
-                } else {
-                    String::new()
-                };
-                let mut push = vec![];
+                        let col_count = row.len();
+                        let mut push = vec![];
 
-                for (rev_i, mut col) in row.into_iter().rev().enumerate() {
-                    let col_idx = col_count.saturating_sub(1 + rev_i);
-                    let mut height = col.height() as u16;
-                    if remaining_height == 0 {
-                        break;
-                    } else if remaining_height < height {
-                        clip_text_lines(&mut col, remaining_height, !self.reverse());
-                        height = remaining_height;
-                    }
-                    remaining_height -= height;
+                        for (rev_i, mut col) in row.into_iter().rev().enumerate() {
+                            let col_idx = col_count.saturating_sub(1 + rev_i);
+                            let mut height = col.height() as u16;
+                            if remaining_height == 0 {
+                                break;
+                            } else if remaining_height < height {
+                                clip_text_lines(&mut col, remaining_height, !self.reverse());
+                                height = remaining_height;
+                            }
+                            remaining_height -= height;
 
-                    prefix_span(
-                        &mut col,
-                        prefix.clone(),
-                        self.active_prefix_style(&icon_name_stacked, is_selected, &cwd),
-                        self.inactive_prefix_style(&icon_name_stacked, is_selected, &cwd),
+                            prefix_span(
+                                &mut col,
+                                prefix.clone(),
+                                self.active_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
+                                self.inactive_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
                         is_current_row,
                         if !is_selected {
                             nav_bar_span.clone()
@@ -904,12 +890,12 @@ impl ResultsUI {
                         },
                     );
                     if self.config.icons && col_idx == 0 {
-                        insert_icon_span(col, &icon_name_stacked, !is_selected && nav_bar_span.is_some());
+                        insert_icon_span(col, &icon_name, !is_selected && nav_bar_span.is_some());
                     }
                     if self.config.symlink_target && col_idx == 0 {
                         maybe_append_symlink_target(
                             col,
-                            &icon_name_stacked,
+                            &icon_name,
                             self.config.symlink_target_style.into(),
                         );
                     }
@@ -966,11 +952,7 @@ impl ResultsUI {
 
             // determine prefix
             let is_selected = selector.contains(item);
-            let prefix = if is_selected {
-                dynamic_multi_prefix.clone()
-            } else {
-                self.default_prefix(i)
-            };
+            let (prefix, icon_name_hz, is_spinner) = get_prefix!(row, is_selected, i);
 
             if as_cols {
                 // scroll down
@@ -1010,22 +992,7 @@ impl ResultsUI {
                     .rev()
                     .find_map(|(i, w)| (*w != 0).then_some(i));
 
-                let icon_name_hz = if self.config.icons
-                    || self.config.symlink_target
-                    || !self.yank_paths.is_empty()
-                {
-                    row.first()
-                        .and_then(|t| t.lines.first())
-                        .map(|l| {
-                            l.spans
-                                .iter()
-                                .map(|s| s.content.as_ref())
-                                .collect::<String>()
-                        })
-                        .unwrap_or_default()
-                } else {
-                    String::new()
-                };
+
 
                 let mut row_texts: Vec<_> = row
                     .iter()
@@ -1041,10 +1008,11 @@ impl ResultsUI {
                             prefix_span(
                                 &mut t,
                                 prefix.clone(),
-                                self.active_prefix_style(&icon_name_hz, is_selected, &cwd),
+                                self.active_prefix_style(&icon_name_hz, is_selected, is_spinner, &cwd),
                                 self.inactive_prefix_style(
                                     &icon_name_hz,
                                     is_selected && !is_current_row,
+                                    is_spinner,
                                     &cwd,
                                 ),
                                 is_current_row,
@@ -1098,23 +1066,6 @@ impl ResultsUI {
                     0
                 };
 
-                let icon_name_stacked = if self.config.icons
-                    || self.config.symlink_target
-                    || !self.yank_paths.is_empty()
-                {
-                    row.first()
-                        .and_then(|t| t.lines.first())
-                        .map(|l| {
-                            l.spans
-                                .iter()
-                                .map(|s| s.content.as_ref())
-                                .collect::<String>()
-                        })
-                        .unwrap_or_default()
-                } else {
-                    String::new()
-                };
-
                 for (x, mut col) in row.into_iter().enumerate() {
                     if vscroll_to_skip > 0 {
                         let col_height = col.lines.len();
@@ -1141,10 +1092,11 @@ impl ResultsUI {
                     prefix_span(
                         &mut col,
                         prefix.clone(),
-                        self.active_prefix_style(&icon_name_stacked, is_selected, &cwd),
+                        self.active_prefix_style(&icon_name_hz, is_selected, is_spinner, &cwd),
                         self.inactive_prefix_style(
-                            &icon_name_stacked,
+                            &icon_name_hz,
                             is_selected && !is_current_row,
+                            is_spinner,
                             &cwd,
                         ),
                         is_current_row,
@@ -1155,12 +1107,12 @@ impl ResultsUI {
                         },
                     );
                     if self.config.icons && x == 0 {
-                        insert_icon_span(&mut col, &icon_name_stacked, !is_selected && nav_bar_span.is_some());
+                        insert_icon_span(&mut col, &icon_name_hz, !is_selected && nav_bar_span.is_some());
                     }
                     if self.config.symlink_target && x == 0 {
                         maybe_append_symlink_target(
                             &mut col,
-                            &icon_name_stacked,
+                            &icon_name_hz,
                             self.config.symlink_target_style.into(),
                         );
                     }
@@ -1350,7 +1302,7 @@ impl ResultsUI {
 impl ResultsUI {
     fn default_prefix(&self, i: usize) -> String {
         let substituted = substitute_escaped(
-            &self.config.default_prefix,
+            &self.config.unselected_prefix,
             &[
                 ('d', &(i + 1).to_string()),                        // cursor index
                 ('r', &(i + 1 + self.bottom as usize).to_string()), // absolute index

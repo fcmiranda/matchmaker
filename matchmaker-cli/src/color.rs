@@ -28,6 +28,8 @@
 /// | `selected-fg`    | `render.results.selected_style.fg`            |
 /// | `selected-bg`    | `render.results.selected_style.bg`            |
 /// | `selected-prefix`| `render.results.selected_prefix_style.fg`     |
+/// | `unselected-prefix`| `render.results.unselected_prefix_style.fg`   |
+/// | `spinner`        | `render.results.spinner_style.fg`             |
 /// | `yank`           | `render.results.yank_prefix_style.fg`         |
 /// | `symlink`        | `render.results.symlink_target_style.fg`      |
 use std::str::FromStr;
@@ -74,6 +76,8 @@ pub fn apply_color_spec(config: &mut Config, spec: &str) {
             "selected-fg" => config.render.results.selected_style.fg = Some(color),
             "selected-bg" => config.render.results.selected_style.bg = Some(color),
             "selected-prefix" => config.render.results.selected_prefix_style.fg = Some(color),
+            "unselected-prefix" => config.render.results.unselected_prefix_style.fg = Some(color),
+            "spinner" => config.render.results.spinner_style.fg = Some(color),
             "yank" => config.render.results.yank_prefix_style.fg = Some(color),
             "symlink" => config.render.results.symlink_target_style.fg = Some(color),
             _ => log::warn!("--color: unknown key '{key}'"),

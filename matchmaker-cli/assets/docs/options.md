@@ -167,8 +167,11 @@ All colors and modifiers come from ratatui:
 #### Results Table (`results.`, `r`)
 
 - `multi_prefix`: (string) Prefix for multi-selected items.
+- `unselected_prefix`: (string) Marker displayed for normal, unselected items (default: `"  "`).
 - `default_prefix`: (string) Prefix for normal items.
 - `current_prefix`: (string) Prefix for the current item.
+- `spinner_prefix`: (string) Input prefix character that triggers spinner animation for the row (e.g. `?` or `@`).
+- `spinner`: (string) Named spinner frame set to animate (options: `dot`, `line`, `jump`, `pulse`, `points`, `meter`, `hamburger`, `ellipsis`, `globe`, `moon`, `monkey`, `arc`, `nerd`, `nerdarc`, `minidot`).
 - `style`: [Style Settings](#style-settings) (default).
 - `inactive_style`, `inactive`: [Style Settings](#style-settings) for inactive columns.
 - `inactive_current_style`, `inactive_current`: [Style Settings](#style-settings) for the current item in inactive columns.
@@ -176,6 +179,8 @@ All colors and modifiers come from ratatui:
 - `current_style`, `current`: [Style Settings](#style-settings) for the highlighted item.
 - `prefix_style`, `prefix`: [Style Settings](#style-settings) for the prefix of the active.
 - `inactive_prefix_style`, `inactive_prefix`: [Style Settings](#style-settings) for the prefix of inactive items.
+- `unselected_prefix_style`, `unselected_prefix`: [Style Settings](#style-settings) for the unselected prefix marker.
+- `spinner_style`: [Style Settings](#style-settings) for the animated spinner.
 - `row_connection`: `Disjoint`, `Capped`, or `Full`. Controls how current item styles apply across the row.
 - `scroll_wrap`: (bool) Wrap selection when reaching the end of the list.
 - `scroll_padding`: (number) Number of items to keep visible above/below the selection.
