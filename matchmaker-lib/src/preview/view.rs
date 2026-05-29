@@ -12,8 +12,7 @@ pub struct Preview {
     lines: AppendOnly<Line<'static>>,
     string: Arc<Mutex<Option<Text<'static>>>>,
     pub image: Arc<Mutex<Option<image::DynamicImage>>>,
-    /// Overrides lines when present
-    changed: Arc<AtomicBool>,
+    pub changed: Arc<AtomicBool>,
 }
 
 impl Preview {

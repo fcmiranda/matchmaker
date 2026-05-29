@@ -14,7 +14,6 @@ use crate::{
     utils::text::wrapped_line_height,
 };
 
-#[derive(Debug)]
 pub struct PreviewUI {
     pub view: Preview,
     pub config: PreviewConfig,
@@ -42,6 +41,7 @@ pub struct PreviewUI {
 
     picker: Option<ratatui_image::picker::Picker>,
     pub zoom: f32,
+    pub image_state: Option<ratatui_image::protocol::StatefulProtocol>,
 }
 
 impl PreviewUI {
@@ -132,6 +132,7 @@ impl PreviewUI {
             title: None,
             picker,
             zoom: 1.0,
+            image_state: None,
         }
     }
 
@@ -519,28 +520,71 @@ impl PreviewUI {
         }
     }
 
-    pub fn make_image_preview<'a>(&'a mut self, area: Rect) -> Option<ratatui_image::protocol::Protocol> {
-        if let Ok(guard) = self.view.image.lock() {
-            if let Some(img) = &*guard {
-                if let Some(picker) = &mut self.picker {
-                    let mut display_img = img.clone();
-                    if self.zoom != 1.0 {
-                        let center_x = img.width() / 2;
-                        let center_y = img.height() / 2;
-                        let crop_w = (img.width() as f32 / self.zoom) as u32;
-                        let crop_h = (img.height() as f32 / self.zoom) as u32;
-                        let x = center_x.saturating_sub(crop_w / 2);
-                        let y = center_y.saturating_sub(crop_h / 2);
-                        display_img = img.crop_imm(x, y, crop_w, crop_h);
-                    }
-                    let size = ratatui::layout::Size { width: area.width, height: area.height };
-                    if let Ok(protocol) = picker.new_protocol(display_img, size, ratatui_image::Resize::Fit(None)) {
-                        return Some(protocol);
+    pub fn get_image_state(&mut self) -> Option<&mut ratatui_image::protocol::StatefulProtocol> {
+        let has_changed = self.view.changed.swap(false, std::sync::atomic::Ordering::Acquire);
+        
+        let mut new_state = None;
+        if has_changed || self.image_state.is_none() {
+            if let Ok(guard) = self.view.image.lock() {
+                if let Some(img) = &*guard {
+                    if let Some(picker) = self.picker.as_mut() {
+                        let mut display_img = img.clone();
+                        if self.zoom != 1.0 {
+                            let center_x = img.width() / 2;
+                            let center_y = img.height() / 2;
+                            let crop_w = (img.width() as f32 / self.zoom) as u32;
+                            let crop_h = (img.height() as f32 / self.zoom) as u32;
+                            let x = center_x.saturating_sub(crop_w / 2);
+                            let y = center_y.saturating_sub(crop_h / 2);
+                            display_img = img.crop_imm(x, y, crop_w, crop_h);
+                        }
+                        new_state = Some(picker.new_resize_protocol(display_img));
                     }
                 }
             }
+            self.image_state = new_state;
         }
-        None
+        self.image_state.as_mut()
+    }
+
+    fn title_text(&self) -> Option<String> {
+        let configured_title = self.setting().and_then(|s| s.title.as_deref());
+        let dynamic = self.title.as_deref().unwrap_or_default();
+        match configured_title {
+            None => Some(dynamic.to_string()),
+            Some("") => None,
+            Some("{item}") => Some(dynamic.to_string()),
+            Some(t) if t.contains("{item}") => Some(t.replace("{item}", dynamic)),
+            Some("$currentItemName") => Some(dynamic.to_string()),
+            Some(t) if t.contains("$currentItemName") => {
+                Some(t.replace("$currentItemName", dynamic))
+            }
+            Some(t) => Some(t.to_string()),
+        }
+    }
+
+    pub fn make_block<'a>(&'a self) -> Option<ratatui::widgets::Block<'a>> {
+        if let Some(border) = self.active_border() {
+            let mut block = border.as_block();
+            if let Some(title) = self.title_text() {
+                let fg = if border.title_fg != ratatui::style::Color::Reset {
+                    border.title_fg
+                } else if self.config.border.title_fg != ratatui::style::Color::Reset {
+                    self.config.border.title_fg
+                } else if border.color != ratatui::style::Color::Reset {
+                    border.color
+                } else {
+                    self.config.border.color
+                };
+                block = block.title(ratatui::text::Span::styled(
+                    title,
+                    ratatui::style::Style::default().fg(fg).add_modifier(border.title_modifier),
+                ));
+            }
+            Some(block)
+        } else {
+            None
+        }
     }
 
     pub fn make_preview(&mut self) -> Paragraph<'_> {
@@ -613,17 +657,7 @@ impl PreviewUI {
 
         let configured_title = self.setting().and_then(|s| s.title.as_deref());
         let dynamic = self.title.as_deref().unwrap_or_default();
-        let title_text = match configured_title {
-            None => Some(dynamic.to_string()),
-            Some("") => None,
-            Some("{item}") => Some(dynamic.to_string()),
-            Some(t) if t.contains("{item}") => Some(t.replace("{item}", dynamic)),
-            Some("$currentItemName") => Some(dynamic.to_string()),
-            Some(t) if t.contains("$currentItemName") => {
-                Some(t.replace("$currentItemName", dynamic))
-            }
-            Some(t) => Some(t.to_string()),
-        };
+        let title_text = self.title_text();
 
         if self.active_border().is_none() {
             if let Some(title) = &title_text {
@@ -644,23 +678,7 @@ impl PreviewUI {
         }
 
         let mut preview = Paragraph::new(lines);
-        if let Some(border) = self.active_border() {
-            let mut block = border.as_block();
-            if let Some(title) = title_text.clone() {
-                let fg = if border.title_fg != ratatui::style::Color::Reset {
-                    border.title_fg
-                } else if self.config.border.title_fg != ratatui::style::Color::Reset {
-                    self.config.border.title_fg
-                } else if border.color != ratatui::style::Color::Reset {
-                    border.color
-                } else {
-                    self.config.border.color
-                };
-                block = block.title(Span::styled(
-                    title,
-                    Style::default().fg(fg).add_modifier(border.title_modifier),
-                ));
-            }
+        if let Some(block) = self.make_block() {
             preview = preview.block(block);
         }
         if self.config.wrap {

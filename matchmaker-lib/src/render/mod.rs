@@ -754,12 +754,14 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                         Action::PreviewZoomIn => {
                             if let Some(p) = preview_ui.as_mut() {
                                 p.zoom *= 1.25_f32;
+                                p.view.changed.store(true, std::sync::atomic::Ordering::Release);
                             }
                         }
                         Action::PreviewZoomOut => {
                             if let Some(p) = preview_ui.as_mut() {
                                 p.zoom /= 1.25_f32;
                                 if p.zoom < 0.25 { p.zoom = 0.25; }
+                                p.view.changed.store(true, std::sync::atomic::Ordering::Release);
                             }
                         }
                         Action::PreviewHalfPageUp | Action::PreviewHalfPageDown => {
@@ -1565,9 +1567,22 @@ fn find_interaction(setting: &crate::config::InteractionRegionSetting, x: u16) -
 fn render_preview(frame: &mut Frame, area: Rect, ui: &mut PreviewUI) {
     assert!(ui.visible()); // don't call if not visible.
     
-    if let Some(protocol) = ui.make_image_preview(area) {
-        let image_widget = ratatui_image::Image::new(&protocol);
-        frame.render_widget(image_widget, area);
+    let is_image = ui.get_image_state().is_some();
+    if is_image {
+        let block = ui.make_block();
+        let inner_area = if let Some(b) = &block {
+            b.inner(area)
+        } else {
+            area
+        };
+        if let Some(b) = block {
+            frame.render_widget(b, area);
+        }
+        
+        if let Some(state) = ui.get_image_state() {
+            let image_widget = ratatui_image::StatefulImage::new();
+            frame.render_stateful_widget(image_widget, inner_area, state);
+        }
     } else {
         let widget = ui.make_preview();
         frame.render_widget(widget, area);
