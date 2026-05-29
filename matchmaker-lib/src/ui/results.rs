@@ -1608,7 +1608,7 @@ fn icon_for_name(name: &str) -> (char, Color) {
         "rs" => ('\u{e7a8}', Color::Red),
         "toml" => ('\u{e6b2}', Color::Gray),
         "json" => ('\u{e60b}', Color::Yellow),
-        "yaml" | "yml" => ('\u{e6d2}', Color::Yellow),
+        "yaml" | "yml" => ('\u{e8eb}', Color::Yellow),
         "js" | "mjs" | "cjs" => ('\u{e74e}', Color::Yellow),
         "ts" | "mts" | "cts" => ('\u{e628}', Color::Blue),
         "jsx" | "tsx" => ('\u{e7ba}', Color::Cyan),
