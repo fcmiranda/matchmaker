@@ -508,36 +508,41 @@ mm results.unselected_prefix="-" --color unselected-prefix:DarkGray
 
 # Direct matchmaker equivalent of:
 # printf '@Building…\nReady item' | bfzf --spinner-prefix '@'
-printf '@Building…\nReady item' | mm results.spinner_prefix='@'
+printf '@Building…\nReady item' | mm results.spinner_prefix='@' preview.show=false
 
 # Use the earth (globe) spinner colored Cyan
 printf '@Building…\nReady item' | \
   mm results.spinner_prefix='@' \
      results.spinner=globe \
+     preview.show=false \
      --color spinner:Cyan
 
 # Use the moon phases spinner colored Yellow
 printf '@Building…\nReady item' | \
   mm results.spinner_prefix='@' \
      results.spinner=moon \
+     preview.show=false \
      --color spinner:Yellow
 
 # Use the meter loading bar spinner colored Green
 printf '@Building…\nReady item' | \
   mm results.spinner_prefix='@' \
      results.spinner=meter \
+     preview.show=false \
      --color spinner:Green
 
 # Use the shy monkey emoji spinner colored Magenta
 printf '@Building…\nReady item' | \
   mm results.spinner_prefix='@' \
      results.spinner=monkey \
+     preview.show=false \
      --color spinner:Magenta
 
 # Use the arc spinner styled Bold Blue
 printf '@Building…\nReady item' | \
   mm results.spinner_prefix='@' \
      results.spinner=arc \
+     preview.show=false \
      results.spinner_style.fg=Blue \
      results.spinner_style.modifier=BOLD
 ```
