@@ -256,6 +256,10 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
             "tab".parse().expect("tab trigger should parse"),
             matchmaker::acs![matchmaker::Action::ToggleFocus],
         );
+        config.binds.insert(
+            "ctrl-g".parse().expect("ctrl-g trigger should parse"),
+            matchmaker::acs![matchmaker::Action::Char('\x07')],
+        );
     }
     config.binds.check_cycles().map_err(anyhow::Error::msg)?;
     config.binds.retain(|_, actions| !actions.is_empty());
