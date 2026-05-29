@@ -807,7 +807,7 @@ pub async fn start(config: Config, no_read: bool) -> Result<(), MatchError> {
             if lines.last().is_some_and(|l| l.is_empty()) {
                 lines.pop();
             }
-            lines.sort_unstable();
+            lines.sort_by(|x, y| compare_paths(x, y));
             let sorted: Vec<u8> = lines.join(&(sep as u8));
             let cursor = std::io::Cursor::new(sorted);
             map_reader(
@@ -826,18 +826,37 @@ pub async fn start(config: Config, no_read: bool) -> Result<(), MatchError> {
             )
         }
     } else if !command.is_empty()
-        && let Some(stdout) = Command::from_script(&command)
+        && let Some(mut stdout) = Command::from_script(&command)
             .envs(envs)
             .args(&*COMMAND_ARGS.lock().unwrap())
             .spawn_piped()
             ._ebog()
     {
-        map_reader(
-            stdout,
-            push_fn,
-            separator.or(input_separator),
-            abort_empty.then_some(render_tx),
-        )
+        if sort {
+            let mut bytes = Vec::new();
+            let _ = std::io::Read::read_to_end(&mut stdout, &mut bytes);
+            let sep = separator.or(input_separator).unwrap_or('\n');
+            let mut lines: Vec<&[u8]> = bytes.split(|&b| b == sep as u8).collect();
+            if lines.last().is_some_and(|l| l.is_empty()) {
+                lines.pop();
+            }
+            lines.sort_by(|x, y| compare_paths(x, y));
+            let sorted: Vec<u8> = lines.join(&(sep as u8));
+            let cursor = std::io::Cursor::new(sorted);
+            map_reader(
+                cursor,
+                push_fn,
+                Some(sep),
+                abort_empty.then_some(render_tx),
+            )
+        } else {
+            map_reader(
+                stdout,
+                push_fn,
+                separator.or(input_separator),
+                abort_empty.then_some(render_tx),
+            )
+        }
     } else {
         eprintln!("error: no input detected.");
         std::process::exit(99)
@@ -926,4 +945,152 @@ fn to_static(line: Line<'_>) -> Line<'static> {
             })
             .collect::<Vec<_>>(),
     )
+}
+
+pub fn compare_paths(a: &[u8], b: &[u8]) -> std::cmp::Ordering {
+    let path_a = get_first_column(a);
+    let path_b = get_first_column(b);
+
+    // Split by '/' ignoring any empty parts (e.g. double slashes or trailing slashes)
+    let c1: Vec<&[u8]> = path_a.split(|&x| x == b'/').filter(|s| !s.is_empty()).collect();
+    let c2: Vec<&[u8]> = path_b.split(|&x| x == b'/').filter(|s| !s.is_empty()).collect();
+
+    let n = std::cmp::min(c1.len(), c2.len());
+    for i in 0..n {
+        if c1[i] != c2[i] {
+            // Diverged at component i.
+            // Check if component i is a directory in each path.
+            let is_dir1 = i < c1.len() - 1 || (i == c1.len() - 1 && path_a.ends_with(b"/"));
+            let is_dir2 = i < c2.len() - 1 || (i == c2.len() - 1 && path_b.ends_with(b"/"));
+
+            match (is_dir1, is_dir2) {
+                (true, false) => {
+                    // c1 is a directory, c2 is a file. File comes first.
+                    return std::cmp::Ordering::Greater;
+                }
+                (false, true) => {
+                    // c1 is a file, c2 is a directory. File comes first.
+                    return std::cmp::Ordering::Less;
+                }
+                _ => {
+                    // Both are files or both are directories. Sort case-insensitively.
+                    return cmp_case_insensitive(c1[i], c2[i]);
+                }
+            }
+        }
+    }
+
+    // One is a prefix of the other.
+    // The shorter path (the parent directory) comes first.
+    c1.len().cmp(&c2.len())
+}
+
+fn cmp_case_insensitive(a: &[u8], b: &[u8]) -> std::cmp::Ordering {
+    let a_lower = a.to_ascii_lowercase();
+    let b_lower = b.to_ascii_lowercase();
+    a_lower.cmp(&b_lower)
+}
+
+fn get_first_column(line: &[u8]) -> &[u8] {
+    let trimmed = trim_bytes(line);
+    if let Some(pos) = trimmed.iter().position(|&b| b == b'\t') {
+        trim_bytes(&trimmed[..pos])
+    } else {
+        trimmed
+    }
+}
+
+fn trim_bytes(mut s: &[u8]) -> &[u8] {
+    while let Some((&first, rest)) = s.split_first() {
+        if first == b' ' || first == b'\t' || first == b'\r' || first == b'\n' {
+            s = rest;
+        } else {
+            break;
+        }
+    }
+    while let Some((&last, rest)) = s.split_last() {
+        if last == b' ' || last == b'\t' || last == b'\r' || last == b'\n' {
+            s = rest;
+        } else {
+            break;
+        }
+    }
+    s
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_compare_paths() {
+        // Direct files under 'a' should come before subdirectories under 'a'
+        let mut list = vec![
+            b"a/c/d.txt".as_slice(),
+            b"a/f.txt".as_slice(),
+            b"a/b.txt".as_slice(),
+            b"a/c/e.txt".as_slice(),
+            b"a/c/g/h.txt".as_slice(),
+        ];
+        list.sort_by(|x, y| compare_paths(x, y));
+        
+        let expected = vec![
+            b"a/b.txt".as_slice(),
+            b"a/f.txt".as_slice(),
+            b"a/c/d.txt".as_slice(),
+            b"a/c/e.txt".as_slice(),
+            b"a/c/g/h.txt".as_slice(),
+        ];
+        assert_eq!(list, expected);
+    }
+
+    #[test]
+    fn test_compare_paths_user() {
+        let mut list = vec![
+            b"matchmaker-cli/src/".as_slice(),
+            b"matchmaker-cli/wix/".as_slice(),
+            b"matchmaker-lib/src/".as_slice(),
+            b"matchmaker-partial/".as_slice(),
+            b"matchmaker-cli/build/".as_slice(),
+            b"matchmaker-cli/LICENSE".as_slice(),
+            b"matchmaker-cli/assets/".as_slice(),
+            b"matchmaker-lib/LICENSE".as_slice(),
+            b"matchmaker-lib/assets/".as_slice(),
+            b"matchmaker-lib/src/ui/".as_slice(),
+            b"matchmaker-cli/build.rs".as_slice(),
+        ];
+        list.sort_by(|x, y| compare_paths(x, y));
+
+        let expected = vec![
+            b"matchmaker-cli/build.rs".as_slice(),
+            b"matchmaker-cli/LICENSE".as_slice(),
+            b"matchmaker-cli/assets/".as_slice(),
+            b"matchmaker-cli/build/".as_slice(),
+            b"matchmaker-cli/src/".as_slice(),
+            b"matchmaker-cli/wix/".as_slice(),
+            b"matchmaker-lib/LICENSE".as_slice(),
+            b"matchmaker-lib/assets/".as_slice(),
+            b"matchmaker-lib/src/".as_slice(),
+            b"matchmaker-lib/src/ui/".as_slice(),
+            b"matchmaker-partial/".as_slice(),
+        ];
+        assert_eq!(list, expected);
+    }
+
+    #[test]
+    fn test_compare_paths_with_tab_columns() {
+        let mut list = vec![
+            b"a/c/d.txt\tcol1".as_slice(),
+            b"a/f.txt\tcol2".as_slice(),
+            b"a/b.txt\tcol3".as_slice(),
+        ];
+        list.sort_by(|x, y| compare_paths(x, y));
+
+        let expected = vec![
+            b"a/b.txt\tcol3".as_slice(),
+            b"a/f.txt\tcol2".as_slice(),
+            b"a/c/d.txt\tcol1".as_slice(),
+        ];
+        assert_eq!(list, expected);
+    }
 }
