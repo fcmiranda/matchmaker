@@ -221,10 +221,18 @@ impl Previewer {
                             } else if path.to_lowercase().ends_with(".mp4") || path.to_lowercase().ends_with(".mkv") || path.to_lowercase().ends_with(".webm") {
                                 // Video support
                                 let output = std::process::Command::new("ffmpegthumbnailer")
-                                    .args(["-i", &path, "-s", "512", "-t", "00:00:01", "-c", "jpeg", "-o", "-"])
+                                    .args(["-i", &path, "-s", "512", "-t", "00:00:01", "-c", "jpeg", "-q", "10", "-o", "-"])
                                     .output();
                                 if let Ok(out) = output {
-                                    image::load_from_memory(&out.stdout).ok()
+                                    // ffmpegthumbnailer sometimes pollutes stdout with debug logs. 
+                                    // We search for the JPEG start of image marker (FF D8 FF) and slice the buffer.
+                                    let data = &out.stdout;
+                                    let img_data = if let Some(pos) = data.windows(3).position(|w| w == &[0xff, 0xd8, 0xff]) {
+                                        &data[pos..]
+                                    } else {
+                                        data
+                                    };
+                                    image::load_from_memory(img_data).ok()
                                 } else {
                                     None
                                 }
