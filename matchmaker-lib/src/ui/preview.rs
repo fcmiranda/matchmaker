@@ -519,7 +519,7 @@ impl PreviewUI {
         }
     }
 
-    pub fn make_image_preview<'a>(&'a mut self) -> Option<ratatui_image::protocol::Protocol> {
+    pub fn make_image_preview<'a>(&'a mut self, area: Rect) -> Option<ratatui_image::protocol::Protocol> {
         if let Ok(guard) = self.view.image.lock() {
             if let Some(img) = &*guard {
                 if let Some(picker) = &mut self.picker {
@@ -533,7 +533,7 @@ impl PreviewUI {
                         let y = center_y.saturating_sub(crop_h / 2);
                         display_img = img.crop_imm(x, y, crop_w, crop_h);
                     }
-                    let size = ratatui::layout::Size { width: self.area.width, height: self.area.height };
+                    let size = ratatui::layout::Size { width: area.width, height: area.height };
                     if let Ok(protocol) = picker.new_protocol(display_img, size, ratatui_image::Resize::Fit(None)) {
                         return Some(protocol);
                     }

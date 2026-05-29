@@ -204,7 +204,10 @@ impl Previewer {
                         let image_state = self.image.clone();
                         let changed = self.changed.clone();
                         
+                        let rx = self.rx.clone();
                         tokio::task::spawn_blocking(move || {
+                            if rx.has_changed().unwrap_or(false) { return; }
+                            
                             let img_result = if path.to_lowercase().ends_with(".pdf") {
                                 // PDF support using pdftoppm if available
                                 let output = std::process::Command::new("pdftoppm")
@@ -215,10 +218,10 @@ impl Previewer {
                                 } else {
                                     None
                                 }
-                            } else if path.to_lowercase().ends_with(".mp4") || path.to_lowercase().ends_with(".mkv") {
+                            } else if path.to_lowercase().ends_with(".mp4") || path.to_lowercase().ends_with(".mkv") || path.to_lowercase().ends_with(".webm") {
                                 // Video support
                                 let output = std::process::Command::new("ffmpegthumbnailer")
-                                    .args(["-i", &path, "-s", "512", "-c", "jpeg", "-o", "-"])
+                                    .args(["-i", &path, "-s", "512", "-t", "00:00:01", "-c", "jpeg", "-o", "-"])
                                     .output();
                                 if let Ok(out) = output {
                                     image::load_from_memory(&out.stdout).ok()
@@ -228,6 +231,8 @@ impl Previewer {
                             } else {
                                 image::open(&path).ok()
                             };
+
+                            if rx.has_changed().unwrap_or(false) { return; }
 
                             if let Some(img) = img_result {
                                 if let Ok(mut guard) = image_state.lock() {

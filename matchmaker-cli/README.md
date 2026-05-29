@@ -147,6 +147,9 @@ For quick reference, `mm --doc` provides fairly readable and comprehensive guide
 
 ### Media Previews (Kitty / Sixel / iTerm2)
 
+- **Native Terminal Image rendering**: Uses `ratatui-image` to render high quality graphics in Kitty, Sixel, and iTerm2 terminals.
+- **Media Thumbnails**: Native PDF and Video previewing using `pdftoppm` and `ffmpegthumbnailer` out of the box.
+
 Matchmaker supports native terminal media previews! When enabled, visual assets are rendered directly within the preview pane using high-performance terminal graphics protocols.
 
 - **Supported Formats**:

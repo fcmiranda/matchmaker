@@ -1565,7 +1565,7 @@ fn find_interaction(setting: &crate::config::InteractionRegionSetting, x: u16) -
 fn render_preview(frame: &mut Frame, area: Rect, ui: &mut PreviewUI) {
     assert!(ui.visible()); // don't call if not visible.
     
-    if let Some(protocol) = ui.make_image_preview() {
+    if let Some(protocol) = ui.make_image_preview(area) {
         let image_widget = ratatui_image::Image::new(&protocol);
         frame.render_widget(image_widget, area);
     } else {
