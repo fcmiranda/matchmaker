@@ -825,6 +825,9 @@ pub struct PreviewConfig {
     /// If `None`, it defaults to the width of the preview border.
     /// If `0`, drag resizing is disabled.
     pub drag_width: Option<u16>,
+    /// Whether to enable native media previews using ratatui-image
+    #[partial(alias = "m")]
+    pub media: bool,
 }
 
 impl PreviewConfig {
@@ -849,6 +852,7 @@ impl Default for PreviewConfig {
             show: Default::default(),
             reevaluate_show_on_resize: false,
             drag_width: None,
+            media: false,
         }
     }
 }

@@ -24,6 +24,7 @@ max_height = 16
 show = true
 wrap = true
 scroll_wrap = true
+media = true
 
 [[preview.layout]]
 command = '''
@@ -140,9 +141,9 @@ ansi = false # don't set to true here
 "ctrl-/" = "CyclePreview" # cycle preview layouts
 "ctrl-shift-/" = "CyclePreview"
 "alt-h" = "Help"
-"alt-=" = "ExpandPreview"
-"alt-shift-=" = "ExpandPreview"
-"alt-hyphen" = "ShrinkPreview"
+"alt-=" = "ExpandPreview(2)"
+"alt-shift-=" = "ExpandPreview(10)"
+"alt-hyphen" = "ShrinkPreview(2)"
 
 # Reserved
 "F1" = "@help"

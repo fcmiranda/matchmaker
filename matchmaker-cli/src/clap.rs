@@ -55,6 +55,10 @@ pub struct Cli {
     #[arg(long)]
     pub symlink_target: bool,
 
+    /// Enable native terminal media previews (images, videos, PDFs) using ratatui-image.
+    #[arg(long)]
+    pub media: bool,
+
     /// Colourise the UI with fzf-style key:value pairs (comma-separated).
     /// Example: --color border:#cba6f7,hl-fg:#a6e3a1,nav:#89b4fa
     /// Keys: fg, bg, hl-fg, hl-bg, border, label, preview-border, preview-label,
@@ -168,6 +172,7 @@ impl Cli {
                 "--sort",
                 "--icons",
                 "--symlink-target",
+                "--media",
                 "--nav",
                 "--help",
                 "-F",

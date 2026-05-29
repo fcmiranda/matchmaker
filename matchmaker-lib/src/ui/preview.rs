@@ -39,6 +39,9 @@ pub struct PreviewUI {
     /// Dynamic title set from the current item's first column; shown in the
     /// preview border when the border is configured.
     title: Option<String>,
+
+    picker: Option<ratatui_image::picker::Picker>,
+    pub zoom: f32,
 }
 
 impl PreviewUI {
@@ -103,22 +106,32 @@ impl PreviewUI {
             config.layout.push(s);
         }
 
+        let mut picker = None;
+        if config.media {
+            let p = ratatui_image::picker::Picker::from_query_stdio();
+            if let Ok(p) = p {
+                picker = Some(p);
+            }
+        }
+
         Self {
             view,
             #[cfg(feature = "partial")]
             initial: config.initial.clone(),
             config,
-            layout_idx: 0,
-            scroll: Default::default(),
-            offset: 0,
             area: Rect::default(),
+            layout_idx: 0,
+            scroll: [0, 0],
+            offset: 0,
             target: None,
             attained_target: false,
             last_count: 0,
-            jump: Default::default(),
+            jump: (false, 0),
             show,
             current_dimension: None,
             title: None,
+            picker,
+            zoom: 1.0,
         }
     }
 
@@ -504,6 +517,30 @@ impl PreviewUI {
                 }
             }
         }
+    }
+
+    pub fn make_image_preview<'a>(&'a mut self) -> Option<ratatui_image::protocol::Protocol> {
+        if let Ok(guard) = self.view.image.lock() {
+            if let Some(img) = &*guard {
+                if let Some(picker) = &mut self.picker {
+                    let mut display_img = img.clone();
+                    if self.zoom != 1.0 {
+                        let center_x = img.width() / 2;
+                        let center_y = img.height() / 2;
+                        let crop_w = (img.width() as f32 / self.zoom) as u32;
+                        let crop_h = (img.height() as f32 / self.zoom) as u32;
+                        let x = center_x.saturating_sub(crop_w / 2);
+                        let y = center_y.saturating_sub(crop_h / 2);
+                        display_img = img.crop_imm(x, y, crop_w, crop_h);
+                    }
+                    let size = ratatui::layout::Size { width: self.area.width, height: self.area.height };
+                    if let Ok(protocol) = picker.new_protocol(display_img, size, ratatui_image::Resize::Fit(None)) {
+                        return Some(protocol);
+                    }
+                }
+            }
+        }
+        None
     }
 
     pub fn make_preview(&mut self) -> Paragraph<'_> {

@@ -13,7 +13,7 @@ It takes inspiration from [fzf](https://github.com/junegunn/fzf) in features and
 - Matching with [nucleo](https://github.com/helix-editor/nucleo).
 - *Fully* configurable via a type-checked [toml file](./matchmaker-cli/assets/config.toml). [^11]
 - A minimal yet powerful [syntax](./matchmaker-cli/assets/docs/options.md) for overriding the configuration on the command line.
-- Interactive preview supports color, scrolling, wrapping, multiple layouts, and even maximizing.
+- Interactive preview supports color, scrolling, wrapping, multiple layouts, maximizing, and **native media previews (Images, Videos, PDFs)**.
 - Most of the familiar actions from [fzf](https://github.com/junegunn/fzf), as well as several new ones[^12].
 - Mouse (location aware) scrolling! Drag to resize! Horizontal scrolling!
 - Grapheme-width correct input wrapping!
@@ -109,6 +109,7 @@ Matchmaker options are hierarchical, although most categories live at the top le
 [preview]
 show = true
 wrap = true
+media = true # enable native image/video/pdf previews
 header_lines = 3 # sticky the top 3 lines
 
 # Full specification of (the default values of) a single layout. Multiple layouts can be specified.
@@ -143,6 +144,18 @@ For quick reference, `mm --doc` provides fairly readable and comprehensive guide
 [^2]: and parts of it [here](./matchmaker-lib/src/config-types.rs).
 
 [^30]: Beware that without piping, this overwrites your config location with the default config!
+
+### Media Previews (Kitty / Sixel / iTerm2)
+
+Matchmaker supports native terminal media previews! When enabled, visual assets are rendered directly within the preview pane using high-performance terminal graphics protocols.
+
+- **Supported Formats**:
+  - **Images** (`.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.bmp`, `.ico`, `.tiff`): Rendered natively via `ratatui-image`.
+  - **Videos** (`.mp4`, `.mkv`, `.avi`, `.mov`): Thumbnailed automatically using `ffmpegthumbnailer` if installed.
+  - **PDFs** (`.pdf`): Thumbnailed automatically using `pdftoppm` if installed.
+- **Usage**:
+  - Simply pass the `--media` flag: `mm --media`
+  - Or add `media = true` under `[preview]` in your `config.toml`.
 
 ### Keybindings
 

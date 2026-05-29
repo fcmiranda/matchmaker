@@ -1143,18 +1143,39 @@ pub fn make_previewer<T: SSS, S: Selection + 'static>(
             if state.preview_visible() &&
             let m = state.preview_payload().clone()
             {
+                let media = state.preview_ui.as_ref().map(|p| p.config.media).unwrap_or(false);
+                let mut msg = None;
+
+                if media {
+                    let item = use_formatter(&formatter, state, "{=1}", None);
+                    let path = std::path::Path::new(&item);
+                    if path.is_file() {
+                        if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                            if matches!(
+                                ext.to_lowercase().as_str(),
+                                "png" | "jpg" | "jpeg" | "gif" | "webp" | "bmp" | "ico" | "tiff" | "mp4" | "mkv" | "avi" | "mov" | "pdf"
+                            ) {
+                                msg = Some(PreviewMessage::Media(item.clone()));
+                            }
+                        }
+                    }
+                }
+
                 let cmd = use_formatter(&formatter, state, &m, None);
-                if cmd.is_empty() {
+                if cmd.is_empty() && msg.is_none() {
                     return;
                 }
-                let mut envs = state.make_env_vars();
-                let extra = env_vars!(
-                    "COLUMNS" => state.previewer_area().map_or("0".to_string(), |r| r.width.to_string()),
-                    "LINES" => state.previewer_area().map_or("0".to_string(), |r| r.height.to_string()),
-                );
-                envs.extend(extra);
+                
+                let msg = msg.unwrap_or_else(|| {
+                    let mut envs = state.make_env_vars();
+                    let extra = env_vars!(
+                        "COLUMNS" => state.previewer_area().map_or("0".to_string(), |r| r.width.to_string()),
+                        "LINES" => state.previewer_area().map_or("0".to_string(), |r| r.height.to_string()),
+                    );
+                    envs.extend(extra);
+                    PreviewMessage::Run(cmd.clone(), envs)
+                });
 
-                let msg = PreviewMessage::Run(cmd.clone(), envs);
                 if preview_tx.send(msg.clone()).is_err() {
                     warn!("Failed to send to preview: {}", msg)
                 }

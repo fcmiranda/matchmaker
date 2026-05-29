@@ -22,6 +22,7 @@ phase so you can cross-reference with `PLAN.md`.
 12. [Toggle Advances Cursor](#12-toggle-advances-cursor)
 13. [Customizable Spinners and Multi-Select Markers](#13-customizable-spinners-and-multi-select-markers)
 14. [Combining Features — Real-World Recipes](#14-combining-features--real-world-recipes)
+15. [Media Previews (`--media` / `preview.media`)](#15-media-previews---media--previewmedia)
 
 ---
 
@@ -661,6 +662,42 @@ journalctl --no-pager -n 500 | \
 
 ---
 
+## 15. Media Previews (`--media` / `preview.media`)
+
+**What it does:** Renders images, video thumbnails, and PDF previews directly inside the Matchmaker preview panel.
+
+Matchmaker automatically queries your terminal capabilities using `from_query_stdio()` to determine the best rendering protocol (supporting Kitty graphics, Sixel, and iTerm2).
+
+- **Images**: Decoded natively (no external tools required) via the `image` crate. Supports `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.bmp`, `.ico`, `.tiff`.
+- **Videos**: Spawns `ffmpegthumbnailer` to extract a high-quality frame buffer (requires `ffmpegthumbnailer` installed). Supports `.mp4`, `.mkv`, `.avi`, `.mov`.
+- **PDFs**: Spawns `pdftoppm` to extract the first page (requires `pdftoppm` installed). Supports `.pdf`.
+
+### CLI
+
+```bash
+# Start Matchmaker with native media previews enabled
+mm --media
+
+# Alternatively, override the media key directly on the CLI
+mm preview.media=true
+# or using short alias:
+mm p.media=true
+```
+
+### Config
+
+```toml
+[preview]
+media = true # Enable terminal image protocols for media previews
+
+[binds]
+# Resize the preview panel dynamically
+"alt-right" = "ExpandPreview(5)"
+"alt-left" = "ShrinkPreview(5)"
+```
+
+---
+
 ## Quick Reference — All New Flags and Config Keys
 
 ### CLI flags
@@ -670,6 +707,7 @@ journalctl --no-pager -n 500 | \
 | `--sort` | `start.sort` | `false` |
 | `--icons` | `results.icons` | `false` |
 | `--symlink-target` | `results.symlink_target` | `false` |
+| `--media` | `preview.media` | `false` |
 | `--color key:val,...` | *(see table in §9)* | — |
 
 ### Config-only keys (use `mm key=value` to override on the CLI)

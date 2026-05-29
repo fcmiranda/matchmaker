@@ -80,6 +80,10 @@ pub enum Action<A: ActionExt = NullActionExt> {
     ExpandPreview(u16),
     /// Shrink preview dimension
     ShrinkPreview(u16),
+    /// Zoom in preview
+    PreviewZoomIn,
+    /// Zoom out preview
+    PreviewZoomOut,
     /// Scroll preview half page up in rows.
     /// If wrapping is enabled, the visual distance may exceed half a page.
     PreviewHalfPageUp,
@@ -369,6 +373,7 @@ enum_from_str_display!(
     HalfPageDown, HalfPageUp,
 
     ToggleWrap, TogglePreviewWrap, ToggleActionBox, ToggleFocus, CyclePreview, PreviewJump,
+    PreviewZoomIn, PreviewZoomOut,
 
     PreviewHalfPageUp, PreviewHalfPageDown,
 

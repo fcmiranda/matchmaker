@@ -22,6 +22,7 @@ use crate::preview::Preview;
 pub enum PreviewMessage {
     Run(String, EnvVars),
     Set(Text<'static>),
+    Media(String),
     Unset,
     #[default]
     Stop,
@@ -37,6 +38,8 @@ pub struct Previewer {
     lines: AppendOnly<Line<'static>>,
     /// storage for preview string override
     string: Arc<Mutex<Option<Text<'static>>>>,
+    /// storage for preview image override
+    image: Arc<Mutex<Option<image::DynamicImage>>>,
     /// Flag which is set to true whenever the state changes
     /// and which the viewer can toggle after receiving the current state
     changed: Arc<AtomicBool>,
@@ -62,6 +65,7 @@ impl Previewer {
             rx,
             lines: AppendOnly::new(),
             string: Default::default(),
+            image: Default::default(),
             changed: Default::default(),
             paused: false,
 
@@ -79,6 +83,7 @@ impl Previewer {
         Preview::new(
             self.lines.clone(),
             self.string.clone(),
+            self.image.clone(),
             self.changed.clone(),
         )
     }
@@ -102,12 +107,36 @@ impl Previewer {
         guard.is_ok_and(|s| s.is_some())
     }
 
+    pub fn set_image(&self, img: image::DynamicImage) {
+        if let Ok(mut guard) = self.image.lock() {
+            *guard = Some(img);
+            self.changed.store(true, Ordering::Release);
+        }
+    }
+
+    pub fn clear_image(&self) {
+        if let Ok(mut guard) = self.image.lock() {
+            *guard = None;
+            self.changed.store(true, Ordering::Release);
+        }
+    }
+
     pub async fn run(mut self) -> Result<(), Vec<Child>> {
         while self.rx.changed().await.is_ok() {
             let m = self.rx.borrow_and_update().clone();
 
+            let mut is_debouncable = false;
+            let mut key = String::new();
             if let PreviewMessage::Run(cmd, _) = &m {
-                if !self.config.always_trigger && &self.last == cmd {
+                is_debouncable = true;
+                key = cmd.clone();
+            } else if let PreviewMessage::Media(cmd) = &m {
+                is_debouncable = true;
+                key = cmd.clone();
+            }
+
+            if is_debouncable {
+                if !self.config.always_trigger && self.last == key {
                     continue;
                 }
 
@@ -166,12 +195,58 @@ impl Previewer {
                         self.last.clear();
                         continue;
                     }
+                    PreviewMessage::Media(ref path) => {
+                        self.clear_string();
+                        self.lines.clear();
+                        self.dispatch_kill();
+                        self.last = path.clone();
+                        let path = path.clone();
+                        let image_state = self.image.clone();
+                        let changed = self.changed.clone();
+                        
+                        tokio::task::spawn_blocking(move || {
+                            let img_result = if path.to_lowercase().ends_with(".pdf") {
+                                // PDF support using pdftoppm if available
+                                let output = std::process::Command::new("pdftoppm")
+                                    .args(["-jpeg", "-f", "1", "-l", "1", "-scale-to", "800", &path])
+                                    .output();
+                                if let Ok(out) = output {
+                                    image::load_from_memory(&out.stdout).ok()
+                                } else {
+                                    None
+                                }
+                            } else if path.to_lowercase().ends_with(".mp4") || path.to_lowercase().ends_with(".mkv") {
+                                // Video support
+                                let output = std::process::Command::new("ffmpegthumbnailer")
+                                    .args(["-i", &path, "-s", "512", "-c", "jpeg", "-o", "-"])
+                                    .output();
+                                if let Ok(out) = output {
+                                    image::load_from_memory(&out.stdout).ok()
+                                } else {
+                                    None
+                                }
+                            } else {
+                                image::open(&path).ok()
+                            };
+
+                            if let Some(img) = img_result {
+                                if let Ok(mut guard) = image_state.lock() {
+                                    *guard = Some(img);
+                                    changed.store(true, Ordering::Release);
+                                }
+                            }
+                        });
+                        continue;
+                    }
                     _ => {}
                 }
             }
 
-            self.dispatch_kill();
-            self.clear_string();
+            if !matches!(m, PreviewMessage::Media(_)) {
+                self.dispatch_kill();
+                self.clear_string();
+                self.clear_image();
+            }
 
             match m {
                 PreviewMessage::Run(cmd, variables) => {

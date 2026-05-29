@@ -57,6 +57,8 @@ fn action_from_null<A: ActionExt>(action: Action<NullActionExt>) -> Option<Actio
         Action::PreviewDown(x) => Action::PreviewDown(x),
         Action::ExpandPreview(x) => Action::ExpandPreview(x),
         Action::ShrinkPreview(x) => Action::ShrinkPreview(x),
+        Action::PreviewZoomIn => Action::PreviewZoomIn,
+        Action::PreviewZoomOut => Action::PreviewZoomOut,
         Action::PreviewHalfPageUp => Action::PreviewHalfPageUp,
         Action::PreviewHalfPageDown => Action::PreviewHalfPageDown,
         Action::PreviewHScroll(x) => Action::PreviewHScroll(x),
@@ -747,6 +749,17 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                         Action::ShrinkPreview(n) => {
                             if let Some(p) = preview_ui.as_mut() {
                                 p.shrink(n)
+                            }
+                        }
+                        Action::PreviewZoomIn => {
+                            if let Some(p) = preview_ui.as_mut() {
+                                p.zoom *= 1.25_f32;
+                            }
+                        }
+                        Action::PreviewZoomOut => {
+                            if let Some(p) = preview_ui.as_mut() {
+                                p.zoom /= 1.25_f32;
+                                if p.zoom < 0.25 { p.zoom = 0.25; }
                             }
                         }
                         Action::PreviewHalfPageUp | Action::PreviewHalfPageDown => {
@@ -1550,16 +1563,15 @@ fn find_interaction(setting: &crate::config::InteractionRegionSetting, x: u16) -
 }
 
 fn render_preview(frame: &mut Frame, area: Rect, ui: &mut PreviewUI) {
-    // if ui.view.changed() {
-    // doesn't work, use resize
-    //     frame.render_widget(Clear, area);
-    // } else {
-    //     let widget = ui.make_preview();
-    //     frame.render_widget(widget, area);
-    // }
     assert!(ui.visible()); // don't call if not visible.
-    let widget = ui.make_preview();
-    frame.render_widget(widget, area);
+    
+    if let Some(protocol) = ui.make_image_preview() {
+        let image_widget = ratatui_image::Image::new(&protocol);
+        frame.render_widget(image_widget, area);
+    } else {
+        let widget = ui.make_preview();
+        frame.render_widget(widget, area);
+    }
 }
 
 fn render_results<T: SSS, S: Selection>(

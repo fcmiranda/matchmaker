@@ -40,6 +40,7 @@ Register-ArgumentCompleter -Native -CommandName 'mm' -ScriptBlock {
             [CompletionResult]::new('--sort', '--sort', [CompletionResultType]::ParameterName, 'Sort input lines alphabetically before injecting into the picker')
             [CompletionResult]::new('--icons', '--icons', [CompletionResultType]::ParameterName, 'Prepend a Nerd Font file-type icon before each result row')
             [CompletionResult]::new('--symlink-target', '--symlink-target', [CompletionResultType]::ParameterName, 'Append symlink target path after the first column when the entry is a symlink')
+            [CompletionResult]::new('--media', '--media', [CompletionResultType]::ParameterName, 'Enable native terminal media previews (images, videos, PDFs) using ratatui-image')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
             break

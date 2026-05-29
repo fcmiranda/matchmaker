@@ -11,6 +11,7 @@ use super::AppendOnly;
 pub struct Preview {
     lines: AppendOnly<Line<'static>>,
     string: Arc<Mutex<Option<Text<'static>>>>,
+    pub image: Arc<Mutex<Option<image::DynamicImage>>>,
     /// Overrides lines when present
     changed: Arc<AtomicBool>,
 }
@@ -50,11 +51,13 @@ impl Preview {
     pub fn new(
         lines: AppendOnly<Line<'static>>,
         string: Arc<Mutex<Option<Text<'static>>>>,
+        image: Arc<Mutex<Option<image::DynamicImage>>>,
         changed: Arc<AtomicBool>,
     ) -> Self {
         Self {
             lines,
             string,
+            image,
             changed,
         }
     }

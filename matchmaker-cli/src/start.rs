@@ -174,6 +174,10 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
         config.render.results.symlink_target = true;
     }
 
+    if cli.media {
+        config.render.preview.media = true;
+    }
+
     for spec in &cli.color {
         apply_color_spec(&mut config, spec);
     }
@@ -460,7 +464,7 @@ pub async fn start(config: Config, no_read: bool) -> Result<(), MatchError> {
         render,
         tui,
         previewer,
-        matcher: MatcherConfig { matcher, worker },
+        matcher: MatcherConfig { matcher, mut worker },
         columns,
         binds,
         start:
@@ -481,6 +485,12 @@ pub async fn start(config: Config, no_read: bool) -> Result<(), MatchError> {
         mut envs,
         source: _,
     } = config;
+
+    if sort {
+        // Force nucleo to preserve insertion order (stable sort) so the alphabetically
+        // sorted input is displayed in the same order when no query is typed.
+        worker.sort_threshold = matchmaker::config::SortThreshold(u32::MAX);
+    }
 
     // -------- determine command ------------
     if let Some(first) = additional_commands.first_mut() {
@@ -796,67 +806,64 @@ pub async fn start(config: Config, no_read: bool) -> Result<(), MatchError> {
     }
 
     // ----------- read -----------------------
-    let handle = if !atty::is(atty::Stream::Stdin) && !no_read {
-        if sort {
-            // Read all stdin, sort the lines, then inject via an in-memory cursor.
-            let mut bytes = Vec::new();
-            let _ = std::io::Read::read_to_end(&mut std::io::stdin(), &mut bytes);
-            let sep = input_separator.unwrap_or('\n');
-            let mut lines: Vec<&[u8]> = bytes.split(|&b| b == sep as u8).collect();
-            // Drop a trailing empty slice produced by a trailing newline.
-            if lines.last().is_some_and(|l| l.is_empty()) {
-                lines.pop();
-            }
-            lines.sort_by(|x, y| compare_paths(x, y));
-            let sorted: Vec<u8> = lines.join(&(sep as u8));
-            let cursor = std::io::Cursor::new(sorted);
-            map_reader(
-                cursor,
-                push_fn,
-                input_separator,
-                abort_empty.then_some(render_tx),
-            )
+    let handle = if sort {
+        // Collect all input, sort alphabetically, then inject in sorted order.
+        // Alphabetical sort on paths naturally produces tree order because '/' (0x2F)
+        // is less than any ASCII letter, so "a/b" always sorts before "a0".
+        let sep = separator.or(input_separator).unwrap_or('\n');
+        let raw: Vec<u8> = if !atty::is(atty::Stream::Stdin) && !no_read {
+            let mut buf = Vec::new();
+            std::io::stdin().read_to_end(&mut buf).ok();
+            buf
+        } else if !command.is_empty() {
+            Command::from_script(&command)
+                .envs(envs)
+                .args(&*COMMAND_ARGS.lock().unwrap())
+                .output()
+                .map(|o| o.stdout)
+                .unwrap_or_default()
         } else {
-            let stdin = std::io::stdin();
-            map_reader(
-                stdin,
-                push_fn,
-                input_separator,
-                abort_empty.then_some(render_tx),
-            )
+            eprintln!("error: no input detected.");
+            std::process::exit(99)
+        };
+
+        let text = String::from_utf8_lossy(&raw);
+        let mut lines: Vec<&str> = text.split(sep).collect();
+        // Drop a trailing empty token produced by a final newline.
+        if lines.last() == Some(&"") {
+            lines.pop();
         }
+        lines.sort_unstable();
+        let sorted = lines.join("\n");
+        drop(lines);
+
+        map_reader(
+            std::io::Cursor::new(sorted),
+            push_fn,
+            None, // already newline-separated after join
+            abort_empty.then_some(render_tx),
+        )
+    } else if !atty::is(atty::Stream::Stdin) && !no_read {
+        let stdin = std::io::stdin();
+        map_reader(
+            stdin,
+            push_fn,
+            input_separator,
+            abort_empty.then_some(render_tx),
+        )
     } else if !command.is_empty()
-        && let Some(mut stdout) = Command::from_script(&command)
+        && let Some(stdout) = Command::from_script(&command)
             .envs(envs)
             .args(&*COMMAND_ARGS.lock().unwrap())
             .spawn_piped()
             ._ebog()
     {
-        if sort {
-            let mut bytes = Vec::new();
-            let _ = std::io::Read::read_to_end(&mut stdout, &mut bytes);
-            let sep = separator.or(input_separator).unwrap_or('\n');
-            let mut lines: Vec<&[u8]> = bytes.split(|&b| b == sep as u8).collect();
-            if lines.last().is_some_and(|l| l.is_empty()) {
-                lines.pop();
-            }
-            lines.sort_by(|x, y| compare_paths(x, y));
-            let sorted: Vec<u8> = lines.join(&(sep as u8));
-            let cursor = std::io::Cursor::new(sorted);
-            map_reader(
-                cursor,
-                push_fn,
-                Some(sep),
-                abort_empty.then_some(render_tx),
-            )
-        } else {
-            map_reader(
-                stdout,
-                push_fn,
-                separator.or(input_separator),
-                abort_empty.then_some(render_tx),
-            )
-        }
+        map_reader(
+            stdout,
+            push_fn,
+            separator.or(input_separator),
+            abort_empty.then_some(render_tx),
+        )
     } else {
         eprintln!("error: no input detected.");
         std::process::exit(99)
@@ -947,150 +954,6 @@ fn to_static(line: Line<'_>) -> Line<'static> {
     )
 }
 
-pub fn compare_paths(a: &[u8], b: &[u8]) -> std::cmp::Ordering {
-    let path_a = get_first_column(a);
-    let path_b = get_first_column(b);
 
-    // Split by '/' ignoring any empty parts (e.g. double slashes or trailing slashes)
-    let c1: Vec<&[u8]> = path_a.split(|&x| x == b'/').filter(|s| !s.is_empty()).collect();
-    let c2: Vec<&[u8]> = path_b.split(|&x| x == b'/').filter(|s| !s.is_empty()).collect();
 
-    let n = std::cmp::min(c1.len(), c2.len());
-    for i in 0..n {
-        if c1[i] != c2[i] {
-            // Diverged at component i.
-            // Check if component i is a directory in each path.
-            let is_dir1 = i < c1.len() - 1 || (i == c1.len() - 1 && path_a.ends_with(b"/"));
-            let is_dir2 = i < c2.len() - 1 || (i == c2.len() - 1 && path_b.ends_with(b"/"));
 
-            match (is_dir1, is_dir2) {
-                (true, false) => {
-                    // c1 is a directory, c2 is a file. File comes first.
-                    return std::cmp::Ordering::Greater;
-                }
-                (false, true) => {
-                    // c1 is a file, c2 is a directory. File comes first.
-                    return std::cmp::Ordering::Less;
-                }
-                _ => {
-                    // Both are files or both are directories. Sort case-insensitively.
-                    return cmp_case_insensitive(c1[i], c2[i]);
-                }
-            }
-        }
-    }
-
-    // One is a prefix of the other.
-    // The shorter path (the parent directory) comes first.
-    c1.len().cmp(&c2.len())
-}
-
-fn cmp_case_insensitive(a: &[u8], b: &[u8]) -> std::cmp::Ordering {
-    let a_lower = a.to_ascii_lowercase();
-    let b_lower = b.to_ascii_lowercase();
-    a_lower.cmp(&b_lower)
-}
-
-fn get_first_column(line: &[u8]) -> &[u8] {
-    let trimmed = trim_bytes(line);
-    if let Some(pos) = trimmed.iter().position(|&b| b == b'\t') {
-        trim_bytes(&trimmed[..pos])
-    } else {
-        trimmed
-    }
-}
-
-fn trim_bytes(mut s: &[u8]) -> &[u8] {
-    while let Some((&first, rest)) = s.split_first() {
-        if first == b' ' || first == b'\t' || first == b'\r' || first == b'\n' {
-            s = rest;
-        } else {
-            break;
-        }
-    }
-    while let Some((&last, rest)) = s.split_last() {
-        if last == b' ' || last == b'\t' || last == b'\r' || last == b'\n' {
-            s = rest;
-        } else {
-            break;
-        }
-    }
-    s
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_compare_paths() {
-        // Direct files under 'a' should come before subdirectories under 'a'
-        let mut list = vec![
-            b"a/c/d.txt".as_slice(),
-            b"a/f.txt".as_slice(),
-            b"a/b.txt".as_slice(),
-            b"a/c/e.txt".as_slice(),
-            b"a/c/g/h.txt".as_slice(),
-        ];
-        list.sort_by(|x, y| compare_paths(x, y));
-        
-        let expected = vec![
-            b"a/b.txt".as_slice(),
-            b"a/f.txt".as_slice(),
-            b"a/c/d.txt".as_slice(),
-            b"a/c/e.txt".as_slice(),
-            b"a/c/g/h.txt".as_slice(),
-        ];
-        assert_eq!(list, expected);
-    }
-
-    #[test]
-    fn test_compare_paths_user() {
-        let mut list = vec![
-            b"matchmaker-cli/src/".as_slice(),
-            b"matchmaker-cli/wix/".as_slice(),
-            b"matchmaker-lib/src/".as_slice(),
-            b"matchmaker-partial/".as_slice(),
-            b"matchmaker-cli/build/".as_slice(),
-            b"matchmaker-cli/LICENSE".as_slice(),
-            b"matchmaker-cli/assets/".as_slice(),
-            b"matchmaker-lib/LICENSE".as_slice(),
-            b"matchmaker-lib/assets/".as_slice(),
-            b"matchmaker-lib/src/ui/".as_slice(),
-            b"matchmaker-cli/build.rs".as_slice(),
-        ];
-        list.sort_by(|x, y| compare_paths(x, y));
-
-        let expected = vec![
-            b"matchmaker-cli/build.rs".as_slice(),
-            b"matchmaker-cli/LICENSE".as_slice(),
-            b"matchmaker-cli/assets/".as_slice(),
-            b"matchmaker-cli/build/".as_slice(),
-            b"matchmaker-cli/src/".as_slice(),
-            b"matchmaker-cli/wix/".as_slice(),
-            b"matchmaker-lib/LICENSE".as_slice(),
-            b"matchmaker-lib/assets/".as_slice(),
-            b"matchmaker-lib/src/".as_slice(),
-            b"matchmaker-lib/src/ui/".as_slice(),
-            b"matchmaker-partial/".as_slice(),
-        ];
-        assert_eq!(list, expected);
-    }
-
-    #[test]
-    fn test_compare_paths_with_tab_columns() {
-        let mut list = vec![
-            b"a/c/d.txt\tcol1".as_slice(),
-            b"a/f.txt\tcol2".as_slice(),
-            b"a/b.txt\tcol3".as_slice(),
-        ];
-        list.sort_by(|x, y| compare_paths(x, y));
-
-        let expected = vec![
-            b"a/b.txt\tcol3".as_slice(),
-            b"a/f.txt\tcol2".as_slice(),
-            b"a/c/d.txt\tcol1".as_slice(),
-        ];
-        assert_eq!(list, expected);
-    }
-}
