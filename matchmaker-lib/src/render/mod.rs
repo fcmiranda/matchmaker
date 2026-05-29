@@ -94,6 +94,9 @@ fn action_from_null<A: ActionExt>(action: Action<NullActionExt>) -> Option<Actio
         Action::Custom(_) => return None,
         Action::Overlay(x) => Action::Overlay(x),
         Action::Semantic(x) => Action::Semantic(x),
+        Action::SetMode(x) => Action::SetMode(x),
+        Action::Copy(x) => Action::Copy(x),
+        Action::CopyAsync(x) => Action::CopyAsync(x),
         Action::Trace(x) => Action::Trace(x),
     })
 }

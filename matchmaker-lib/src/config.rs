@@ -9,7 +9,6 @@ pub use crate::config_types::*;
 pub use crate::utils::{Percentage, serde::StringOrVec};
 
 use crate::{
-    MAX_SPLITS,
     action::{Action, Actions, NullActionExt},
     tui::IoStream,
     utils::serde::{escaped_opt_char, escaped_opt_string},

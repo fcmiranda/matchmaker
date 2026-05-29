@@ -28,7 +28,7 @@ use cba::{bo::load_type, broc::CommandExt};
 use log::debug;
 use matchmaker::{
     Action, ConfigInjector, MatchError, Matchmaker, OddEnds, PickOptions, SSS, acs,
-    binds::{BindMap, BindMapExt, display_binds},
+    binds::{BindMap, BindMapExt},
     config::{BlinkRate, CommandSetting, EnvValue, MatcherConfig, StartConfig},
     event::{EventLoop, RenderSender},
     make_previewer,
