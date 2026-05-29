@@ -912,6 +912,9 @@ pub struct PreviewerConfig {
 
     /// See [`StartConfig`]
     pub command_args: Vec<OsString>,
+
+    /// Pixel resolution for media previews (ffmpegthumbnailer -s). Default: 512. 0 = original
+    pub media_size: u32,
 }
 
 impl Default for PreviewerConfig {
@@ -929,6 +932,7 @@ impl Default for PreviewerConfig {
             hide_semantic_help: true,
 
             command_args: Default::default(),
+            media_size: 512,
         }
     }
 }

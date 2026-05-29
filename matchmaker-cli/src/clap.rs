@@ -59,6 +59,10 @@ pub struct Cli {
     #[arg(long)]
     pub media: bool,
 
+    /// Set the size parameter for media previews (e.g. video thumbnails).
+    #[arg(long, value_enum)]
+    pub media_size: Option<MediaSize>,
+
     /// Colourise the UI with fzf-style key:value pairs (comma-separated).
     /// Example: --color border:#cba6f7,hl-fg:#a6e3a1,nav:#89b4fa
     /// Keys: fg, bg, hl-fg, hl-bg, border, label, preview-border, preview-label,
@@ -89,6 +93,16 @@ pub enum Doc {
     Binds,
     Template,
     Other,
+}
+
+#[derive(Debug, Clone, clap::ValueEnum, PartialEq)]
+pub enum MediaSize {
+    Xs,
+    S,
+    M,
+    L,
+    Xl,
+    Full,
 }
 
 impl Cli {
@@ -161,6 +175,7 @@ impl Cli {
             try_parse!("override", "--");
             try_parse!("o", "-");
             try_parse!("color", "--");
+            try_parse!("media-size", "--");
             try_parse!("nav-bind", "--");
 
             // Flags

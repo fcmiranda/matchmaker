@@ -178,6 +178,17 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
         config.render.preview.media = true;
     }
 
+    if let Some(size) = &cli.media_size {
+        config.previewer.media_size = match size {
+            crate::clap::MediaSize::Xs => 128,
+            crate::clap::MediaSize::S => 256,
+            crate::clap::MediaSize::M => 512,
+            crate::clap::MediaSize::L => 1024,
+            crate::clap::MediaSize::Xl => 2048,
+            crate::clap::MediaSize::Full => 0,
+        };
+    }
+
     for spec in &cli.color {
         apply_color_spec(&mut config, spec);
     }

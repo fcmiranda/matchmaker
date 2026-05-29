@@ -220,8 +220,9 @@ impl Previewer {
                                 }
                             } else if path.to_lowercase().ends_with(".mp4") || path.to_lowercase().ends_with(".mkv") || path.to_lowercase().ends_with(".webm") {
                                 // Video support
+                                let media_size_str = self.config.media_size.to_string();
                                 let output = std::process::Command::new("ffmpegthumbnailer")
-                                    .args(["-i", &path, "-s", "512", "-t", "00:00:01", "-c", "jpeg", "-q", "10", "-o", "-"])
+                                    .args(["-i", &path, "-s", &media_size_str, "-t", "00:00:01", "-c", "jpeg", "-q", "10", "-o", "-"])
                                     .output();
                                 if let Ok(out) = output {
                                     // ffmpegthumbnailer sometimes pollutes stdout with debug logs. 
