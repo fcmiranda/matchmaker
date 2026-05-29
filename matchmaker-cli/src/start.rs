@@ -256,10 +256,6 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
             "tab".parse().expect("tab trigger should parse"),
             matchmaker::acs![matchmaker::Action::ToggleFocus],
         );
-        config.binds.insert(
-            "ctrl-g".parse().expect("ctrl-g trigger should parse"),
-            matchmaker::acs![matchmaker::Action::Char('\x07')],
-        );
     }
     config.binds.check_cycles().map_err(anyhow::Error::msg)?;
     config.binds.retain(|_, actions| !actions.is_empty());
@@ -334,6 +330,8 @@ fn apply_nav_props(props: &[String], config: &mut Config) {
                 None => match prop {
                     "bar" => {
                         config.render.ui.nav_bar = Some(ratatui::widgets::BorderType::Thick);
+                    }
+                    "action-bar" => {
                         config.render.action.border.sides = Some(ratatui::widgets::Borders::BOTTOM);
                     }
                     "blink" => config.render.ui.nav_blink = true,
@@ -343,7 +341,10 @@ fn apply_nav_props(props: &[String], config: &mut Config) {
                 },
                 Some(("bar", s)) => {
                     config.render.ui.nav_bar = Some(parse_border_type(s));
+                }
+                Some(("action-bar", s)) => {
                     config.render.action.border.sides = Some(ratatui::widgets::Borders::BOTTOM);
+                    config.render.action.border.r#type = Some(parse_border_type(s));
                 }
                 Some(("blink", s)) => {
                     config.render.ui.nav_blink = true;

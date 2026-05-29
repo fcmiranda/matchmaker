@@ -120,18 +120,6 @@ fn apply_focus_binds<A: ActionExt>(
     for cmd in buffer.drain(..) {
         match cmd {
             RenderCommand::Tick => {
-                if let Some('\x07') = pending_nav_key {
-                    *pending_nav_key = None;
-                    if let Some(actions) = focus_binds.get("ctrl-g") {
-                        for action in actions.iter().cloned() {
-                            if let Some(action) = action_from_null::<A>(action) {
-                                out.push(RenderCommand::Action(action));
-                            }
-                        }
-                    } else {
-                        out.push(RenderCommand::Action(Action::Pos(-1)));
-                    }
-                }
                 out.push(RenderCommand::Tick);
             }
             RenderCommand::Action(Action::ToggleFocus) => {
@@ -155,20 +143,8 @@ fn apply_focus_binds<A: ActionExt>(
                             } else {
                                 out.push(RenderCommand::Action(Action::PreviewUp(0)));
                             }
-                        } else {
-                            let key = c.to_string();
-                            if let Some(actions) = focus_binds.get(&key) {
-                                for action in actions.iter().cloned() {
-                                    if let Some(action) = action_from_null::<A>(action) {
-                                        out.push(RenderCommand::Action(action));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    Some('\x07') => {
-                        if c == 'g' {
-                            let seq = "ctrl-gg".to_string();
+                        } else if c == 't' {
+                            let seq = "gt".to_string();
                             if let Some(actions) = focus_binds.get(&seq) {
                                 for action in actions.iter().cloned() {
                                     if let Some(action) = action_from_null::<A>(action) {
@@ -178,8 +154,9 @@ fn apply_focus_binds<A: ActionExt>(
                             } else {
                                 out.push(RenderCommand::Action(Action::Pos(0)));
                             }
-                        } else {
-                            if let Some(actions) = focus_binds.get("ctrl-g") {
+                        } else if c == 'b' {
+                            let seq = "gb".to_string();
+                            if let Some(actions) = focus_binds.get(&seq) {
                                 for action in actions.iter().cloned() {
                                     if let Some(action) = action_from_null::<A>(action) {
                                         out.push(RenderCommand::Action(action));
@@ -188,7 +165,7 @@ fn apply_focus_binds<A: ActionExt>(
                             } else {
                                 out.push(RenderCommand::Action(Action::Pos(-1)));
                             }
-
+                        } else {
                             let key = c.to_string();
                             if let Some(actions) = focus_binds.get(&key) {
                                 for action in actions.iter().cloned() {
@@ -202,8 +179,6 @@ fn apply_focus_binds<A: ActionExt>(
                     _ => {
                         if c == 'g' {
                             *pending_nav_key = Some('g');
-                        } else if c == '\x07' {
-                            *pending_nav_key = Some('\x07');
                         } else {
                             let key = c.to_string();
                             if let Some(actions) = focus_binds.get(&key) {
@@ -1777,8 +1752,8 @@ mod test {
         focus_binds.insert("G".to_string(), Actions::from([Action::PreviewDown(0)]));
         focus_binds.insert("J".to_string(), Actions::from([Action::PreviewDown(1)]));
         focus_binds.insert("K".to_string(), Actions::from([Action::PreviewUp(1)]));
-        focus_binds.insert("ctrl-g".to_string(), Actions::from([Action::Pos(-1)]));
-        focus_binds.insert("ctrl-gg".to_string(), Actions::from([Action::Pos(0)]));
+        focus_binds.insert("gb".to_string(), Actions::from([Action::Pos(-1)]));
+        focus_binds.insert("gt".to_string(), Actions::from([Action::Pos(0)]));
 
         let mut pending = None;
 
@@ -1813,27 +1788,24 @@ mod test {
         assert!(matches!(buffer[0], RenderCommand::Action(Action::PreviewUp(1))));
         assert_eq!(pending, None);
 
-        // Test ctrl-gg
+        // Test gt
         let mut buffer = vec![
-            RenderCommand::<NullActionExt>::Action(Action::Char('\x07')),
             RenderCommand::<NullActionExt>::Action(Action::Char('g')),
+            RenderCommand::<NullActionExt>::Action(Action::Char('t')),
         ];
         apply_focus_binds(&mut buffer, Focus::Results, &focus_binds, false, &mut pending);
         assert_eq!(buffer.len(), 1);
         assert!(matches!(buffer[0], RenderCommand::Action(Action::Pos(0))));
         assert_eq!(pending, None);
 
-        // Test ctrl-g timeout (via Tick)
-        let mut buffer = vec![RenderCommand::<NullActionExt>::Action(Action::Char('\x07'))];
+        // Test gb
+        let mut buffer = vec![
+            RenderCommand::<NullActionExt>::Action(Action::Char('g')),
+            RenderCommand::<NullActionExt>::Action(Action::Char('b')),
+        ];
         apply_focus_binds(&mut buffer, Focus::Results, &focus_binds, false, &mut pending);
-        assert_eq!(buffer.len(), 0);
-        assert_eq!(pending, Some('\x07'));
-
-        let mut buffer = vec![RenderCommand::<NullActionExt>::Tick];
-        apply_focus_binds(&mut buffer, Focus::Results, &focus_binds, false, &mut pending);
-        assert_eq!(buffer.len(), 2);
+        assert_eq!(buffer.len(), 1);
         assert!(matches!(buffer[0], RenderCommand::Action(Action::Pos(-1))));
-        assert!(matches!(buffer[1], RenderCommand::Tick));
         assert_eq!(pending, None);
     }
 }

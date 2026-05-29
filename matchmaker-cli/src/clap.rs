@@ -67,7 +67,8 @@ pub struct Cli {
     /// Examples:
     ///   --nav
     ///   --nav bar blink:slow
-    ///   --nav bar:plain color:#a6e3a1 marker:'>' bold
+    ///   --nav bar:plain action-bar color:#a6e3a1 marker:'>' bold
+    ///   --nav action-bar:double
     #[arg(long, value_name = "PROP", num_args = 0..)]
     pub nav: Option<Vec<String>>,
 
