@@ -754,14 +754,20 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                         Action::PreviewZoomIn => {
                             if let Some(p) = preview_ui.as_mut() {
                                 p.zoom *= 1.25_f32;
-                                p.view.changed.store(true, std::sync::atomic::Ordering::Release);
+                                p.view
+                                    .changed
+                                    .store(true, std::sync::atomic::Ordering::Release);
                             }
                         }
                         Action::PreviewZoomOut => {
                             if let Some(p) = preview_ui.as_mut() {
                                 p.zoom /= 1.25_f32;
-                                if p.zoom < 0.25 { p.zoom = 0.25; }
-                                p.view.changed.store(true, std::sync::atomic::Ordering::Release);
+                                if p.zoom < 0.25 {
+                                    p.zoom = 0.25;
+                                }
+                                p.view
+                                    .changed
+                                    .store(true, std::sync::atomic::Ordering::Release);
                             }
                         }
                         Action::PreviewHalfPageUp | Action::PreviewHalfPageDown => {
@@ -1566,7 +1572,7 @@ fn find_interaction(setting: &crate::config::InteractionRegionSetting, x: u16) -
 
 fn render_preview(frame: &mut Frame, area: Rect, ui: &mut PreviewUI) {
     assert!(ui.visible()); // don't call if not visible.
-    
+
     let is_image = ui.get_image_state().is_some();
     if is_image {
         let block = ui.make_block();
@@ -1578,7 +1584,7 @@ fn render_preview(frame: &mut Frame, area: Rect, ui: &mut PreviewUI) {
         if let Some(b) = block {
             frame.render_widget(b, area);
         }
-        
+
         if let Some(state) = ui.get_image_state() {
             let image_widget = ratatui_image::StatefulImage::new();
             frame.render_stateful_widget(image_widget, inner_area, state);
@@ -1789,30 +1795,66 @@ mod test {
             RenderCommand::<NullActionExt>::Action(Action::Char('g')),
             RenderCommand::<NullActionExt>::Action(Action::Char('g')),
         ];
-        apply_focus_binds(&mut buffer, Focus::Results, &focus_binds, false, &mut pending);
+        apply_focus_binds(
+            &mut buffer,
+            Focus::Results,
+            &focus_binds,
+            false,
+            &mut pending,
+        );
         assert_eq!(buffer.len(), 1);
-        assert!(matches!(buffer[0], RenderCommand::Action(Action::PreviewUp(0))));
+        assert!(matches!(
+            buffer[0],
+            RenderCommand::Action(Action::PreviewUp(0))
+        ));
         assert_eq!(pending, None);
 
         // Test G
         let mut buffer = vec![RenderCommand::<NullActionExt>::Action(Action::Char('G'))];
-        apply_focus_binds(&mut buffer, Focus::Results, &focus_binds, false, &mut pending);
+        apply_focus_binds(
+            &mut buffer,
+            Focus::Results,
+            &focus_binds,
+            false,
+            &mut pending,
+        );
         assert_eq!(buffer.len(), 1);
-        assert!(matches!(buffer[0], RenderCommand::Action(Action::PreviewDown(0))));
+        assert!(matches!(
+            buffer[0],
+            RenderCommand::Action(Action::PreviewDown(0))
+        ));
         assert_eq!(pending, None);
 
         // Test J
         let mut buffer = vec![RenderCommand::<NullActionExt>::Action(Action::Char('J'))];
-        apply_focus_binds(&mut buffer, Focus::Results, &focus_binds, false, &mut pending);
+        apply_focus_binds(
+            &mut buffer,
+            Focus::Results,
+            &focus_binds,
+            false,
+            &mut pending,
+        );
         assert_eq!(buffer.len(), 1);
-        assert!(matches!(buffer[0], RenderCommand::Action(Action::PreviewDown(1))));
+        assert!(matches!(
+            buffer[0],
+            RenderCommand::Action(Action::PreviewDown(1))
+        ));
         assert_eq!(pending, None);
 
         // Test K
         let mut buffer = vec![RenderCommand::<NullActionExt>::Action(Action::Char('K'))];
-        apply_focus_binds(&mut buffer, Focus::Results, &focus_binds, false, &mut pending);
+        apply_focus_binds(
+            &mut buffer,
+            Focus::Results,
+            &focus_binds,
+            false,
+            &mut pending,
+        );
         assert_eq!(buffer.len(), 1);
-        assert!(matches!(buffer[0], RenderCommand::Action(Action::PreviewUp(1))));
+        assert!(matches!(
+            buffer[0],
+            RenderCommand::Action(Action::PreviewUp(1))
+        ));
         assert_eq!(pending, None);
 
         // Test gt
@@ -1820,7 +1862,13 @@ mod test {
             RenderCommand::<NullActionExt>::Action(Action::Char('g')),
             RenderCommand::<NullActionExt>::Action(Action::Char('t')),
         ];
-        apply_focus_binds(&mut buffer, Focus::Results, &focus_binds, false, &mut pending);
+        apply_focus_binds(
+            &mut buffer,
+            Focus::Results,
+            &focus_binds,
+            false,
+            &mut pending,
+        );
         assert_eq!(buffer.len(), 1);
         assert!(matches!(buffer[0], RenderCommand::Action(Action::Pos(0))));
         assert_eq!(pending, None);
@@ -1830,7 +1878,13 @@ mod test {
             RenderCommand::<NullActionExt>::Action(Action::Char('g')),
             RenderCommand::<NullActionExt>::Action(Action::Char('b')),
         ];
-        apply_focus_binds(&mut buffer, Focus::Results, &focus_binds, false, &mut pending);
+        apply_focus_binds(
+            &mut buffer,
+            Focus::Results,
+            &focus_binds,
+            false,
+            &mut pending,
+        );
         assert_eq!(buffer.len(), 1);
         assert!(matches!(buffer[0], RenderCommand::Action(Action::Pos(-1))));
         assert_eq!(pending, None);

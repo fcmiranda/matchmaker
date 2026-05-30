@@ -459,14 +459,23 @@ impl ResultsUI {
 
         macro_rules! get_prefix {
             ($row:expr, $is_selected:expr, $idx:expr) => {{
-                let mut icon_name = if $row.is_empty() { String::new() } else { extract_col0_name(&$row[0]) };
-                let is_spinner = !self.config.spinner_prefix.is_empty() && icon_name.starts_with(&self.config.spinner_prefix);
+                let mut icon_name = if $row.is_empty() {
+                    String::new()
+                } else {
+                    extract_col0_name(&$row[0])
+                };
+                let is_spinner = !self.config.spinner_prefix.is_empty()
+                    && icon_name.starts_with(&self.config.spinner_prefix);
                 if is_spinner && !$row.is_empty() {
-                    crate::utils::text::strip_prefix_from_text(&mut $row[0], &self.config.spinner_prefix);
+                    crate::utils::text::strip_prefix_from_text(
+                        &mut $row[0],
+                        &self.config.spinner_prefix,
+                    );
                     icon_name = extract_col0_name(&$row[0]);
                 }
                 let prefix = if is_spinner {
-                    let frame = crate::spinner::Spinner::from_name(&self.config.spinner).current_frame();
+                    let frame =
+                        crate::spinner::Spinner::from_name(&self.config.spinner).current_frame();
                     let f = format!("{frame} ");
                     crate::utils::string::fit_width(&f, self.config.multi_prefix.width())
                 } else if $is_selected {
@@ -475,7 +484,7 @@ impl ResultsUI {
                     self.default_prefix($idx)
                 };
                 (prefix, icon_name, is_spinner)
-            }}
+            }};
         }
 
         let width_limits = if as_cols {
@@ -666,7 +675,11 @@ impl ResultsUI {
                             },
                         );
                         if self.config.icons {
-                            insert_icon_span(&mut row[0], &icon_name, !is_selected && nav_bar_span.is_some());
+                            insert_icon_span(
+                                &mut row[0],
+                                &icon_name,
+                                !is_selected && nav_bar_span.is_some(),
+                            );
                         }
                         if self.config.symlink_target {
                             maybe_append_symlink_target(
@@ -693,8 +706,18 @@ impl ResultsUI {
                                     prefix_span(
                                         &mut t,
                                         prefix.clone(),
-                                        self.active_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
-                                        self.inactive_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
+                                        self.active_prefix_style(
+                                            &icon_name,
+                                            is_selected,
+                                            is_spinner,
+                                            &cwd,
+                                        ),
+                                        self.inactive_prefix_style(
+                                            &icon_name,
+                                            is_selected,
+                                            is_spinner,
+                                            &cwd,
+                                        ),
                                         is_current_row,
                                         if !is_selected {
                                             nav_bar_span.clone()
@@ -737,7 +760,12 @@ impl ResultsUI {
                                 &mut col,
                                 prefix.clone(),
                                 self.active_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
-                                self.inactive_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
+                                self.inactive_prefix_style(
+                                    &icon_name,
+                                    is_selected,
+                                    is_spinner,
+                                    &cwd,
+                                ),
                                 is_current_row,
                                 if !is_selected {
                                     nav_bar_span.clone()
@@ -746,7 +774,11 @@ impl ResultsUI {
                                 },
                             );
                             if self.config.icons && col_idx == 0 {
-                                insert_icon_span(col, &icon_name, !is_selected && nav_bar_span.is_some());
+                                insert_icon_span(
+                                    col,
+                                    &icon_name,
+                                    !is_selected && nav_bar_span.is_some(),
+                                );
                             }
                             if self.config.symlink_target && col_idx == 0 {
                                 maybe_append_symlink_target(
@@ -810,7 +842,11 @@ impl ResultsUI {
                     },
                 );
                 if self.config.icons {
-                    insert_icon_span(&mut row[0], &icon_name, !is_selected && nav_bar_span.is_some());
+                    insert_icon_span(
+                        &mut row[0],
+                        &icon_name,
+                        !is_selected && nav_bar_span.is_some(),
+                    );
                 }
                 if self.config.symlink_target {
                     maybe_append_symlink_target(
@@ -838,7 +874,12 @@ impl ResultsUI {
                                 &mut t,
                                 prefix.clone(),
                                 self.active_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
-                                self.inactive_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
+                                self.inactive_prefix_style(
+                                    &icon_name,
+                                    is_selected,
+                                    is_spinner,
+                                    &cwd,
+                                ),
                                 is_current_row,
                                 if !is_selected {
                                     nav_bar_span.clone()
@@ -863,25 +904,25 @@ impl ResultsUI {
                 };
                 rows.push(row);
             } else {
-                        let col_count = row.len();
-                        let mut push = vec![];
+                let col_count = row.len();
+                let mut push = vec![];
 
-                        for (rev_i, mut col) in row.into_iter().rev().enumerate() {
-                            let col_idx = col_count.saturating_sub(1 + rev_i);
-                            let mut height = col.height() as u16;
-                            if remaining_height == 0 {
-                                break;
-                            } else if remaining_height < height {
-                                clip_text_lines(&mut col, remaining_height, !self.reverse());
-                                height = remaining_height;
-                            }
-                            remaining_height -= height;
+                for (rev_i, mut col) in row.into_iter().rev().enumerate() {
+                    let col_idx = col_count.saturating_sub(1 + rev_i);
+                    let mut height = col.height() as u16;
+                    if remaining_height == 0 {
+                        break;
+                    } else if remaining_height < height {
+                        clip_text_lines(&mut col, remaining_height, !self.reverse());
+                        height = remaining_height;
+                    }
+                    remaining_height -= height;
 
-                            prefix_span(
-                                &mut col,
-                                prefix.clone(),
-                                self.active_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
-                                self.inactive_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
+                    prefix_span(
+                        &mut col,
+                        prefix.clone(),
+                        self.active_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
+                        self.inactive_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
                         is_current_row,
                         if !is_selected {
                             nav_bar_span.clone()
@@ -992,8 +1033,6 @@ impl ResultsUI {
                     .rev()
                     .find_map(|(i, w)| (*w != 0).then_some(i));
 
-
-
                 let mut row_texts: Vec<_> = row
                     .iter()
                     .take(last_visible.map(|x| x + 1).unwrap_or(0))
@@ -1008,7 +1047,12 @@ impl ResultsUI {
                             prefix_span(
                                 &mut t,
                                 prefix.clone(),
-                                self.active_prefix_style(&icon_name_hz, is_selected, is_spinner, &cwd),
+                                self.active_prefix_style(
+                                    &icon_name_hz,
+                                    is_selected,
+                                    is_spinner,
+                                    &cwd,
+                                ),
                                 self.inactive_prefix_style(
                                     &icon_name_hz,
                                     is_selected && !is_current_row,
@@ -1023,7 +1067,11 @@ impl ResultsUI {
                                 },
                             );
                             if self.config.icons {
-                                insert_icon_span(&mut t, &icon_name_hz, !is_selected && nav_bar_span.is_some());
+                                insert_icon_span(
+                                    &mut t,
+                                    &icon_name_hz,
+                                    !is_selected && nav_bar_span.is_some(),
+                                );
                             }
                             if self.config.symlink_target {
                                 maybe_append_symlink_target(
@@ -1107,7 +1155,11 @@ impl ResultsUI {
                         },
                     );
                     if self.config.icons && x == 0 {
-                        insert_icon_span(&mut col, &icon_name_hz, !is_selected && nav_bar_span.is_some());
+                        insert_icon_span(
+                            &mut col,
+                            &icon_name_hz,
+                            !is_selected && nav_bar_span.is_some(),
+                        );
                     }
                     if self.config.symlink_target && x == 0 {
                         maybe_append_symlink_target(
@@ -1519,7 +1571,8 @@ fn insert_icon_span(col: &mut ratatui::text::Text<'_>, name: &str, has_nav_bar: 
     );
     let index = if has_nav_bar { 2 } else { 1 };
     for line in col.lines.iter_mut() {
-        line.spans.insert(index.min(line.spans.len()), icon_span.clone());
+        line.spans
+            .insert(index.min(line.spans.len()), icon_span.clone());
     }
 }
 

@@ -203,32 +203,61 @@ impl Previewer {
                         let path = path.clone();
                         let image_state = self.image.clone();
                         let changed = self.changed.clone();
-                        
+
                         let rx = self.rx.clone();
                         tokio::task::spawn_blocking(move || {
-                            if rx.has_changed().unwrap_or(false) { return; }
-                            
+                            if rx.has_changed().unwrap_or(false) {
+                                return;
+                            }
+
                             let img_result = if path.to_lowercase().ends_with(".pdf") {
                                 // PDF support using pdftoppm if available
                                 let output = std::process::Command::new("pdftoppm")
-                                    .args(["-jpeg", "-f", "1", "-l", "1", "-scale-to", "800", &path])
+                                    .args([
+                                        "-jpeg",
+                                        "-f",
+                                        "1",
+                                        "-l",
+                                        "1",
+                                        "-scale-to",
+                                        "800",
+                                        &path,
+                                    ])
                                     .output();
                                 if let Ok(out) = output {
                                     image::load_from_memory(&out.stdout).ok()
                                 } else {
                                     None
                                 }
-                            } else if path.to_lowercase().ends_with(".mp4") || path.to_lowercase().ends_with(".mkv") || path.to_lowercase().ends_with(".webm") {
+                            } else if path.to_lowercase().ends_with(".mp4")
+                                || path.to_lowercase().ends_with(".mkv")
+                                || path.to_lowercase().ends_with(".webm")
+                            {
                                 // Video support
                                 let media_size_str = self.config.media_size.to_string();
                                 let output = std::process::Command::new("ffmpegthumbnailer")
-                                    .args(["-i", &path, "-s", &media_size_str, "-t", "00:00:01", "-c", "jpeg", "-q", "10", "-o", "-"])
+                                    .args([
+                                        "-i",
+                                        &path,
+                                        "-s",
+                                        &media_size_str,
+                                        "-t",
+                                        "00:00:01",
+                                        "-c",
+                                        "jpeg",
+                                        "-q",
+                                        "10",
+                                        "-o",
+                                        "-",
+                                    ])
                                     .output();
                                 if let Ok(out) = output {
-                                    // ffmpegthumbnailer sometimes pollutes stdout with debug logs. 
+                                    // ffmpegthumbnailer sometimes pollutes stdout with debug logs.
                                     // We search for the JPEG start of image marker (FF D8 FF) and slice the buffer.
                                     let data = &out.stdout;
-                                    let img_data = if let Some(pos) = data.windows(3).position(|w| w == &[0xff, 0xd8, 0xff]) {
+                                    let img_data = if let Some(pos) =
+                                        data.windows(3).position(|w| w == &[0xff, 0xd8, 0xff])
+                                    {
                                         &data[pos..]
                                     } else {
                                         data
@@ -241,7 +270,9 @@ impl Previewer {
                                 image::open(&path).ok()
                             };
 
-                            if rx.has_changed().unwrap_or(false) { return; }
+                            if rx.has_changed().unwrap_or(false) {
+                                return;
+                            }
 
                             if let Some(img) = img_result {
                                 if let Ok(mut guard) = image_state.lock() {

@@ -76,10 +76,7 @@ pub fn get_pairs(pairs: Vec<String>) -> Result<Vec<(Vec<String>, String)>, Parse
                     component: comp.to_string(),
                 });
             } else {
-                result.push((
-                    vec!["binds".to_string(), comp.to_string()],
-                    value,
-                ));
+                result.push((vec!["binds".to_string(), comp.to_string()], value));
                 continue;
             }
         };

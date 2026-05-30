@@ -10,8 +10,8 @@ pub mod event;
 
 pub mod message;
 pub mod render;
-pub mod ui;
 pub mod spinner;
+pub mod ui;
 // picker
 pub mod nucleo;
 pub mod preview;

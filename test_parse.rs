@@ -1,0 +1,6 @@
+fn main() {
+    let data: Vec<u8> = vec![0x53, 0x65, 0x65, 0x6b, 0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10];
+    if let Some(pos) = data.windows(3).position(|w| w == &[0xff, 0xd8, 0xff]) {
+        println!("Found JPEG at offset {}", pos);
+    }
+}
