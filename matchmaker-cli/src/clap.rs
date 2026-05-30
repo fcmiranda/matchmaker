@@ -55,13 +55,14 @@ pub struct Cli {
     #[arg(long)]
     pub symlink_target: bool,
 
-    /// Enable native terminal media previews (images, videos, PDFs) using ratatui-image.
-    #[arg(long)]
-    pub media: bool,
-
-    /// Set the size parameter for media previews (e.g. video thumbnails).
-    #[arg(long, value_enum)]
-    pub media_size: Option<MediaSize>,
+    /// Enable native terminal media previews (images, videos, PDFs) using ratatui-image and set properties.
+    /// Examples:
+    ///   --media
+    ///   --media size:s
+    ///   --media size:256 type:kitty
+    ///   --media size:xl
+    #[arg(long, value_name = "PROP", num_args = 0..)]
+    pub media: Option<Vec<String>>,
 
     /// Colourise the UI with fzf-style key:value pairs (comma-separated).
     /// Example: --color border:#cba6f7,hl-fg:#a6e3a1,nav:#89b4fa
@@ -93,16 +94,6 @@ pub enum Doc {
     Binds,
     Template,
     Other,
-}
-
-#[derive(Debug, Clone, clap::ValueEnum, PartialEq)]
-pub enum MediaSize {
-    Xs,
-    S,
-    M,
-    L,
-    Xl,
-    Full,
 }
 
 impl Cli {
@@ -147,6 +138,25 @@ impl Cli {
                 continue;
             }
 
+            // Special handling for --media since it accepts zero or more values.
+            if s == "--media" {
+                clap_args.push(arg.clone());
+                while let Some(next) = iter.peek() {
+                    let n = next.to_string_lossy();
+                    if n.starts_with('-') {
+                        break;
+                    }
+                    if let Some(next) = iter.next() {
+                        clap_args.push(next);
+                    }
+                }
+                continue;
+            }
+            if s.starts_with("--media=") {
+                clap_args.push(arg.clone());
+                continue;
+            }
+
             macro_rules! try_parse {
                 ($name:literal, $prefix:expr) => {{
                     let eq_opt = concat!($prefix, $name, "=");
@@ -175,7 +185,6 @@ impl Cli {
             try_parse!("override", "--");
             try_parse!("o", "-");
             try_parse!("color", "--");
-            try_parse!("media-size", "--");
             try_parse!("nav-bind", "--");
 
             // Flags
@@ -187,7 +196,6 @@ impl Cli {
                 "--sort",
                 "--icons",
                 "--symlink-target",
-                "--media",
                 "--nav",
                 "--help",
                 "-F",

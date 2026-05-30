@@ -53,6 +53,10 @@ _mm() {
                     COMPREPLY=($(compgen -W "options binds template other" -- "${cur}"))
                     return 0
                     ;;
+                --media)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
                 --color)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0

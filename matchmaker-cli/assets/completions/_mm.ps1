@@ -27,6 +27,7 @@ Register-ArgumentCompleter -Native -CommandName 'mm' -ScriptBlock {
             [CompletionResult]::new('--download', '--download', [CompletionResultType]::ParameterName, 'Download presets from GitHub. Optionally specify a subfolder')
             [CompletionResult]::new('-d', '-d', [CompletionResultType]::ParameterName, 'Display documentation')
             [CompletionResult]::new('--doc', '--doc', [CompletionResultType]::ParameterName, 'Display documentation')
+            [CompletionResult]::new('--media', '--media', [CompletionResultType]::ParameterName, 'Enable native terminal media previews (images, videos, PDFs) using ratatui-image and set properties. Examples: --media --media size:s --media size:256 type:kitty --media size:xl')
             [CompletionResult]::new('--color', '--color', [CompletionResultType]::ParameterName, 'Colourise the UI with fzf-style key:value pairs (comma-separated). Example: --color border:#cba6f7,hl-fg:#a6e3a1,nav:#89b4fa Keys: fg, bg, hl-fg, hl-bg, border, label, preview-border, preview-label, list-border, list-label, input-border, input-label, header-border, header-label, nav, selected-fg, selected-bg, selected-prefix, unselected-prefix, spinner, yank, symlink')
             [CompletionResult]::new('--nav', '--nav', [CompletionResultType]::ParameterName, 'Enable navigation mode and set properties. Examples: --nav --nav bar blink:slow --nav bar:plain action-bar color:#a6e3a1 marker:''>'' bold --nav action-bar:double')
             [CompletionResult]::new('--nav-bind', '--nav-bind', [CompletionResultType]::ParameterName, 'Navigation-mode key bindings in the form "char:action". Example: --nav-bind ''h:ChDir(..)'' --nav-bind ''l:ChDir({=});Reload''')
@@ -40,7 +41,6 @@ Register-ArgumentCompleter -Native -CommandName 'mm' -ScriptBlock {
             [CompletionResult]::new('--sort', '--sort', [CompletionResultType]::ParameterName, 'Sort input lines alphabetically before injecting into the picker')
             [CompletionResult]::new('--icons', '--icons', [CompletionResultType]::ParameterName, 'Prepend a Nerd Font file-type icon before each result row')
             [CompletionResult]::new('--symlink-target', '--symlink-target', [CompletionResultType]::ParameterName, 'Append symlink target path after the first column when the entry is a symlink')
-            [CompletionResult]::new('--media', '--media', [CompletionResultType]::ParameterName, 'Enable native terminal media previews (images, videos, PDFs) using ratatui-image')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
             break

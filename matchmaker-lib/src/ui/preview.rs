@@ -109,7 +109,19 @@ impl PreviewUI {
         let mut picker = None;
         if config.media {
             let p = ratatui_image::picker::Picker::from_query_stdio();
-            if let Ok(p) = p {
+            if let Ok(mut p) = p {
+                if let Some(ref protocol_str) = config.media_protocol {
+                    let protocol_type = match protocol_str.to_ascii_lowercase().as_str() {
+                        "kitty" => Some(ratatui_image::picker::ProtocolType::Kitty),
+                        "sixel" => Some(ratatui_image::picker::ProtocolType::Sixel),
+                        "halfblocks" => Some(ratatui_image::picker::ProtocolType::Halfblocks),
+                        "iterm2" => Some(ratatui_image::picker::ProtocolType::Iterm2),
+                        _ => None,
+                    };
+                    if let Some(pt) = protocol_type {
+                        p.set_protocol_type(pt);
+                    }
+                }
                 picker = Some(p);
             }
         }
@@ -521,8 +533,11 @@ impl PreviewUI {
     }
 
     pub fn get_image_state(&mut self) -> Option<&mut ratatui_image::protocol::StatefulProtocol> {
-        let has_changed = self.view.changed.swap(false, std::sync::atomic::Ordering::Acquire);
-        
+        let has_changed = self
+            .view
+            .changed
+            .swap(false, std::sync::atomic::Ordering::Acquire);
+
         let mut new_state = None;
         if has_changed || self.image_state.is_none() {
             if let Ok(guard) = self.view.image.lock() {
@@ -578,7 +593,9 @@ impl PreviewUI {
                 };
                 block = block.title(ratatui::text::Span::styled(
                     title,
-                    ratatui::style::Style::default().fg(fg).add_modifier(border.title_modifier),
+                    ratatui::style::Style::default()
+                        .fg(fg)
+                        .add_modifier(border.title_modifier),
                 ));
             }
             Some(block)
@@ -655,8 +672,6 @@ impl PreviewUI {
             }
         }
 
-        let configured_title = self.setting().and_then(|s| s.title.as_deref());
-        let dynamic = self.title.as_deref().unwrap_or_default();
         let title_text = self.title_text();
 
         if self.active_border().is_none() {

@@ -174,19 +174,8 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
         config.render.results.symlink_target = true;
     }
 
-    if cli.media {
-        config.render.preview.media = true;
-    }
-
-    if let Some(size) = &cli.media_size {
-        config.previewer.media_size = match size {
-            crate::clap::MediaSize::Xs => 128,
-            crate::clap::MediaSize::S => 256,
-            crate::clap::MediaSize::M => 512,
-            crate::clap::MediaSize::L => 1024,
-            crate::clap::MediaSize::Xl => 2048,
-            crate::clap::MediaSize::Full => 0,
-        };
+    if let Some(props) = &cli.media {
+        apply_media_props(props, &mut config);
     }
 
     for spec in &cli.color {
@@ -377,6 +366,57 @@ fn apply_nav_props(props: &[String], config: &mut Config) {
     }
 }
 
+fn apply_media_props(props: &[String], config: &mut Config) {
+    config.render.preview.media = true;
+
+    for raw in props {
+        for prop in raw.split(',').filter(|s| !s.is_empty()) {
+            match prop.split_once(':') {
+                None => {
+                    // Try parsing as a standalone protocol or size
+                    match prop.to_ascii_lowercase().as_str() {
+                        "kitty" | "sixel" | "halfblocks" | "iterm2" => {
+                            config.render.preview.media_protocol = Some(prop.to_string());
+                        }
+                        "xs" => config.previewer.media_size = 128,
+                        "s" => config.previewer.media_size = 256,
+                        "m" => config.previewer.media_size = 512,
+                        "l" => config.previewer.media_size = 1024,
+                        "xl" => config.previewer.media_size = 2048,
+                        "full" => config.previewer.media_size = 0,
+                        _ => {
+                            if let Ok(num) = prop.parse::<u32>() {
+                                config.previewer.media_size = num;
+                            } else {
+                                eprintln!("warning: unknown --media property '{}'", prop);
+                            }
+                        }
+                    }
+                }
+                Some(("size", s)) => match s.to_ascii_lowercase().as_str() {
+                    "xs" => config.previewer.media_size = 128,
+                    "s" => config.previewer.media_size = 256,
+                    "m" => config.previewer.media_size = 512,
+                    "l" => config.previewer.media_size = 1024,
+                    "xl" => config.previewer.media_size = 2048,
+                    "full" => config.previewer.media_size = 0,
+                    _ => {
+                        if let Ok(num) = s.parse::<u32>() {
+                            config.previewer.media_size = num;
+                        } else {
+                            eprintln!("warning: invalid --media size value '{}'", s);
+                        }
+                    }
+                },
+                Some(("type" | "protocol", s)) => {
+                    config.render.preview.media_protocol = Some(s.to_string());
+                }
+                Some((k, _)) => eprintln!("warning: unknown --media property '{}'", k),
+            }
+        }
+    }
+}
+
 /// Split a nav-bind action string on ';' while ignoring semicolons inside
 /// parentheses. This allows `Execute(cd {};ls)` to stay a single action.
 fn split_nav_bind_actions(s: &str) -> Vec<&str> {
@@ -475,7 +515,10 @@ pub async fn start(config: Config, no_read: bool) -> Result<(), MatchError> {
         render,
         tui,
         previewer,
-        matcher: MatcherConfig { matcher, mut worker },
+        matcher: MatcherConfig {
+            matcher,
+            mut worker,
+        },
         columns,
         binds,
         start:
@@ -964,7 +1007,3 @@ fn to_static(line: Line<'_>) -> Line<'static> {
             .collect::<Vec<_>>(),
     )
 }
-
-
-
-

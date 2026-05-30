@@ -21,6 +21,7 @@ _mm() {
 '--download=[Download presets from GitHub. Optionally specify a subfolder]::FOLDER:_default' \
 '-d+[Display documentation]:DOC:(options binds template other)' \
 '--doc=[Display documentation]:DOC:(options binds template other)' \
+'*--media=[Enable native terminal media previews (images, videos, PDFs) using ratatui-image and set properties. Examples\: --media --media size\:s --media size\:256 type\:kitty --media size\:xl]::PROP:_default' \
 '*--color=[Colourise the UI with fzf-style key\:value pairs (comma-separated). Example\: --color border\:#cba6f7,hl-fg\:#a6e3a1,nav\:#89b4fa Keys\: fg, bg, hl-fg, hl-bg, border, label, preview-border, preview-label, list-border, list-label, input-border, input-label, header-border, header-label, nav, selected-fg, selected-bg, selected-prefix, unselected-prefix, spinner, yank, symlink]:SPEC:_default' \
 '*--nav=[Enable navigation mode and set properties. Examples\: --nav --nav bar blink\:slow --nav bar\:plain action-bar color\:#a6e3a1 marker\:'\''>'\'' bold --nav action-bar\:double]::PROP:_default' \
 '*--nav-bind=[Navigation-mode key bindings in the form "char\:action". Example\: --nav-bind '\''h\:ChDir(..)'\'' --nav-bind '\''l\:ChDir({=});Reload'\'']:BIND:_default' \
@@ -34,7 +35,6 @@ _mm() {
 '--sort[Sort input lines alphabetically before injecting into the picker]' \
 '--icons[Prepend a Nerd Font file-type icon before each result row]' \
 '--symlink-target[Append symlink target path after the first column when the entry is a symlink]' \
-'--media[Enable native terminal media previews (images, videos, PDFs) using ratatui-image]' \
 '-h[Print help]' \
 '--help[Print help]' \
 '*::args -- args passed to the start command:_default' \

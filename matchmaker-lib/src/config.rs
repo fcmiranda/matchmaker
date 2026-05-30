@@ -828,6 +828,8 @@ pub struct PreviewConfig {
     /// Whether to enable native media previews using ratatui-image
     #[partial(alias = "m")]
     pub media: bool,
+    /// Overriding graphics protocol for media previews (e.g. "kitty", "sixel", "halfblocks", "iterm2")
+    pub media_protocol: Option<String>,
 }
 
 impl PreviewConfig {
@@ -853,6 +855,7 @@ impl Default for PreviewConfig {
             reevaluate_show_on_resize: false,
             drag_width: None,
             media: false,
+            media_protocol: None,
         }
     }
 }
