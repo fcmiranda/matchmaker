@@ -192,7 +192,7 @@ pub struct SegmentedInjector<T, I: Injector<InputItem = Segmented<T>>> {
 impl<T: SegmentableItem, I: Injector<InputItem = Segmented<T>>> Injector
     for SegmentedInjector<T, I>
 {
-    type InputItem = T;
+    type InputItem = (Option<std::sync::Arc<str>>, T);
     type Inner = I;
     type Context = SplitterFn<T>;
 
@@ -205,10 +205,10 @@ impl<T: SegmentableItem, I: Injector<InputItem = Segmented<T>>> Injector
 
     fn wrap(
         &self,
-        item: Self::InputItem,
+        (group, item): Self::InputItem,
     ) -> Result<<Self::Inner as Injector>::InputItem, WorkerError> {
         let ranges = (self.splitter)(&item);
-        Ok(Segmented::new(item, ranges))
+        Ok(Segmented::new(item, ranges, group))
     }
 
     fn inner(&self) -> &Self::Inner {
@@ -235,8 +235,8 @@ mod ansi {
         trim: bool,
     }
 
-    impl<I: Injector<InputItem = Either<Box<str>, Text<'static>>>> Injector for AnsiInjector<I> {
-        type InputItem = String;
+    impl<I: Injector<InputItem = (Option<std::sync::Arc<str>>, Either<Box<str>, Text<'static>>)>> Injector for AnsiInjector<I> {
+        type InputItem = (Option<std::sync::Arc<str>>, String);
         type Inner = I;
         type Context = PreprocessOptions;
 
@@ -250,7 +250,7 @@ mod ansi {
 
         fn wrap(
             &self,
-            mut item: Self::InputItem,
+            (group, mut item): Self::InputItem,
         ) -> Result<<Self::Inner as Injector>::InputItem, WorkerError> {
             if self.trim {
                 item = item.trim().to_string();
@@ -262,7 +262,7 @@ mod ansi {
                 scrub_text_styles(&mut parsed);
                 Either::Right(parsed)
             };
-            Ok(ret)
+            Ok((group, ret))
         }
 
         fn inner(&self) -> &Self::Inner {

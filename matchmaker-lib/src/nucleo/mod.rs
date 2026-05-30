@@ -8,6 +8,7 @@ use std::{
     fmt::{self, Display, Formatter},
     hash::{Hash, Hasher},
     ops::Range,
+    sync::Arc,
 };
 
 use crate::SSS;
@@ -39,6 +40,7 @@ impl SegmentableItem for String {
 pub struct Segmented<T> {
     pub inner: T,
     ranges: Box<[(u32, u32)]>,
+    pub group: Option<Arc<str>>,
 }
 
 impl<T: SegmentableItem + std::fmt::Debug> ColumnIndexable for Segmented<T> {
@@ -60,8 +62,8 @@ impl<T: SegmentableItem + std::fmt::Debug> ColumnIndexable for Segmented<T> {
 }
 
 impl<T: SegmentableItem> Segmented<T> {
-    pub fn new(inner: T, ranges: Box<[(u32, u32)]>) -> Self {
-        Self { inner, ranges }
+    pub fn new(inner: T, ranges: Box<[(u32, u32)]>, group: Option<Arc<str>>) -> Self {
+        Self { inner, ranges, group }
     }
 
     pub fn from_ranges(inner: T, ranges: impl IntoIterator<Item = (usize, usize)>) -> Self {
@@ -69,7 +71,7 @@ impl<T: SegmentableItem> Segmented<T> {
             .into_iter()
             .map(|(s, e)| (s as u32, e as u32))
             .collect();
-        Self { inner, ranges }
+        Self { inner, ranges, group: None }
     }
 
     pub fn len(&self) -> usize {

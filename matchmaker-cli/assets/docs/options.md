@@ -113,6 +113,7 @@ All colors and modifiers come from ratatui:
     - `value`: (string) The directory path or command resolving to the directory path.
     - `exec`: (bool) If true, the directory is read from the stdout of the executed value (default false).
     - `force`: (bool) If true, exit application if directory could not be changed to.
+- `group_prefix`: (string) Specify a prefix that indicates a line is a group header. Used as `--group-prefix` on the command line.
 
 ### Exit (`exit.`, `e`)
 

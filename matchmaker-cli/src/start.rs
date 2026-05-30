@@ -507,7 +507,7 @@ pub fn process_envs(mut envs: HashMap<String, EnvValue>) -> HashMap<String, Stri
     processed_envs
 }
 
-pub async fn start(config: Config, no_read: bool) -> Result<(), MatchError> {
+pub async fn start(config: Config, no_read: bool, group_prefix: Option<String>) -> Result<(), MatchError> {
     let nav_mode = config.render.ui.nav_mode;
     let nav_notify = config.render.ui.nav_notify;
 
@@ -705,7 +705,7 @@ pub async fn start(config: Config, no_read: bool) -> Result<(), MatchError> {
         });
 
     let render_tx = options.render_tx();
-    let push_fn = inject_line(header_lines, render_tx.clone(), injector);
+    let push_fn = inject_line(header_lines, render_tx.clone(), injector, group_prefix.clone());
 
     // ---------------------- register handlers ---------------------------
     // print handler (no quoting)
@@ -798,6 +798,7 @@ pub async fn start(config: Config, no_read: bool) -> Result<(), MatchError> {
             state.picker_ui.header.config.header_lines,
             reload_render_tx.clone(),
             injector,
+            group_prefix.clone(),
         );
 
         if !state.payload().is_empty() {
@@ -945,15 +946,24 @@ fn inject_line(
     header_lines: usize,
     render_tx: RenderSender<MMAction>,
     injector: ConfigInjector,
+    group_prefix: Option<String>,
 ) -> impl FnMut(String) -> Result<(), matchmaker::nucleo::WorkerError> + Send {
     let mut header_buf = Vec::with_capacity(header_lines);
     let mut remaining = header_lines;
     let injector = injector;
+    let mut current_group: Option<std::sync::Arc<str>> = None;
 
     // For each row, take the first line of each segmented column, building a Vec<Vec<Line>>
     move |line: String| {
+        if let Some(prefix) = &group_prefix {
+            if line.starts_with(prefix) {
+                current_group = Some(line.strip_prefix(prefix).unwrap().trim().into());
+                return Ok(());
+            }
+        }
+
         if remaining > 0 {
-            let item = injector.wrap(line).unwrap();
+            let item = injector.wrap((current_group.clone(), line)).unwrap();
             let item = injector.injector.wrap(item).unwrap();
             header_buf.push(item);
             remaining -= 1;
@@ -981,7 +991,7 @@ fn inject_line(
 
             Ok(())
         } else {
-            injector.push(line)
+            injector.push((current_group.clone(), line))
         }
     }
 }

@@ -23,6 +23,10 @@ pub struct Cli {
     #[arg(long)]
     pub no_read: bool,
 
+    /// Specify a prefix that indicates a line is a group header
+    #[arg(long, value_name = "PREFIX")]
+    pub group_prefix: Option<String>,
+
     /// args passed to the start command
     #[arg(last = true)]
     pub args: Vec<OsString>,

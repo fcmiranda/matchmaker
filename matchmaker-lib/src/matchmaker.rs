@@ -149,6 +149,8 @@ impl ConfigMatchmaker {
             Split::None => Worker::new_indexable([""], None),
         };
 
+        worker.group_header = Some(Box::new(|item| item.inner.group.clone()));
+
         #[cfg(feature = "experimental")]
         worker.reverse_items(worker_config.reverse);
         #[cfg(feature = "experimental")]

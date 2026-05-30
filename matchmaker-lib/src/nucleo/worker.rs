@@ -101,6 +101,7 @@ where
     // Background tasks which push to the injector check their version matches this or exit
     pub(super) version: Arc<AtomicU32>,
     // pub settings: WorkerSettings,
+    pub group_header: Option<Box<dyn for<'a> Fn(&'a T) -> Option<Arc<str>> + Send + Sync>>,
     column_options: Vec<ColumnOptions>,
 }
 
@@ -117,10 +118,8 @@ bitflags! {
     }
 }
 
-impl<T> Worker<T>
-where
-    T: SSS,
-{
+impl<T: SSS> Worker<T> {
+
     /// Column names must be distinct!
     pub fn new(columns: impl IntoIterator<Item = Column<T>>, default_column: usize) -> Self {
         let columns: Arc<[_]> = columns.into_iter().collect();
@@ -138,6 +137,7 @@ where
             col_indices_buffer: Vec::with_capacity(128),
             query: PickerQuery::new(columns.iter().map(|col| &col.name).cloned(), default_column),
             column_options: vec![ColumnOptions::default(); columns.len()],
+            group_header: None,
             columns,
             version: Arc::new(AtomicU32::new(0)),
         }
@@ -285,8 +285,8 @@ pub enum WorkerError {
     Custom(&'static str),
 }
 
-/// A vec of ItemResult, each ItemResult being the Column Texts of the Item, and Item
-pub type WorkerResults<'a, T> = Vec<(Vec<Text<'a>>, &'a T)>;
+/// A vec of ItemResult, each ItemResult being the Group Header (if any), Column Texts of the Item, and Item
+pub type WorkerResults<'a, T> = Vec<(Option<Arc<str>>, Vec<Text<'a>>, &'a T)>;
 
 impl<T: SSS> Worker<T> {
     /// Returns:
@@ -322,106 +322,118 @@ impl<T: SSS> Worker<T> {
 
         let (vscroll_offset, stacked) = vscroll;
 
-        let table = iter
-            .filter_map(|item| {
-                let mut row = vec![];
+        let mut table = Vec::new();
+        let mut last_emitted_group: Option<Arc<str>> = None;
+        let group_header = &self.group_header;
 
-                let mut to_skip = vscroll_offset as usize;
-                let mut skip = !show_skipped;
-                for (i, c) in self.columns.iter().enumerate() {
-                    let mut t = c.format(item.data);
-                    if stacked {
-                        if to_skip >= t.height() {
-                            to_skip -= t.height();
-                            t.lines.clear();
-                        } else {
-                            skip = false;
-                            t.lines.drain(..to_skip);
-                            to_skip = 0;
-                            if max_height > 0 && t.height() > max_height {
-                                t.lines.truncate(max_height);
-                                if let Some(last_line) = t.lines.last_mut() {
-                                    last_line.spans.push(truncation_indicator());
-                                }
-                            }
-                        }
+        for item in iter {
+            let mut row = vec![];
+
+            let mut to_skip = vscroll_offset as usize;
+            let mut skip = !show_skipped;
+            for (i, c) in self.columns.iter().enumerate() {
+                let mut t = c.format(item.data);
+                if stacked {
+                    if to_skip >= t.height() {
+                        to_skip -= t.height();
+                        t.lines.clear();
                     } else {
-                        if t.height() > to_skip {
-                            skip = false;
-                        }
+                        skip = false;
                         t.lines.drain(..to_skip);
+                        to_skip = 0;
                         if max_height > 0 && t.height() > max_height {
                             t.lines.truncate(max_height);
                             if let Some(last_line) = t.lines.last_mut() {
                                 last_line.spans.push(truncation_indicator());
                             }
                         }
-
-                        if width_limits.get(i).cloned() != Some(0) && !skip {
-                            raw_widths[i].push(t.width() as u16);
+                    }
+                } else {
+                    if t.height() > to_skip {
+                        skip = false;
+                    }
+                    t.lines.drain(..to_skip);
+                    if max_height > 0 && t.height() > max_height {
+                        t.lines.truncate(max_height);
+                        if let Some(last_line) = t.lines.last_mut() {
+                            last_line.spans.push(truncation_indicator());
                         }
                     }
-                    row.push(t);
+
+                    if width_limits.get(i).cloned() != Some(0) && !skip {
+                        raw_widths[i].push(t.width() as u16);
+                    }
                 }
-                if skip {
-                    return None;
+                row.push(t);
+            }
+            if skip {
+                continue;
+            }
+
+            let row: Vec<Text> = row
+                .into_iter()
+                .enumerate()
+                .zip(width_limits.iter().chain(std::iter::repeat(&u16::MAX)))
+                .map(|((col_idx, cell), &width_limit)| {
+                    let column = &self.columns[col_idx];
+
+                    let effective_limit = if Some(col_idx) == last_nonzero_idx {
+                        total_width_limit
+                            .saturating_sub(width_limits.iter().take(col_idx).sum())
+                    } else {
+                        width_limit
+                    };
+
+                    let (cell, computed_width) = if effective_limit == 0 {
+                        (Default::default(), 0)
+                    } else if column.filter {
+                        render_cell(
+                            cell,
+                            col_idx,
+                            snapshot,
+                            &item,
+                            matcher,
+                            highlight_style,
+                            wrap,
+                            effective_limit,
+                            &mut self.col_indices_buffer,
+                            autoscroll,
+                            hscroll_offset,
+                        )
+                    } else if wrap {
+                        let (cell, wrapped) = wrap_text(cell, effective_limit);
+
+                        let width = if wrapped {
+                            effective_limit as usize
+                        } else {
+                            cell.width()
+                        };
+                        (cell, width)
+                    } else {
+                        let width = cell.width();
+                        (cell, width)
+                    };
+
+                    if col_idx < widths.len() {
+                        widths[col_idx] = widths[col_idx].max(computed_width as u16)
+                    }
+
+                    cell
+                })
+                .collect();
+
+            let mut header_to_emit = None;
+            if let Some(f) = group_header {
+                if let Some(group) = f(item.data) {
+                    if Some(&group) != last_emitted_group.as_ref() {
+                        header_to_emit = Some(group.clone());
+                        last_emitted_group = Some(group);
+                    }
                 }
+            }
 
-                let row: Vec<Text> = row
-                    .into_iter()
-                    .enumerate()
-                    .zip(width_limits.iter().chain(std::iter::repeat(&u16::MAX)))
-                    .map(|((col_idx, cell), &width_limit)| {
-                        let column = &self.columns[col_idx];
-
-                        let effective_limit = if Some(col_idx) == last_nonzero_idx {
-                            total_width_limit
-                                .saturating_sub(width_limits.iter().take(col_idx).sum())
-                        } else {
-                            width_limit
-                        };
-
-                        let (cell, computed_width) = if effective_limit == 0 {
-                            (Default::default(), 0)
-                        } else if column.filter {
-                            render_cell(
-                                cell,
-                                col_idx,
-                                snapshot,
-                                &item,
-                                matcher,
-                                highlight_style,
-                                wrap,
-                                effective_limit,
-                                &mut self.col_indices_buffer,
-                                autoscroll,
-                                hscroll_offset,
-                            )
-                        } else if wrap {
-                            let (cell, wrapped) = wrap_text(cell, effective_limit);
-
-                            let width = if wrapped {
-                                effective_limit as usize
-                            } else {
-                                cell.width()
-                            };
-                            (cell, width)
-                        } else {
-                            let width = cell.width();
-                            (cell, width)
-                        };
-
-                        if col_idx < widths.len() {
-                            widths[col_idx] = widths[col_idx].max(computed_width as u16)
-                        }
-
-                        cell
-                    })
-                    .collect();
-
-                Some((row, item.data))
-            })
-            .collect();
+            table.push((header_to_emit, row, item.data));
+        }
 
         // Nonempty columns should have width at least their header
         for (w, c) in widths.iter_mut().zip(self.columns.iter()) {

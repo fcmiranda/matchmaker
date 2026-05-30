@@ -51,11 +51,12 @@ async fn main() {
     log::trace!("{partial:?}");
 
     let no_read = cli.no_read;
+    let group_prefix = cli.group_prefix.clone();
     // get config
     let config = enter(cli, partial).__ebog();
 
     // begin
-    match start(config, no_read).await {
+    match start(config, no_read, group_prefix).await {
         Ok(_) => {
             log::debug!("Execution Complete");
         }

@@ -561,15 +561,17 @@ impl ResultsUI {
             return Table::new(rows, widths);
         }
 
-        let height_of = |t: &(Vec<ratatui::text::Text<'a>>, _)| {
-            self._hr()
+        let height_of = |t: &(Option<std::sync::Arc<str>>, Vec<ratatui::text::Text<'a>>, _)| {
+            let group_h = if t.0.is_some() { 1 } else { 0 };
+            group_h
+                + self._hr()
                 + if as_cols {
-                    t.0.iter()
+                    t.1.iter()
                         .map(|t| t.height() as u16)
                         .max()
                         .unwrap_or_default()
                 } else {
-                    t.0.iter().map(|t| t.height() as u16).sum::<u16>()
+                    t.1.iter().map(|t| t.height() as u16).sum::<u16>()
                 }
         };
 
@@ -642,7 +644,7 @@ impl ResultsUI {
 
             for r in results[start_index as usize..self.cursor as usize].iter_mut() {
                 let h = height_of(r);
-                let (row, item) = r;
+                let (_, row, item) = r;
                 start_index += 1; // we always skip at least the first item
 
                 if trunc_height < h {
@@ -816,7 +818,7 @@ impl ResultsUI {
             start_index += 1;
             // same as above
             let h = height_of(&results[0]);
-            let (row, item) = &mut results[0];
+            let (_, row, item) = &mut results[0];
             let is_selected = selector.contains(item);
             let (prefix, icon_name, is_spinner) = get_prefix!(row, is_selected, 0);
 
@@ -958,7 +960,7 @@ impl ResultsUI {
 
         let mut i = self.bottom_clip.is_some() as usize;
 
-        for (mut row, item) in results.drain(start_index as usize..) {
+        for (group, mut row, item) in results.drain(start_index as usize..) {
             let is_current_row = self.is_current(i);
             // note that the index changes *next* frame
             if let Click::ResultPos(c) = click {
@@ -978,6 +980,23 @@ impl ResultsUI {
 
             if self.is_current(i) {
                 self.cursor_above = self.height - remaining_height;
+            }
+
+            // insert group header
+            if let Some(group) = group {
+                if remaining_height > 0 {
+                    let group_style = Style::default().add_modifier(Modifier::BOLD).fg(ratatui::style::Color::Cyan); // Provide a default style or configure it
+                    let line = ratatui::text::Line::from(vec![
+                        Span::raw(" "),
+                        Span::styled(group.to_string(), group_style),
+                    ]);
+                    let row = Row::new(vec![line]).height(1);
+                    rows.push(row);
+                    remaining_height = remaining_height.saturating_sub(1);
+                }
+            }
+            if remaining_height == 0 {
+                break;
             }
 
             // insert hr
