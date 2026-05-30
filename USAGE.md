@@ -23,6 +23,7 @@ phase so you can cross-reference with `PLAN.md`.
 13. [Customizable Spinners and Multi-Select Markers](#13-customizable-spinners-and-multi-select-markers)
 14. [Combining Features — Real-World Recipes](#14-combining-features--real-world-recipes)
 15. [Media Previews (`--media` / `preview.media`)](#15-media-previews---media--previewmedia)
+16. [Header Grouping (`--group-prefix`)](#16-header-grouping---group-prefix)
 
 ---
 
@@ -698,6 +699,22 @@ media = true # Enable terminal image protocols for media previews
 
 ---
 
+## 16. Header Grouping (`--group-prefix`)
+
+**What it does:** Organizes items in the results list under visual group headers. Any lines in the input stream starting with the specified prefix are rendered as non-selectable, bold group headers. The TUI cursor and multi-selection skip over these headers automatically.
+
+### CLI
+
+```bash
+# Define group headers using the '#' prefix
+printf "# Languages\nPython\nRust\nGo\n# Frameworks\nDjango\nAxum\nGin" | mm --group-prefix '#'
+
+# Define group headers using a custom prefix (e.g. '---')
+printf "--- Group A\nItem 1\nItem 2\n--- Group B\nItem 3" | mm --group-prefix '---'
+```
+
+---
+
 ## Quick Reference — All New Flags and Config Keys
 
 ### CLI flags
@@ -708,6 +725,7 @@ media = true # Enable terminal image protocols for media previews
 | `--icons` | `results.icons` | `false` |
 | `--symlink-target` | `results.symlink_target` | `false` |
 | `--media` | `preview.media` | `false` |
+| `--group-prefix` | — | — |
 | `--color key:val,...` | *(see table in §9)* | — |
 
 ### Config-only keys (use `mm key=value` to override on the CLI)
