@@ -24,7 +24,7 @@ pub struct Cli {
     pub no_read: bool,
 
     /// Specify a prefix that indicates a line is a group header
-    #[arg(long, value_name = "PREFIX")]
+    #[arg(long, value_name = "PREFIX", allow_hyphen_values = true)]
     pub group_prefix: Option<String>,
 
     /// args passed to the start command
