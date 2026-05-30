@@ -190,6 +190,7 @@ impl Cli {
             try_parse!("o", "-");
             try_parse!("color", "--");
             try_parse!("nav-bind", "--");
+            try_parse!("group-prefix", "--");
 
             // Flags
             if [
