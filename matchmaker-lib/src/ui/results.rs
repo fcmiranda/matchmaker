@@ -985,7 +985,7 @@ impl ResultsUI {
             // insert group header
             if let Some(group) = group {
                 if remaining_height > 0 {
-                    let group_style = Style::default().add_modifier(Modifier::BOLD).fg(ratatui::style::Color::Cyan); // Provide a default style or configure it
+                    let group_style: Style = self.config.group_header_style.into();
                     let line = ratatui::text::Line::from(vec![
                         Span::raw(" "),
                         Span::styled(group.to_string(), group_style),

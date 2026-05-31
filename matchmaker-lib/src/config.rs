@@ -592,6 +592,10 @@ pub struct ResultsConfig {
     /// Style for the prefix marker of yanked rows (FM mode).
     #[partial(recurse)]
     pub yank_prefix_style: StyleSetting,
+
+    /// Style for group header rows (set via --color group-header:…)
+    #[partial(recurse)]
+    pub group_header_style: StyleSetting,
 }
 
 impl Default for ResultsConfig {
@@ -668,6 +672,11 @@ impl Default for ResultsConfig {
             },
             yank_prefix_style: StyleSetting {
                 fg: Some(Color::Yellow),
+                modifier: Modifier::BOLD,
+                ..Default::default()
+            },
+            group_header_style: StyleSetting {
+                fg: Some(Color::Cyan),
                 modifier: Modifier::BOLD,
                 ..Default::default()
             },
