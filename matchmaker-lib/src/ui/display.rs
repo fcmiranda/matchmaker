@@ -128,7 +128,7 @@ impl DisplayUI {
 
                 padding.left = result_indentation.saturating_sub(self.config.border.left());
                 if !widths.is_empty() {
-                    widths[0] -= result_indentation;
+                    widths[0] = widths[0].saturating_sub(result_indentation);
                 }
                 b.padding(padding.0)
             } else {

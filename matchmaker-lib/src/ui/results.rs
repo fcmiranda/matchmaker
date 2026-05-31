@@ -535,6 +535,7 @@ impl ResultsUI {
         //     self.widths
         // );
 
+        self.status = status.clone();
         self.medians = medians;
         widths[0] += self.indentation() as u16;
         // should generally be true already, but act as a safeguard
@@ -546,7 +547,6 @@ impl ResultsUI {
         let widths = widths;
 
         let match_count = status.matched_count;
-        self.status = status;
 
         if match_count < self.bottom + self.cursor as u32 && !self.cursor_disabled {
             self.cursor_jump(match_count);
@@ -990,7 +990,25 @@ impl ResultsUI {
                         Span::raw(" "),
                         Span::styled(group.to_string(), group_style),
                     ]);
-                    let row = Row::new(vec![line]).height(1);
+                    let row = if as_cols {
+                        let last_visible = widths
+                            .iter()
+                            .enumerate()
+                            .rev()
+                            .find_map(|(i, w)| (*w != 0).then_some(i))
+                            .unwrap_or(0);
+                        let mut cells = vec![];
+                        for i in 0..widths.len() {
+                            if i == last_visible {
+                                cells.push(ratatui::widgets::Cell::from(line.clone()));
+                            } else {
+                                cells.push(ratatui::widgets::Cell::from(""));
+                            }
+                        }
+                        Row::new(cells).height(1)
+                    } else {
+                        Row::new(vec![line]).height(1)
+                    };
                     rows.push(row);
                     remaining_height = remaining_height.saturating_sub(1);
                 }
