@@ -97,6 +97,10 @@ pub struct StartConfig {
     /// Sort input lines alphabetically before injecting into the picker.
     /// Only applies when reading from stdin (not from a command).
     pub sort: bool,
+
+    /// Reload interval in milliseconds. If set, triggers a reload action periodically.
+    #[partial(alias = "ri")]
+    pub reload_interval: Option<u64>,
 }
 
 /// Exit conditions of the render loop.

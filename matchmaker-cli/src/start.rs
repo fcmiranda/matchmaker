@@ -534,6 +534,7 @@ pub async fn start(config: Config, no_read: bool, group_prefix: Option<String>) 
                 mut additional_commands,
                 mode,
                 sort,
+                reload_interval,
             },
         mut exit,
         mut envs,
@@ -706,6 +707,20 @@ pub async fn start(config: Config, no_read: bool, group_prefix: Option<String>) 
 
     let render_tx = options.render_tx();
     let push_fn = inject_line(header_lines, render_tx.clone(), injector, group_prefix.clone());
+
+    if let Some(interval) = reload_interval {
+        let render_tx = render_tx.clone();
+        tokio::spawn(async move {
+            let mut ticker = tokio::time::interval(std::time::Duration::from_millis(interval));
+            ticker.tick().await; // skip first immediate tick
+            loop {
+                ticker.tick().await;
+                if render_tx.send(matchmaker::message::RenderCommand::Action(matchmaker::action::Action::Reload("".to_string()))).is_err() {
+                    break;
+                }
+            }
+        });
+    }
 
     // ---------------------- register handlers ---------------------------
     // print handler (no quoting)

@@ -24,6 +24,7 @@
 /// | `header-border`  | `render.header.border.color`                  |
 /// | `header-label`   | `render.header.border.title_fg`               |
 /// | `header-title`   | `render.header.border.title_fg`               |
+/// | `group-header`   | `render.results.group_header_style.fg`        |
 /// | `nav`            | `render.ui.nav_color`                         |
 /// | `selected-fg`    | `render.results.selected_style.fg`            |
 /// | `selected-bg`    | `render.results.selected_style.bg`            |
@@ -72,6 +73,7 @@ pub fn apply_color_spec(config: &mut Config, spec: &str) {
             "input-label" | "input-title" => config.render.query.border.title_fg = color,
             "header-border" => config.render.header.border.color = color,
             "header-label" | "header-title" => config.render.header.border.title_fg = color,
+            "group-header" => config.render.results.group_header_style.fg = Some(color),
             "nav" => config.render.ui.nav_color = color,
             "selected-fg" => config.render.results.selected_style.fg = Some(color),
             "selected-bg" => config.render.results.selected_style.bg = Some(color),
