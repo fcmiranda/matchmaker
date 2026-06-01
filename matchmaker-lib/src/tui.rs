@@ -113,7 +113,9 @@ where
         }
 
         let backend = self.terminal.backend_mut();
-        execute!(backend, EnableMouseCapture)._elog();
+        if self.config.mouse {
+            execute!(backend, EnableMouseCapture)._elog();
+        }
         #[cfg(feature = "bracketed-paste")]
         {
             execute!(backend, crossterm::event::EnableBracketedPaste)._elog();
@@ -209,9 +211,10 @@ where
             return;
         }
         let backend = self.terminal.backend_mut();
-
-        execute!(backend, LeaveAlternateScreen, DisableMouseCapture)._wlog();
-
+        execute!(backend, LeaveAlternateScreen)._wlog();
+        if self.config.mouse {
+            execute!(backend, DisableMouseCapture)._wlog();
+        }
         if self.config.extended_keys {
             execute!(backend, PopKeyboardEnhancementFlags)._elog();
         }

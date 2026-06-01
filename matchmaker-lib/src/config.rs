@@ -184,6 +184,8 @@ pub struct TerminalConfig {
 
     /// Whether to use OSC 52 for clipboard copying.
     pub osc52: bool,
+    /// Whether to enable mouse capture.
+    pub mouse: bool,
     /// Whether to drop the end of the output of the copy command if it is a new line
     pub copy_trailing_newline: bool,
 }
@@ -200,6 +202,7 @@ impl Default for TerminalConfig {
             clear_on_exit: true,
             clear_after_execute: true,
             osc52: true,
+            mouse: true,
             copy_trailing_newline: false,
         }
     }
