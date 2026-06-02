@@ -854,6 +854,7 @@ use crate::formatter::format_cli;
 
 fn show_action_box(state: &mut MMState<'_, '_>, prompt: &str, initial: &str) {
     state.picker_ui.action_visible = true;
+    matchmaker::ACTION_BOX_ACTIVE.store(true, std::sync::atomic::Ordering::Relaxed);
     state
         .picker_ui
         .action
@@ -866,6 +867,7 @@ fn show_action_box(state: &mut MMState<'_, '_>, prompt: &str, initial: &str) {
 
 fn show_styled_action_box(state: &mut MMState<'_, '_>, prompt: &str, initial: &str) {
     state.picker_ui.action_visible = true;
+    matchmaker::ACTION_BOX_ACTIVE.store(true, std::sync::atomic::Ordering::Relaxed);
     state
         .picker_ui
         .action
@@ -878,6 +880,7 @@ fn show_styled_action_box(state: &mut MMState<'_, '_>, prompt: &str, initial: &s
 
 fn close_action_box(state: &mut MMState<'_, '_>, fm_action: &mut Option<FmActionMode>) {
     state.picker_ui.action_visible = false;
+    matchmaker::ACTION_BOX_ACTIVE.store(false, std::sync::atomic::Ordering::Relaxed);
     state.picker_ui.action.set(Some(String::new()), 0);
     state.picker_ui.action.set_prompt(None);
     *fm_action = None;
@@ -960,6 +963,7 @@ fn commit_fm_action(
                     .action
                     .set(Some(next_from.trim_end_matches('/').to_string()), 0);
                 state.picker_ui.action_visible = true;
+                matchmaker::ACTION_BOX_ACTIVE.store(true, std::sync::atomic::Ordering::Relaxed);
                 let _ = render_tx.send(RenderCommand::Action(Action::Reload(String::new())));
                 return;
             }

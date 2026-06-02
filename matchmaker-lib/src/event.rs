@@ -281,40 +281,82 @@ impl<A: ActionExt> EventLoop<A> {
                             }
                             match event {
                                 CrosstermEvent::Key(k) => {
-                                    if let Some(key) = self.combiner.transform(k) {
+                                        if let Some(key) = self.combiner.transform(k) {
                                         info!("{key:?}");
                                         let key = KeyCombination::normalized(key);
-                                        if let Some(actions) = self.get_bind(TriggerKind::Key(key)) {
-                                            self.record_key(key.to_string());
-                                            self.send_actions(actions, Some(key.to_string()));
-                                        } else if let Some(c) = key_code_as_letter(key) {                                            self.send(RenderCommand::Action(Action::Char(c)));
-                                        } else {
-                                            let mut matched = true;
-                                            // a basic set of keys to ensure basic usability
-                                            match key {
-                                                key!(ctrl-c) | key!(esc) => {
-                                                    self.send(RenderCommand::quit())
-                                                },
-                                                key!(up) => self.send_action(Action::Up(1)),
-                                                key!(down) => self.send_action(Action::Down(1)),
-                                                key!(enter) => self.send_action(Action::Accept),
-                                                key!(right) => self.send_action(Action::ForwardChar),
-                                                key!(left) => self.send_action(Action::BackwardChar),
-                                                key!(ctrl-right) => self.send_action(Action::ForwardWord),
-                                                key!(ctrl-left) => self.send_action(Action::BackwardWord),
-                                                key!(backspace) => self.send_action(Action::DeleteChar),
-                                                key!(ctrl-h) => self.send_action(Action::DeleteWord),
-                                                key!(ctrl-u) => self.send_action(Action::Cancel),
-                                                key!(alt-h) => self.send_action(Action::Help("".to_string())),
-                                                key!(ctrl-'[') => self.send_action(Action::ToggleWrap),
-                                                key!(ctrl-']') => self.send_action(Action::TogglePreviewWrap),
-                                                _ => {
-                                                    matched = false
+                                        // When the action box is active, plain character keys
+                                        // must always reach the input as Action::Char regardless
+                                        // of any shortcut bindings on that key.
+                                        let action_box_active = crate::ACTION_BOX_ACTIVE
+                                            .load(std::sync::atomic::Ordering::Relaxed);
+                                        if !action_box_active {
+                                            if let Some(actions) = self.get_bind(TriggerKind::Key(key)) {
+                                                self.record_key(key.to_string());
+                                                self.send_actions(actions, Some(key.to_string()));
+                                            } else if let Some(c) = key_code_as_letter(key) {                                            self.send(RenderCommand::Action(Action::Char(c)));
+                                            } else {
+                                                let mut matched = true;
+                                                // a basic set of keys to ensure basic usability
+                                                match key {
+                                                    key!(ctrl-c) | key!(esc) => {
+                                                        self.send(RenderCommand::quit())
+                                                    },
+                                                    key!(up) => self.send_action(Action::Up(1)),
+                                                    key!(down) => self.send_action(Action::Down(1)),
+                                                    key!(enter) => self.send_action(Action::Accept),
+                                                    key!(right) => self.send_action(Action::ForwardChar),
+                                                    key!(left) => self.send_action(Action::BackwardChar),
+                                                    key!(ctrl-right) => self.send_action(Action::ForwardWord),
+                                                    key!(ctrl-left) => self.send_action(Action::BackwardWord),
+                                                    key!(backspace) => self.send_action(Action::DeleteChar),
+                                                    key!(ctrl-h) => self.send_action(Action::DeleteWord),
+                                                    key!(ctrl-u) => self.send_action(Action::Cancel),
+                                                    key!(alt-h) => self.send_action(Action::Help("".to_string())),
+                                                    key!(ctrl-'[') => self.send_action(Action::ToggleWrap),
+                                                    key!(ctrl-']') => self.send_action(Action::TogglePreviewWrap),
+                                                    _ => {
+                                                        matched = false
+                                                    }
+                                                }
+                                                if matched {
+                                                    self.record_key(key.to_string());
                                                 }
                                             }
-                                            if matched {
-                                                self.record_key(key.to_string());
-                                            }
+                                        } else if let Some(c) = key_code_as_letter(key) {
+                                            // Action box is active: plain chars always go to input.
+                                            // Non-char keys (ctrl-c, esc, enter, editing keys) still
+                                            // go through the normal bind/fallback path.
+                                            self.send(RenderCommand::Action(Action::Char(c)));
+                                        } else if let Some(actions) = self.get_bind(TriggerKind::Key(key)) {
+                                            self.record_key(key.to_string());
+                                            self.send_actions(actions, Some(key.to_string()));
+                                        } else {
+                                                let mut matched = true;
+                                                // a basic set of keys to ensure basic usability
+                                                match key {
+                                                    key!(ctrl-c) | key!(esc) => {
+                                                        self.send(RenderCommand::quit())
+                                                    },
+                                                    key!(up) => self.send_action(Action::Up(1)),
+                                                    key!(down) => self.send_action(Action::Down(1)),
+                                                    key!(enter) => self.send_action(Action::Accept),
+                                                    key!(right) => self.send_action(Action::ForwardChar),
+                                                    key!(left) => self.send_action(Action::BackwardChar),
+                                                    key!(ctrl-right) => self.send_action(Action::ForwardWord),
+                                                    key!(ctrl-left) => self.send_action(Action::BackwardWord),
+                                                    key!(backspace) => self.send_action(Action::DeleteChar),
+                                                    key!(ctrl-h) => self.send_action(Action::DeleteWord),
+                                                    key!(ctrl-u) => self.send_action(Action::Cancel),
+                                                    key!(alt-h) => self.send_action(Action::Help("".to_string())),
+                                                    key!(ctrl-'[') => self.send_action(Action::ToggleWrap),
+                                                    key!(ctrl-']') => self.send_action(Action::TogglePreviewWrap),
+                                                    _ => {
+                                                        matched = false
+                                                    }
+                                                }
+                                                if matched {
+                                                    self.record_key(key.to_string());
+                                                }
                                         }
                                     }
                                 }

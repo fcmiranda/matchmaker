@@ -657,6 +657,7 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                             if picker_ui.action_visible {
                                 picker_ui.action_visible = false;
                                 picker_ui.action.cancel();
+                                crate::ACTION_BOX_ACTIVE.store(false, std::sync::atomic::Ordering::Relaxed);
                             } else {
                                 return Err(MatchError::Abort(code));
                             }
@@ -668,6 +669,10 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                         }
                         Action::ToggleActionBox => {
                             picker_ui.action_visible = !picker_ui.action_visible;
+                            crate::ACTION_BOX_ACTIVE.store(
+                                picker_ui.action_visible,
+                                std::sync::atomic::Ordering::Relaxed,
+                            );
                         }
                         Action::Up(x) | Action::Down(x) => {
                             let next = matches!(action, Action::Down(_)) ^ results.reverse();
@@ -1051,6 +1056,7 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                             if *action_visible {
                                 *action_visible = false;
                                 action_input.cancel();
+                                crate::ACTION_BOX_ACTIVE.store(false, std::sync::atomic::Ordering::Relaxed);
                             } else {
                                 query.cancel()
                             }
