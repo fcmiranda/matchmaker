@@ -95,17 +95,13 @@ pub fn prefix_span<'a, 'b: 'a>(
     }
 }
 
-pub fn strip_prefix_from_text(original: &mut Text<'_>, prefix: &str) {
-    if prefix.is_empty() {
-        return;
-    }
+pub fn strip_string_from_text(original: &mut Text<'_>, s: &str) {
     for line in original.lines.iter_mut() {
-        if let Some(first_span) = line.spans.first_mut() {
-            if first_span.content.starts_with(prefix) {
-                first_span.content = match &first_span.content {
-                    Cow::Borrowed(s) => Cow::Borrowed(&s[prefix.len()..]),
-                    Cow::Owned(s) => Cow::Owned(s[prefix.len()..].to_string()),
-                };
+        for span in line.spans.iter_mut() {
+            if span.content.contains(s) {
+                let stripped = span.content.replace(s, "");
+                span.content = Cow::Owned(stripped);
+                return;
             }
         }
     }

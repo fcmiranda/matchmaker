@@ -467,7 +467,7 @@ impl ResultsUI {
                 if !$row.is_empty() && !self.config.spinner_prefix.is_empty() {
                     for (i, col_text) in $row.iter().enumerate() {
                         let text_content = extract_col0_name(col_text);
-                        if text_content.starts_with(&self.config.spinner_prefix) {
+                        if text_content.contains(&self.config.spinner_prefix) {
                             is_spinner = true;
                             spinner_col_idx = i;
                             icon_name = text_content;
@@ -479,7 +479,7 @@ impl ResultsUI {
                 }
 
                 if is_spinner {
-                    crate::utils::text::strip_prefix_from_text(
+                    crate::utils::text::strip_string_from_text(
                         &mut $row[spinner_col_idx],
                         &self.config.spinner_prefix,
                     );
