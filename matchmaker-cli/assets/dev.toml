@@ -14,10 +14,11 @@ style.fg = "White"
 cursor = "default"
 prompt = ">"
 
-[header]
-content = "test"
-header_lines = 2
-interactions = [[[0, "test"]], [[1, "test"], [3, "open"], [4, ""]]]
+# [header]
+# content = "test"
+# header_lines = 2
+# interactions = [[[0, "test"]], [[1, "test"], [3, "open"], [4, ""]]]
+
 
 [results]
 scroll_padding = 2
