@@ -107,6 +107,18 @@ pub fn strip_string_from_text(original: &mut Text<'_>, s: &str) {
     }
 }
 
+pub fn replace_string_in_text(original: &mut Text<'_>, s: &str, replacement: &str) {
+    for line in original.lines.iter_mut() {
+        for span in line.spans.iter_mut() {
+            if span.content.contains(s) {
+                let replaced = span.content.replace(s, replacement);
+                span.content = Cow::Owned(replaced);
+                return;
+            }
+        }
+    }
+}
+
 /// Clip text to a given number of lines.
 /// reverse: take from the end
 pub fn clip_text_lines<'a, 'b: 'a>(original: &'a mut Text<'b>, max_lines: u16, from_end: bool) {

@@ -484,6 +484,7 @@ pub struct ResultsConfig {
 
     pub spinner_prefix: String,
     pub spinner: String,
+    pub spinner_inline: bool,
 
     #[serde(alias = "prefix")]
     #[partial(recurse)]
@@ -611,6 +612,7 @@ impl Default for ResultsConfig {
             default_prefix: Default::default(),
             spinner_prefix: "".to_string(),
             spinner: "dot".to_string(),
+            spinner_inline: false,
             prefix_style: Default::default(),
             prefix_inactive_style: Default::default(),
             unselected_prefix_style: Default::default(),

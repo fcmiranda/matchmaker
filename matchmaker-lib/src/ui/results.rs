@@ -479,15 +479,28 @@ impl ResultsUI {
                 }
 
                 if is_spinner {
-                    crate::utils::text::strip_string_from_text(
-                        &mut $row[spinner_col_idx],
-                        &self.config.spinner_prefix,
-                    );
-                    if spinner_col_idx == 0 {
-                        icon_name = extract_col0_name(&$row[0]);
+                    if self.config.spinner_inline {
+                        let frame =
+                            crate::spinner::Spinner::from_name(&self.config.spinner).current_frame();
+                        crate::utils::text::replace_string_in_text(
+                            &mut $row[spinner_col_idx],
+                            &self.config.spinner_prefix,
+                            &frame.to_string(),
+                        );
+                        if spinner_col_idx == 0 {
+                            icon_name = extract_col0_name(&$row[0]);
+                        }
+                    } else {
+                        crate::utils::text::strip_string_from_text(
+                            &mut $row[spinner_col_idx],
+                            &self.config.spinner_prefix,
+                        );
+                        if spinner_col_idx == 0 {
+                            icon_name = extract_col0_name(&$row[0]);
+                        }
                     }
                 }
-                let prefix = if is_spinner {
+                let prefix = if is_spinner && !self.config.spinner_inline {
                     let frame =
                         crate::spinner::Spinner::from_name(&self.config.spinner).current_frame();
                     let f = format!("{frame} ");
