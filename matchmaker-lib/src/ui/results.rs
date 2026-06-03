@@ -485,7 +485,7 @@ impl ResultsUI {
                         crate::utils::text::replace_string_in_text(
                             &mut $row[spinner_col_idx],
                             &self.config.spinner_prefix,
-                            &frame.to_string(),
+                            &format!(" {frame}"),
                         );
                         if spinner_col_idx == 0 {
                             icon_name = extract_col0_name(&$row[0]);
