@@ -460,19 +460,32 @@ impl ResultsUI {
 
         macro_rules! get_prefix {
             ($row:expr, $is_selected:expr, $idx:expr) => {{
-                let mut icon_name = if $row.is_empty() {
-                    String::new()
-                } else {
-                    extract_col0_name(&$row[0])
-                };
-                let is_spinner = !self.config.spinner_prefix.is_empty()
-                    && icon_name.starts_with(&self.config.spinner_prefix);
-                if is_spinner && !$row.is_empty() {
+                let mut icon_name = String::new();
+                let mut is_spinner = false;
+                let mut spinner_col_idx = 0;
+
+                if !$row.is_empty() && !self.config.spinner_prefix.is_empty() {
+                    for (i, col_text) in $row.iter().enumerate() {
+                        let text_content = extract_col0_name(col_text);
+                        if text_content.starts_with(&self.config.spinner_prefix) {
+                            is_spinner = true;
+                            spinner_col_idx = i;
+                            icon_name = text_content;
+                            break;
+                        }
+                    }
+                } else if !$row.is_empty() {
+                    icon_name = extract_col0_name(&$row[0]);
+                }
+
+                if is_spinner {
                     crate::utils::text::strip_prefix_from_text(
-                        &mut $row[0],
+                        &mut $row[spinner_col_idx],
                         &self.config.spinner_prefix,
                     );
-                    icon_name = extract_col0_name(&$row[0]);
+                    if spinner_col_idx == 0 {
+                        icon_name = extract_col0_name(&$row[0]);
+                    }
                 }
                 let prefix = if is_spinner {
                     let frame =
@@ -484,7 +497,7 @@ impl ResultsUI {
                 } else {
                     self.default_prefix($idx)
                 };
-                (prefix, icon_name, is_spinner)
+                (prefix, icon_name, is_spinner, spinner_col_idx)
             }};
         }
 
@@ -652,7 +665,7 @@ impl ResultsUI {
                 if trunc_height < h {
                     let mut remaining_height = h - trunc_height;
                     let is_selected = selector.contains(item);
-                    let (prefix, icon_name, is_spinner) = get_prefix!(row, is_selected, 0);
+                    let (prefix, icon_name, is_spinner, spinner_col_idx) = get_prefix!(row, is_selected, 0);
 
                     total_height += remaining_height;
 
@@ -667,7 +680,7 @@ impl ResultsUI {
                         }
 
                         prefix_span(
-                            &mut row[0],
+                            &mut row[spinner_col_idx],
                             prefix.clone(),
                             self.active_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
                             self.inactive_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
@@ -680,14 +693,14 @@ impl ResultsUI {
                         );
                         if self.config.icons {
                             insert_icon_span(
-                                &mut row[0],
+                                &mut row[spinner_col_idx],
                                 &icon_name,
                                 !is_selected && nav_bar_span.is_some(),
                             );
                         }
                         if self.config.symlink_target {
                             maybe_append_symlink_target(
-                                &mut row[0],
+                                &mut row[spinner_col_idx],
                                 &icon_name,
                                 self.config.symlink_target_style.into(),
                             );
@@ -822,7 +835,7 @@ impl ResultsUI {
             let h = height_of(&results[0]);
             let (_, row, item) = &mut results[0];
             let is_selected = selector.contains(item);
-            let (prefix, icon_name, is_spinner) = get_prefix!(row, is_selected, 0);
+            let (prefix, icon_name, is_spinner, spinner_col_idx) = get_prefix!(row, is_selected, 0);
 
             total_height += remaining_height;
 
@@ -834,7 +847,7 @@ impl ResultsUI {
                 }
 
                 prefix_span(
-                    &mut row[0],
+                    &mut row[spinner_col_idx],
                     prefix.clone(),
                     self.active_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
                     self.inactive_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
@@ -847,14 +860,14 @@ impl ResultsUI {
                 );
                 if self.config.icons {
                     insert_icon_span(
-                        &mut row[0],
+                        &mut row[spinner_col_idx],
                         &icon_name,
                         !is_selected && nav_bar_span.is_some(),
                     );
                 }
                 if self.config.symlink_target {
                     maybe_append_symlink_target(
-                        &mut row[0],
+                        &mut row[spinner_col_idx],
                         &icon_name,
                         self.config.symlink_target_style.into(),
                     );
@@ -1032,7 +1045,7 @@ impl ResultsUI {
 
             // determine prefix
             let is_selected = selector.contains(item);
-            let (prefix, icon_name_hz, is_spinner) = get_prefix!(row, is_selected, i);
+            let (prefix, icon_name_hz, is_spinner, spinner_col_idx) = get_prefix!(row, is_selected, i);
 
             if as_cols {
                 // scroll down
@@ -1082,7 +1095,7 @@ impl ResultsUI {
                         t = style_text(t, x, self.is_current(i));
 
                         // prefix after hscroll
-                        if x == 0 {
+                        if x == spinner_col_idx {
                             prefix_span(
                                 &mut t,
                                 prefix.clone(),
