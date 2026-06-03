@@ -802,38 +802,57 @@ pub async fn start(config: Config, no_read: bool, group_prefix: Option<String>) 
     let reload_formatter = cli_formatter.clone();
     let reload_render_tx = render_tx.clone();
 
-    let mut cmd = initial_cmd;
+    let mut cmd = command.clone();
     mm.register_interrupt_handler(Interrupt::Reload, move |state| {
-        let injector = state.injector();
-        let injector = IndexedInjector::new_globally_indexed(injector);
-        let injector = SegmentedInjector::new(injector, splitter.clone());
-        let injector = AnsiInjector::new(injector, preprocess);
-
-        let push_fn = inject_line(
-            state.picker_ui.header.config.header_lines,
-            reload_render_tx.clone(),
-            injector,
-            group_prefix.clone(),
-        );
-
         if !state.payload().is_empty() {
             cmd = use_formatter(&reload_formatter, state, state.payload(), None);
         };
 
         if !cmd.is_empty() {
+            state.picker_ui.worker.restart(false);
+            state.reloading = true;
+
+            let injector = state.injector();
+            let injector = IndexedInjector::new_globally_indexed(injector);
+            let injector = SegmentedInjector::new(injector, splitter.clone());
+            let injector = AnsiInjector::new(injector, preprocess.clone());
+
+            let push_fn = inject_line(
+                state.picker_ui.header.config.header_lines,
+                reload_render_tx.clone(),
+                injector,
+                group_prefix.clone(),
+            );
+
             let vars = state.make_env_vars();
             debug!("Reloading: {cmd}");
             state.picker_ui.selector.clear();
 
-            if let Some(stdout) = Command::from_script(&cmd)
-                .envs(vars)
-                .stdin(Stdio::null())
-                .args(&*COMMAND_ARGS.lock().unwrap())
-                .spawn_piped()
-                ._elog()
-            {
-                map_reader(stdout, push_fn, separator.or(input_separator), None);
-            }
+            let separator = separator.or(input_separator).unwrap_or('\n');
+            let reload_render_tx = reload_render_tx.clone();
+            let cmd = cmd.clone();
+            tokio::task::spawn_blocking(move || {
+                if let Some(out) = Command::from_script(&cmd)
+                    .envs(vars)
+                    .stdin(Stdio::null())
+                    .args(&*COMMAND_ARGS.lock().unwrap())
+                    .output()
+                    ._elog()
+                {
+                    let text = String::from_utf8_lossy(&out.stdout);
+                    let mut lines: Vec<&str> = text.split(separator).collect();
+                    if lines.last() == Some(&"") {
+                        lines.pop();
+                    }
+                    let mut push_fn = push_fn;
+                    for line in lines {
+                        let _ = push_fn(line.to_string());
+                    }
+                    let _ = reload_render_tx.send(matchmaker::message::RenderCommand::Action(
+                        matchmaker::action::Action::Custom(crate::action::MMAction::ReloadReady(vec![]))
+                    ));
+                }
+            });
         }
     });
 

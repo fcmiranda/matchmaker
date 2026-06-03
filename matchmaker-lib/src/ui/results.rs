@@ -418,6 +418,7 @@ impl ResultsUI {
         matcher: &mut nucleo::Matcher,
         click: &mut Click,
         nav_bar_style: Option<(ratatui::widgets::BorderType, ratatui::style::Style)>,
+        freeze_snapshot: bool,
     ) -> Table<'a> {
         let cwd = std::env::current_dir().unwrap_or_default();
         let offset = self.bottom as u32;
@@ -522,6 +523,7 @@ impl ResultsUI {
                 !as_cols,
             ),
             self.config.show_skipped,
+            freeze_snapshot,
         );
 
         // log::trace!(

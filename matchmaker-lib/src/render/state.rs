@@ -56,6 +56,7 @@ pub struct State {
     pub(crate) dragging: Option<Position>,
     pub(crate) overlay_index: Option<usize>,
     pub(crate) synced: [bool; 2], // ran, synced
+    pub reloading: bool,
 
     /// Current focus pane (used when `nav_mode` is enabled).
     pub focus: Focus,
@@ -146,6 +147,7 @@ impl State {
             input: String::new(),
             iterations: 0,
             synced: [false; 2],
+            reloading: false,
 
             events: Event::empty(),
             should_quit: false,

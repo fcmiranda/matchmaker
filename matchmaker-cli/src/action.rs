@@ -96,6 +96,7 @@ pub enum MMAction {
     FmPaste,
     FmUndo,
     FmRedo,
+    ReloadReady(Vec<String>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -238,6 +239,10 @@ pub fn action_handler(
             state.envs.set("MM_INDEX", index);
 
             state.set_interrupt(Interrupt::Reload, payload.clone());
+        }
+
+        MMAction::ReloadReady(_) => {
+            state.reloading = false;
         }
 
         MMAction::RunPreview(cmd) => {
@@ -772,7 +777,7 @@ macro_rules! enum_from_str_display {
                     }, )*
 
                     /* ---------- Manually parsed ---------- */
-
+                    Self::ReloadReady(_) => write!(f, "ReloadReady"),
                     /* ------------------------------------- */
 
                 }
@@ -839,7 +844,7 @@ macro_rules! enum_from_str_display {
                     }, )*
 
                     /* ---------- Manually parsed ---------- */
-
+                    "ReloadReady" => Err("ReloadReady is internal only".into()),
                     /* ------------------------------------- */
 
                     _ => Err(format!("Unknown action {}", s)),

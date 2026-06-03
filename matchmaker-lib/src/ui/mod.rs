@@ -227,6 +227,7 @@ impl<'a, T: SSS, O: Selection> PickerUI<'a, T, O> {
         &mut self,
         click: &mut Click,
         nav_bar_style: Option<(ratatui::widgets::BorderType, ratatui::style::Style)>,
+        freeze_snapshot: bool,
     ) -> (Table<'_>, u16) {
         let cursor_byte = self.query.byte_index(self.query.cursor() as usize);
         let active_column = self.worker.query.active_column_index(cursor_byte);
@@ -238,6 +239,7 @@ impl<'a, T: SSS, O: Selection> PickerUI<'a, T, O> {
             self.matcher,
             click,
             nav_bar_style,
+            freeze_snapshot,
         );
         let width = self.results.table_width();
         (table, width)

@@ -1147,7 +1147,6 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                     did_pause = true;
                 }
                 Interrupt::Reload => {
-                    picker_ui.worker.restart(false);
                     state.synced = [false; 2];
                     did_reload = true;
                 }
@@ -1203,6 +1202,7 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
         if did_cursor_wrap {
             log::trace!("cursor wrapped"); // todo: event handler?
         }
+
 
         // process exit conditions
         if exit_config.select_1
@@ -1408,6 +1408,7 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                     &mut picker_ui,
                     &mut click,
                     results_focus_info,
+                    state.reloading,
                 );
                 render_display(frame, header, &mut picker_ui.header, &picker_ui.results);
                 render_display(frame, footer, &mut footer_ui, &picker_ui.results);
@@ -1455,6 +1456,7 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
         // note: the remainder could be scoped by a conditional on having run?
         // ====== Event handling ==========
         state.update(&picker_ui, &overlay_ui);
+
         let events = state.events();
 
         // ---- Invoke handlers -------
@@ -1607,6 +1609,7 @@ fn render_results<T: SSS, S: Selection>(
     ui: &mut PickerUI<T, S>,
     click: &mut Click,
     focus_info: Option<FocusInfo>,
+    freeze_snapshot: bool,
 ) {
     let nav_bar_style = focus_info.as_ref().and_then(|fi| {
         let bar_color = fi.indicator_color();
@@ -1622,7 +1625,7 @@ fn render_results<T: SSS, S: Selection>(
     });
 
     let cap = matches!(ui.results.config.row_connection, RowConnectionStyle::Capped);
-    let (widget, table_width) = ui.make_table(click, nav_bar_style);
+    let (widget, table_width) = ui.make_table(click, nav_bar_style, freeze_snapshot);
 
     if cap {
         area.width = area.width.min(table_width);

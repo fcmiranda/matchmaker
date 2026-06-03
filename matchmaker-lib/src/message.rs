@@ -85,6 +85,7 @@ pub enum RenderCommand<A: ActionExt> {
     Refresh,
     NoMatch,
     Empty,
+    ReloadData(Vec<String>),
 }
 
 impl<A: ActionExt> From<Action<A>> for RenderCommand<A> {

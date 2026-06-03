@@ -309,8 +309,22 @@ impl<T: SSS> Worker<T> {
         hscroll_offset: i8,
         vscroll: (u8, bool),
         show_skipped: bool,
+        freeze_snapshot: bool,
     ) -> (WorkerResults<'_, T>, Vec<u16>, Vec<u16>, Status) {
-        let (snapshot, status) = Self::new_snapshot(&mut self.nucleo);
+        let (snapshot, status) = if freeze_snapshot {
+            let snapshot = self.nucleo.snapshot();
+            (
+                snapshot,
+                Status {
+                    item_count: snapshot.item_count(),
+                    matched_count: snapshot.matched_item_count(),
+                    running: false,
+                    changed: false,
+                },
+            )
+        } else {
+            Self::new_snapshot(&mut self.nucleo)
+        };
 
         let mut widths = vec![0u16; self.columns.len()];
         let mut raw_widths = vec![vec![]; self.columns.len()];
