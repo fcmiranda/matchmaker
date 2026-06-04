@@ -344,13 +344,11 @@ fn apply_nav_props(props: &[String], config: &mut Config) {
                     "no-filter" | "passthrough" => config.render.ui.nav_passthrough = true,
                     "basic" => {
                         config.render.ui.nav_basic = true;
-                        // Silence every non-basic bind by inserting an empty
-                        // action list so the nav-bind intercept can match the
-                        // key but emit nothing.  The hardcoded 'g' fallbacks
-                        // inside apply_focus_binds also check the map first,
-                        // so they are suppressed by the empty entries too.
+                        // Silence only the directory-navigation binds (h/l).
+                        // Position-jump binds (gg, G, gb, gt) are kept so
+                        // basic mode still supports full vertical navigation.
                         let empty = matchmaker::action::Actions::default();
-                        for key in &["h", "l", "G", "gg", "gb", "gt"] {
+                        for key in &["h", "l"] {
                             config
                                 .render
                                 .ui
