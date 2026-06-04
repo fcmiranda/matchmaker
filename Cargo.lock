@@ -515,6 +515,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "cli_boilerplate_automation"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d98ca9a1e212ae5754bbe2633d08f725b3e4e1930db6d5a35ce93a9071a7bf04"
+dependencies = [
+ "anstream 0.6.21",
+ "anstyle",
+ "anyhow",
+ "cfg-if",
+ "dirs",
+ "easy-ext",
+ "libc",
+ "log",
+ "serde",
+ "thiserror 2.0.18",
+ "unicode-width 0.1.14",
+ "which 8.0.2",
+]
+
+[[package]]
 name = "color_quant"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1598,7 +1618,7 @@ dependencies = [
  "atty",
  "clap",
  "clap_complete",
- "cli_boilerplate_automation",
+ "cli_boilerplate_automation 0.4.0",
  "crokey",
  "dirs",
  "easy-ext",
@@ -1634,7 +1654,7 @@ dependencies = [
  "bitflags 2.11.1",
  "bitflags-derive",
  "boxcar",
- "cli_boilerplate_automation",
+ "cli_boilerplate_automation 0.3.0",
  "crokey",
  "crossterm 0.29.0",
  "easy-ext",
@@ -3504,13 +3524,6 @@ checksum = "13ca908d26e4786149c48efcf6c0ea09ab0e06d1fe3c17dc1b4b0f1ca4a7e788"
 dependencies = [
  "bytemuck",
  "safe_arch",
-]
-
-[[package]]
-name = "width_test_pkg"
-version = "0.1.0"
-dependencies = [
- "unicode-width 0.2.2",
 ]
 
 [[package]]

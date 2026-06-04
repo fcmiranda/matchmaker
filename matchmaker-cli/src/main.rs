@@ -21,7 +21,7 @@ use utils::*;
 
 use std::process::exit;
 
-use cba::{_dbg, bait::ResultExt, bog::BogOkExt, bring::split::split_on_unescaped_delimiter, ebog};
+use cba::{bait::ResultExt, bog::BogOkExt, bring::split::split_on_unescaped_delimiter, ebog};
 
 use matchmaker::MatchError;
 use matchmaker_partial::Set;

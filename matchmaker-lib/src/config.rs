@@ -360,6 +360,9 @@ pub struct QueryConfig {
     /// When true, display the match status (e.g. "3/42") right-aligned
     /// inside the input bar instead of in the separate status row.
     pub status_inline: bool,
+
+    /// Whether to show the filter input bar.
+    pub show: bool,
 }
 
 impl Default for QueryConfig {
@@ -377,6 +380,7 @@ impl Default for QueryConfig {
 
             scroll_padding: true,
             status_inline: false,
+            show: true,
         }
     }
 }

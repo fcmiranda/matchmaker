@@ -1395,14 +1395,18 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                         frame.render_widget(block, preview_rect);
                     }
                 }
-                cursor_y_offset = render_input(
-                    frame,
-                    input,
-                    &mut picker_ui.query,
-                    status_inline_label,
-                    input_focus_info,
-                )
-                .y;
+                if picker_ui.query.config.show {
+                    cursor_y_offset = render_input(
+                        frame,
+                        input,
+                        &mut picker_ui.query,
+                        status_inline_label,
+                        input_focus_info,
+                    )
+                    .y;
+                } else {
+                    cursor_y_offset = input.y;
+                }
                 // When status_inline is active, skip the separate status row.
                 if !picker_ui.query.config.status_inline {
                     render_status(frame, status, &picker_ui.results, ui.area().width);

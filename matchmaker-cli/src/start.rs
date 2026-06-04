@@ -288,9 +288,9 @@ pub fn map_reader<E: SSS + std::fmt::Display>(
 ) -> tokio::task::JoinHandle<Result<usize, MapReaderError<E>>> {
     tokio::task::spawn_blocking(move || {
         let ret = if let Some(delim) = input_separator {
-            map_chunks::<true, E>(read_to_chunks(reader, delim), f)
+            map_chunks::<E>(read_to_chunks(reader, delim), f, true)
         } else {
-            map_reader_lines::<true, E>(reader, f)
+            map_reader_lines::<E>(reader, f, true)
         }
         .elog();
 
@@ -341,7 +341,10 @@ fn apply_nav_props(props: &[String], config: &mut Config) {
                     "blink" => config.render.ui.nav_blink = true,
                     "bold" => config.render.ui.nav_bold = true,
                     "notify" => config.render.ui.nav_notify = true,
-                    "no-filter" | "passthrough" => config.render.ui.nav_passthrough = true,
+                    "passthrough" => config.render.ui.nav_passthrough = true,
+                    "no-filter" => {
+                        config.render.query.show = false;
+                    }
                     "basic" => {
                         config.render.ui.nav_basic = true;
                         // Silence only the directory-navigation binds (h/l).
@@ -956,7 +959,7 @@ pub async fn start(config: Config, no_read: bool, group_prefix: Option<String>) 
             abort_empty.then_some(render_tx),
         )
     } else if !command.is_empty()
-        && let Some(stdout) = Command::from_script(&command)
+        && let Some((mut _child, stdout)) = Command::from_script(&command)
             .envs(envs)
             .args(&*COMMAND_ARGS.lock().unwrap())
             .spawn_piped()
