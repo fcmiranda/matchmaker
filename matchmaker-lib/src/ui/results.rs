@@ -53,6 +53,7 @@ pub struct ResultsUI {
     /// Set of col-0 names whose prefix should be rendered with `yank_prefix_style`.
     /// Populated externally via `Action::Custom(FmSetYankPaths(...))`.
     pub yank_paths: HashSet<String>,
+    pub cut_paths: HashSet<String>,
 }
 
 impl ResultsUI {
@@ -81,6 +82,7 @@ impl ResultsUI {
             bottom_clip: None,
             cursor_above: 0,
             yank_paths: HashSet::new(),
+            cut_paths: HashSet::new(),
         }
     }
 
@@ -114,7 +116,22 @@ impl ResultsUI {
             false
         };
 
-        if is_yanked {
+        let is_cut = if !col0_name.is_empty() {
+            let path = std::path::Path::new(col0_name);
+            let abs_path = if path.is_absolute() {
+                path.to_path_buf()
+            } else {
+                cwd.join(path)
+            };
+            self.cut_paths
+                .contains(&abs_path.to_string_lossy().to_string())
+        } else {
+            false
+        };
+
+        if is_cut {
+            self.config.cut_prefix_style
+        } else if is_yanked {
             self.config.yank_prefix_style
         } else if is_selected {
             self.config.selected_prefix_style
@@ -146,7 +163,22 @@ impl ResultsUI {
             false
         };
 
-        if is_yanked {
+        let is_cut = if !col0_name.is_empty() {
+            let path = std::path::Path::new(col0_name);
+            let abs_path = if path.is_absolute() {
+                path.to_path_buf()
+            } else {
+                cwd.join(path)
+            };
+            self.cut_paths
+                .contains(&abs_path.to_string_lossy().to_string())
+        } else {
+            false
+        };
+
+        if is_cut {
+            self.config.cut_prefix_style
+        } else if is_yanked {
             self.config.yank_prefix_style
         } else if is_selected {
             self.config.selected_prefix_style
@@ -500,12 +532,36 @@ impl ResultsUI {
                         }
                     }
                 }
+                let is_yanked = if !icon_name.is_empty() {
+                    let path = std::path::Path::new(&icon_name);
+                    let abs_path = if path.is_absolute() {
+                        path.to_path_buf()
+                    } else {
+                        cwd.join(path)
+                    };
+                    self.yank_paths.contains(&abs_path.to_string_lossy().to_string())
+                } else {
+                    false
+                };
+
+                let is_cut = if !icon_name.is_empty() {
+                    let path = std::path::Path::new(&icon_name);
+                    let abs_path = if path.is_absolute() {
+                        path.to_path_buf()
+                    } else {
+                        cwd.join(path)
+                    };
+                    self.cut_paths.contains(&abs_path.to_string_lossy().to_string())
+                } else {
+                    false
+                };
+
                 let prefix = if is_spinner && !self.config.spinner_inline {
                     let frame =
                         crate::spinner::Spinner::from_name(&self.config.spinner).current_frame();
                     let f = format!("{frame} ");
                     crate::utils::string::fit_width(&f, self.config.multi_prefix.width())
-                } else if $is_selected {
+                } else if $is_selected || is_yanked || is_cut {
                     dynamic_multi_prefix.clone()
                 } else {
                     self.default_prefix($idx)

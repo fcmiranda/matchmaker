@@ -73,7 +73,7 @@ pub struct Cli {
     /// Keys: fg, bg, hl-fg, hl-bg, border, label, preview-border, preview-label,
     ///       list-border, list-label, input-border, input-label, header-border,
     ///       header-label, nav, selected-fg, selected-bg, selected-prefix,
-    ///       unselected-prefix, spinner, yank, symlink
+    ///       unselected-prefix, spinner, yank, cut, symlink
     #[arg(long, value_name = "SPEC")]
     pub color: Vec<String>,
 

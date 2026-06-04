@@ -83,6 +83,8 @@ pub enum MMAction {
     /// Value is a newline-separated list of paths (empty string clears).
     FmSetYankPaths(String),
     FmRemoveYankPaths(String),
+    FmSetCutPaths(String),
+    FmRemoveCutPaths(String),
 
     /// File-manager action-box operations.
     FmCreateStart,
@@ -93,6 +95,7 @@ pub enum MMAction {
     FmYank,
     FmUnyank,
     FmCut,
+    FmUncut,
     FmPaste,
     FmUndo,
     FmRedo,
@@ -437,6 +440,41 @@ pub fn action_handler(
                 state.picker_ui.results.yank_paths.remove(&item);
             }
         }
+        MMAction::FmRemoveCutPaths(raw) => {
+            let cwd = std::env::current_dir().unwrap_or_default();
+            let to_remove: std::collections::HashSet<String> = raw
+                .split('\n')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .map(|s| {
+                    let path = PathBuf::from(&s);
+                    if path.is_absolute() {
+                        s
+                    } else {
+                        cwd.join(path).to_string_lossy().to_string()
+                    }
+                })
+                .collect();
+            for item in to_remove {
+                state.picker_ui.results.cut_paths.remove(&item);
+            }
+        }
+        MMAction::FmSetCutPaths(raw) => {
+            let cwd = std::env::current_dir().unwrap_or_default();
+            state.picker_ui.results.cut_paths = raw
+                .split('\n')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .map(|s| {
+                    let path = PathBuf::from(&s);
+                    if path.is_absolute() {
+                        s
+                    } else {
+                        cwd.join(path).to_string_lossy().to_string()
+                    }
+                })
+                .collect();
+        }
         MMAction::FmCreateStart => {
             *fm_action = Some(FmActionMode::Create);
             show_action_box(state, " ", "");
@@ -509,6 +547,9 @@ pub fn action_handler(
                 let _ = render_tx.send(RenderCommand::Action(Action::Custom(
                     MMAction::FmSetYankPaths(items.join("\n")),
                 )));
+                let _ = render_tx.send(RenderCommand::Action(Action::Custom(
+                    MMAction::FmSetCutPaths(String::new()),
+                )));
                 if *fm_notify {
                     let msg = fm_notify_msg("Copied", &items, "{green}");
                     let _ = render_tx.send(RenderCommand::Action(Action::Custom(
@@ -527,8 +568,28 @@ pub fn action_handler(
                 let _ = render_tx.send(RenderCommand::Action(Action::Custom(
                     MMAction::FmRemoveYankPaths(items.join("\n")),
                 )));
+                let _ = render_tx.send(RenderCommand::Action(Action::Custom(
+                    MMAction::FmRemoveCutPaths(items.join("\n")),
+                )));
                 if *fm_notify {
                     let msg = fm_notify_msg("Un-yanked", &items, "{green}");
+                    let _ = render_tx.send(RenderCommand::Action(Action::Custom(
+                        MMAction::SetStyledStatus(msg),
+                    )));
+                }
+            }
+        }
+        MMAction::FmUncut => {
+            let items = fm_current_items(state);
+            if !items.is_empty() {
+                let _ = render_tx.send(RenderCommand::Action(Action::Custom(
+                    MMAction::FmRemoveYankPaths(items.join("\n")),
+                )));
+                let _ = render_tx.send(RenderCommand::Action(Action::Custom(
+                    MMAction::FmRemoveCutPaths(items.join("\n")),
+                )));
+                if *fm_notify {
+                    let msg = fm_notify_msg("Un-cut", &items, "{yellow}");
                     let _ = render_tx.send(RenderCommand::Action(Action::Custom(
                         MMAction::SetStyledStatus(msg),
                     )));
@@ -557,7 +618,10 @@ pub fn action_handler(
                     });
                 }
                 let _ = render_tx.send(RenderCommand::Action(Action::Custom(
-                    MMAction::FmSetYankPaths(items.join("\n")),
+                    MMAction::FmSetCutPaths(items.join("\n")),
+                )));
+                let _ = render_tx.send(RenderCommand::Action(Action::Custom(
+                    MMAction::FmSetYankPaths(String::new()),
                 )));
                 if *fm_notify {
                     let msg = fm_notify_msg("Cut", &items, "{yellow}");
@@ -587,7 +651,7 @@ pub fn action_handler(
                         *cb = None;
                     }
                     let _ = render_tx.send(RenderCommand::Action(Action::Custom(
-                        MMAction::FmSetYankPaths(String::new()),
+                        MMAction::FmSetCutPaths(String::new()),
                     )));
                 }
                 if *fm_notify {
@@ -718,11 +782,11 @@ enum_from_str_display! {
     MMAction;
 
     units:
-    CycleSort, HistoryUp, HistoryDown, Accept, ReloadPrev, FmCreateStart, FmDeleteStart, FmRenameStart, FmUnzipStart, FmZipStart, FmYank, FmUnyank, FmCut, FmPaste, FmUndo, FmRedo;
+    CycleSort, HistoryUp, HistoryDown, Accept, ReloadPrev, FmCreateStart, FmDeleteStart, FmRenameStart, FmUnzipStart, FmZipStart, FmYank, FmUnyank, FmCut, FmUncut, FmPaste, FmUndo, FmRedo;
 
 
     tuples:
-    Bind, Unbind, PushBind, PopBind, ExecuteOrConfirm, ExecuteAndQuit, BecomeOr, Transform, TransformConfig, SetStyledPrompt, SetStyledStatus, PushHeader, PushFooter, RunPreview, FmSetYankPaths, FmRemoveYankPaths;
+    Bind, Unbind, PushBind, PopBind, ExecuteOrConfirm, ExecuteAndQuit, BecomeOr, Transform, TransformConfig, SetStyledPrompt, SetStyledStatus, PushHeader, PushFooter, RunPreview, FmSetYankPaths, FmRemoveYankPaths, FmSetCutPaths, FmRemoveCutPaths;
 
     defaults:
     ;

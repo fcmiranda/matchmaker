@@ -7,7 +7,7 @@ binds\t''
 template\t''
 other\t''"
 complete -c mm -l media -d 'Enable native terminal media previews (images, videos, PDFs) using ratatui-image and set properties. Examples: --media --media size:s --media size:256 type:kitty --media size:xl' -r
-complete -c mm -l color -d 'Colourise the UI with fzf-style key:value pairs (comma-separated). Example: --color border:#cba6f7,hl-fg:#a6e3a1,nav:#89b4fa Keys: fg, bg, hl-fg, hl-bg, border, label, preview-border, preview-label, list-border, list-label, input-border, input-label, header-border, header-label, nav, selected-fg, selected-bg, selected-prefix, unselected-prefix, spinner, yank, symlink' -r
+complete -c mm -l color -d 'Colourise the UI with fzf-style key:value pairs (comma-separated). Example: --color border:#cba6f7,hl-fg:#a6e3a1,nav:#89b4fa Keys: fg, bg, hl-fg, hl-bg, border, label, preview-border, preview-label, list-border, list-label, input-border, input-label, header-border, header-label, nav, selected-fg, selected-bg, selected-prefix, unselected-prefix, spinner, yank, cut, symlink' -r
 complete -c mm -l nav -d 'Enable navigation mode and set properties. Examples: --nav --nav bar blink:slow --nav bar:plain action-bar color:#a6e3a1 marker:\'>\' bold --nav action-bar:double' -r
 complete -c mm -l nav-bind -d 'Navigation-mode key bindings in the form "char:action". Example: --nav-bind \'h:ChDir(..)\' --nav-bind \'l:ChDir({=});Reload\'' -r
 complete -c mm -l dump-config
