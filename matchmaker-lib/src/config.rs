@@ -267,6 +267,19 @@ pub struct UiConfig {
     #[serde(alias = "focus_notify")]
     #[serde(alias = "fm_notify")]
     pub nav_notify: bool,
+
+    /// When true, characters typed while the results pane is focused bypass the
+    /// nav-bind intercept and fall through to the query input.  Useful when you
+    /// want the navigation-mode visual indicators but still want live filtering
+    /// while scrolling results.  Enable with `--nav no-filter` or in TOML as
+    /// `nav_passthrough = true`.
+    pub nav_passthrough: bool,
+
+    /// When true only the basic j / k / J / K navigation binds are active;
+    /// the h / l / gg / G / gb / gt binds are silenced and the file-manager
+    /// semantic binds (d, a, r, …) are not injected.  Enable with
+    /// `--nav basic` or in TOML as `nav_basic = true`.
+    pub nav_basic: bool,
 }
 
 impl Default for UiConfig {
@@ -308,6 +321,8 @@ impl Default for UiConfig {
             nav_prompt: String::new(),
             nav_binds,
             nav_notify: false,
+            nav_passthrough: false,
+            nav_basic: false,
         }
     }
 }

@@ -289,14 +289,16 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
         };
 
         if ui.config.nav_mode {
-            apply_focus_binds(
-                &mut buffer,
-                state.focus,
-                &ui.config.nav_binds,
-                picker_ui.action_visible
-                    || overlay_ui.as_ref().map_or(false, |o| o.index().is_some()),
-                &mut state.pending_nav_key,
-            );
+            if !ui.config.nav_passthrough {
+                apply_focus_binds(
+                    &mut buffer,
+                    state.focus,
+                    &ui.config.nav_binds,
+                    picker_ui.action_visible
+                        || overlay_ui.as_ref().map_or(false, |o| o.index().is_some()),
+                    &mut state.pending_nav_key,
+                );
+            }
 
             if let Some(aliaser) = &mut ext_aliaser {
                 apply_aliases(
@@ -1111,7 +1113,10 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                             if !c.is_ascii_control() {
                                 if *action_visible {
                                     action_input.push_char(c)
-                                } else if !(ui.config.nav_mode && state.focus == Focus::Results) {
+                                } else if !(ui.config.nav_mode
+                                    && !ui.config.nav_passthrough
+                                    && state.focus == Focus::Results)
+                                {
                                     query.push_char(c)
                                 }
                             }

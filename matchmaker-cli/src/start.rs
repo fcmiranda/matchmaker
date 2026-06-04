@@ -217,7 +217,7 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
         }
     }
 
-    if config.render.ui.nav_mode {
+    if config.render.ui.nav_mode && !config.render.ui.nav_basic {
         use matchmaker::action::Actions;
         let mut nb = |k: &str, actions: Actions<matchmaker::action::NullActionExt>| {
             config
@@ -341,6 +341,23 @@ fn apply_nav_props(props: &[String], config: &mut Config) {
                     "blink" => config.render.ui.nav_blink = true,
                     "bold" => config.render.ui.nav_bold = true,
                     "notify" => config.render.ui.nav_notify = true,
+                    "no-filter" | "passthrough" => config.render.ui.nav_passthrough = true,
+                    "basic" => {
+                        config.render.ui.nav_basic = true;
+                        // Silence every non-basic bind by inserting an empty
+                        // action list so the nav-bind intercept can match the
+                        // key but emit nothing.  The hardcoded 'g' fallbacks
+                        // inside apply_focus_binds also check the map first,
+                        // so they are suppressed by the empty entries too.
+                        let empty = matchmaker::action::Actions::default();
+                        for key in &["h", "l", "G", "gg", "gb", "gt"] {
+                            config
+                                .render
+                                .ui
+                                .nav_binds
+                                .insert(key.to_string(), empty.clone());
+                        }
+                    }
                     _ => eprintln!("warning: unknown --nav property '{}'", prop),
                 },
                 Some(("bar", s)) => {
