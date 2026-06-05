@@ -8,7 +8,6 @@ max = 120
 
 [query]
 prompt_style.fg = "Gray"
-prompt_style.modifier = "ITALIC"
 
 [results]
 # wrap = true
