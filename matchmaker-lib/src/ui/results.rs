@@ -566,7 +566,7 @@ impl ResultsUI {
                 } else {
                     self.default_prefix($idx)
                 };
-                (prefix, icon_name, is_spinner, spinner_col_idx)
+                (prefix, icon_name, is_spinner, spinner_col_idx, is_yanked, is_cut)
             }};
         }
 
@@ -734,7 +734,7 @@ impl ResultsUI {
                 if trunc_height < h {
                     let mut remaining_height = h - trunc_height;
                     let is_selected = selector.contains(item);
-                    let (prefix, icon_name, is_spinner, spinner_col_idx) = get_prefix!(row, is_selected, 0);
+                    let (prefix, icon_name, is_spinner, spinner_col_idx, is_yanked, is_cut) = get_prefix!(row, is_selected, 0);
 
                     total_height += remaining_height;
 
@@ -754,7 +754,7 @@ impl ResultsUI {
                             self.active_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
                             self.inactive_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
                             is_current_row,
-                            if !is_selected {
+                            if !is_selected && !is_yanked && !is_cut {
                                 nav_bar_span.clone()
                             } else {
                                 None
@@ -805,7 +805,7 @@ impl ResultsUI {
                                             &cwd,
                                         ),
                                         is_current_row,
-                                        if !is_selected {
+                                        if !is_selected && !is_yanked && !is_cut {
                                             nav_bar_span.clone()
                                         } else {
                                             None
@@ -853,7 +853,7 @@ impl ResultsUI {
                                     &cwd,
                                 ),
                                 is_current_row,
-                                if !is_selected {
+                                if !is_selected && !is_yanked && !is_cut {
                                     nav_bar_span.clone()
                                 } else {
                                     None
@@ -904,7 +904,7 @@ impl ResultsUI {
             let h = height_of(&results[0]);
             let (_, row, item) = &mut results[0];
             let is_selected = selector.contains(item);
-            let (prefix, icon_name, is_spinner, spinner_col_idx) = get_prefix!(row, is_selected, 0);
+            let (prefix, icon_name, is_spinner, spinner_col_idx, is_yanked, is_cut) = get_prefix!(row, is_selected, 0);
 
             total_height += remaining_height;
 
@@ -921,7 +921,7 @@ impl ResultsUI {
                     self.active_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
                     self.inactive_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
                     is_current_row,
-                    if !is_selected {
+                    if !is_selected && !is_yanked && !is_cut {
                         nav_bar_span.clone()
                     } else {
                         None
@@ -967,7 +967,7 @@ impl ResultsUI {
                                     &cwd,
                                 ),
                                 is_current_row,
-                                if !is_selected {
+                                if !is_selected && !is_yanked && !is_cut {
                                     nav_bar_span.clone()
                                 } else {
                                     None
@@ -1010,7 +1010,7 @@ impl ResultsUI {
                         self.active_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
                         self.inactive_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
                         is_current_row,
-                        if !is_selected {
+                        if !is_selected && !is_yanked && !is_cut {
                             nav_bar_span.clone()
                         } else {
                             None
@@ -1114,7 +1114,7 @@ impl ResultsUI {
 
             // determine prefix
             let is_selected = selector.contains(item);
-            let (prefix, icon_name_hz, is_spinner, spinner_col_idx) = get_prefix!(row, is_selected, i);
+            let (prefix, icon_name_hz, is_spinner, spinner_col_idx, is_yanked, is_cut) = get_prefix!(row, is_selected, i);
 
             if as_cols {
                 // scroll down
@@ -1181,7 +1181,7 @@ impl ResultsUI {
                                     &cwd,
                                 ),
                                 is_current_row,
-                                if !is_selected {
+                                if !is_selected && !is_yanked && !is_cut {
                                     nav_bar_span.clone()
                                 } else {
                                     None
@@ -1269,7 +1269,7 @@ impl ResultsUI {
                             &cwd,
                         ),
                         is_current_row,
-                        if !is_selected {
+                        if !is_selected && !is_yanked && !is_cut {
                             nav_bar_span.clone()
                         } else {
                             None
