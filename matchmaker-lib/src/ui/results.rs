@@ -772,6 +772,7 @@ impl ResultsUI {
                                 &mut row[spinner_col_idx],
                                 &icon_name,
                                 self.config.symlink_target_style.into(),
+                                widths[spinner_col_idx],
                             );
                         }
 
@@ -871,6 +872,7 @@ impl ResultsUI {
                                     col,
                                     &icon_name,
                                     self.config.symlink_target_style.into(),
+                                    self.width,
                                 );
                             }
 
@@ -939,6 +941,7 @@ impl ResultsUI {
                         &mut row[spinner_col_idx],
                         &icon_name,
                         self.config.symlink_target_style.into(),
+                        widths[spinner_col_idx],
                     );
                 }
 
@@ -1024,6 +1027,7 @@ impl ResultsUI {
                             col,
                             &icon_name,
                             self.config.symlink_target_style.into(),
+                            self.width,
                         );
                     }
 
@@ -1199,6 +1203,7 @@ impl ResultsUI {
                                     &mut t,
                                     &icon_name_hz,
                                     self.config.symlink_target_style.into(),
+                                    widths[spinner_col_idx],
                                 );
                             }
                         };
@@ -1287,6 +1292,7 @@ impl ResultsUI {
                             &mut col,
                             &icon_name_hz,
                             self.config.symlink_target_style.into(),
+                            self.width,
                         );
                     }
 
@@ -1650,16 +1656,53 @@ impl StatusUI {
 ///
 /// Reads the link target with `std::fs::read_link`. If the path is not a
 /// symlink (or the read fails) the function is a no-op. The annotation is
-/// rendered as `" \u{f061} <target>"` using `style`.
+/// rendered as `" \u{f061} <target>"` using `style`, truncated with `…` if
+/// it would overflow `max_width`.
 fn maybe_append_symlink_target(
     col: &mut ratatui::text::Text<'_>,
     name: &str,
     style: ratatui::style::Style,
+    max_width: u16,
 ) {
     let path = std::path::Path::new(name.trim());
     if let Ok(target) = std::fs::read_link(path) {
         let target_str = target.to_string_lossy().into_owned();
-        let annotation = format!(" \u{f061} {target_str}");
+        let arrow = " \u{f061} ";
+        let arrow_width = arrow.width();
+
+        // Measure how much width the first line already occupies.
+        let used: usize = col
+            .lines
+            .first()
+            .map(|l| l.spans.iter().map(|s| s.content.width()).sum())
+            .unwrap_or(0);
+
+        let remaining = (max_width as usize).saturating_sub(used);
+
+        // Need at least space for the arrow + 1 char to show anything useful.
+        if remaining < arrow_width + 1 {
+            return;
+        }
+
+        let budget = remaining - arrow_width;
+        let annotation = if target_str.width() <= budget {
+            format!("{arrow}{target_str}")
+        } else {
+            // Truncate target to budget - 1 chars + "…"
+            let mut truncated = String::new();
+            let mut w = 0;
+            for g in unicode_segmentation::UnicodeSegmentation::graphemes(target_str.as_str(), true)
+            {
+                let gw = g.width();
+                if w + gw + 1 > budget {
+                    break;
+                }
+                truncated.push_str(g);
+                w += gw;
+            }
+            format!("{arrow}{truncated}…")
+        };
+
         let span = ratatui::text::Span::styled(annotation, style);
         if let Some(line) = col.lines.first_mut() {
             line.spans.push(span);
