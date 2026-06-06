@@ -1516,14 +1516,13 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
 
                             if !groups.is_empty() {
                                 let n_rows = groups.len() as u16;
-                                // Place counter 5 rows from the bottom.
-                                let offset_from_bottom: u16 = 5;
-                                let start_y = gap_area
-                                    .y
-                                    .saturating_add(gap_area.height)
-                                    .saturating_sub(offset_from_bottom)
-                                    .saturating_sub(n_rows)
-                                    .max(gap_area.y);
+                                // Position from the top of the gap using the configured offset.
+                                let offset_from_top = preview_ui
+                                    .setting()
+                                    .map(|s| s.layout.gap_counter_offset)
+                                    .unwrap_or(5);
+                                let start_y = (gap_area.y + offset_from_top)
+                                    .min(gap_area.y + gap_area.height.saturating_sub(n_rows));
 
                                 for (row_idx, (count, bg)) in groups.iter().enumerate() {
                                     let row_y = start_y + row_idx as u16;

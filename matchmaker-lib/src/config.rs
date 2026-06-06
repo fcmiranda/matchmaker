@@ -1273,6 +1273,10 @@ pub struct PreviewLayout {
     /// the picker.  When `0` the gap is not rendered but the drag-zone still
     /// falls back to the border edge (existing behaviour).
     pub gap: u16,
+    /// Row offset from the top of the gap at which the selection counter is
+    /// drawn.  Defaults to `5`.
+    #[partial(alias = "gco")]
+    pub gap_counter_offset: u16,
 }
 
 impl Default for PreviewLayout {
@@ -1283,6 +1287,7 @@ impl Default for PreviewLayout {
             min: 15,
             max: i16::MAX,
             gap: 1,
+            gap_counter_offset: 5,
         }
     }
 }
