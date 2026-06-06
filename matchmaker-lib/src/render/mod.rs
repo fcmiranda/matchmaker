@@ -1444,11 +1444,60 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                             let is_hovered = mouse_hover.is_some_and(|p| gap_area.contains(p));
                             let is_dragging = state.dragging.is_some();
                             if is_hovered || is_dragging {
-                                use ratatui::style::Color as C;
-                                use ratatui::widgets::Block;
                                 let gap_block = Block::default()
-                                    .style(ratatui::style::Style::default().bg(C::DarkGray));
+                                    .style(Style::default().bg(Color::DarkGray));
                                 frame.render_widget(gap_block, gap_area);
+                            }
+
+                            // Counter bar: show counts for selected / yanked / cut items.
+                            let sel_count = picker_ui.selector.len();
+                            let yank_count = picker_ui.results.yank_paths.len();
+                            let cut_count = picker_ui.results.cut_paths.len();
+
+                            if sel_count > 0 || yank_count > 0 || cut_count > 0 {
+                                let rcfg = &picker_ui.results.config;
+                                let mut spans: Vec<Span<'static>> = Vec::new();
+
+                                // Cut (highest priority, shown first) — red
+                                if cut_count > 0 {
+                                    let bg = rcfg
+                                        .cut_prefix_style
+                                        .fg
+                                        .unwrap_or(Color::Red);
+                                    spans.push(Span::styled(
+                                        format!(" ✂ {} ", cut_count),
+                                        Style::default().fg(Color::Black).bg(bg),
+                                    ));
+                                }
+
+                                // Yanked — yellow
+                                if yank_count > 0 {
+                                    let bg = rcfg
+                                        .yank_prefix_style
+                                        .fg
+                                        .unwrap_or(Color::Yellow);
+                                    spans.push(Span::styled(
+                                        format!(" {} ", yank_count),
+                                        Style::default().fg(Color::Black).bg(bg),
+                                    ));
+                                }
+
+                                // Selected — cyan
+                                if sel_count > 0 {
+                                    let bg = rcfg
+                                        .selected_prefix_style
+                                        .fg
+                                        .unwrap_or(Color::Cyan);
+                                    spans.push(Span::styled(
+                                        format!(" {} ", sel_count),
+                                        Style::default().fg(Color::Black).bg(bg),
+                                    ));
+                                }
+
+                                let counter_line = Line::from(spans);
+                                let counter = Paragraph::new(counter_line)
+                                    .alignment(ratatui::layout::Alignment::Center);
+                                frame.render_widget(counter, gap_area);
                             }
                         }
                     }
