@@ -1262,11 +1262,44 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                         Rect::default()
                     };
 
+                // Compute how wide the gap needs to be to show the counter inline.
+                let _counter_gap_width: u16 = {
+                    let sel = picker_ui.selector.len();
+                    let yank = picker_ui.results.yank_paths.len();
+                    let cut = picker_ui.results.cut_paths.len();
+                    if sel > 0 || yank > 0 || cut > 0 {
+                        // Each non-zero group contributes " N " (digits + 2 spaces).
+                        let w: usize = [
+                            (cut  > 0).then(|| cut.to_string().len()  + 2).unwrap_or(0),
+                            (yank > 0).then(|| yank.to_string().len() + 2).unwrap_or(0),
+                            (sel  > 0).then(|| sel.to_string().len()  + 2).unwrap_or(0),
+                        ]
+                        .iter()
+                        .sum();
+                        w as u16
+                    } else {
+                        0
+                    }
+                };
+
                 let [preview, picker_area, footer, gap_area] = if let Some(preview_ui) =
                     preview_ui.as_mut()
                     && preview_ui.visible()
                 {
+                    // Temporarily widen the gap so the counter fits horizontally.
+                    let original_gap = preview_ui
+                        .setting()
+                        .map(|s| s.layout.gap)
+                        .unwrap_or(0);
+                    let effective_gap = original_gap.max(_counter_gap_width);
+                    if let Some(s) = preview_ui.setting_mut() {
+                        s.layout.gap = effective_gap;
+                    }
                     let [preview, mut picker_area, gap_area] = preview_ui.split(_area);
+                    // Restore the configured gap so nothing else is affected.
+                    if let Some(s) = preview_ui.setting_mut() {
+                        s.layout.gap = original_gap;
+                    }
 
                     if state.iterations == 0 && picker_area.width <= 5 {
                         warn!("UI too narrow, hiding preview");
@@ -1449,56 +1482,42 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                                 frame.render_widget(gap_block, gap_area);
                             }
 
-                            // Counter bar: show counts for selected / yanked / cut items.
-                            // The gap is typically 1 cell wide (horizontal split), so we
-                            // render each digit on its own row with the matching background.
+                            // Counter bar: render cut / yank / selected counts inline.
                             let sel_count = picker_ui.selector.len();
                             let yank_count = picker_ui.results.yank_paths.len();
                             let cut_count = picker_ui.results.cut_paths.len();
 
                             if sel_count > 0 || yank_count > 0 || cut_count > 0 {
                                 let rcfg = &picker_ui.results.config;
+                                let mut spans: Vec<Span<'static>> = Vec::new();
 
-                                // Build a flat list of (char, bg_color) pairs, one entry
-                                // per character of each count string, ordered cut > yank > sel.
-                                let mut chars: Vec<(char, Color)> = Vec::new();
-
-                                let groups: &[(usize, Color)] = &[
-                                    (cut_count,  rcfg.cut_prefix_style.fg.unwrap_or(Color::Red)),
-                                    (yank_count, rcfg.yank_prefix_style.fg.unwrap_or(Color::Yellow)),
-                                    (sel_count,  rcfg.selected_prefix_style.fg.unwrap_or(Color::Cyan)),
-                                ];
-
-                                for &(count, bg) in groups {
-                                    if count > 0 {
-                                        for ch in count.to_string().chars() {
-                                            chars.push((ch, bg));
-                                        }
-                                    }
+                                if cut_count > 0 {
+                                    let bg = rcfg.cut_prefix_style.fg.unwrap_or(Color::Red);
+                                    spans.push(Span::styled(
+                                        format!(" {} ", cut_count),
+                                        Style::default().fg(Color::Black).bg(bg),
+                                    ));
+                                }
+                                if yank_count > 0 {
+                                    let bg = rcfg.yank_prefix_style.fg.unwrap_or(Color::Yellow);
+                                    spans.push(Span::styled(
+                                        format!(" {} ", yank_count),
+                                        Style::default().fg(Color::Black).bg(bg),
+                                    ));
+                                }
+                                if sel_count > 0 {
+                                    let bg = rcfg.selected_prefix_style.fg.unwrap_or(Color::Cyan);
+                                    spans.push(Span::styled(
+                                        format!(" {} ", sel_count),
+                                        Style::default().fg(Color::Black).bg(bg),
+                                    ));
                                 }
 
-                                // Render each char as a one-row Paragraph at successive y positions.
-                                for (i, (ch, bg)) in chars.iter().enumerate() {
-                                    let row = gap_area.y + i as u16;
-                                    if row >= gap_area.y + gap_area.height {
-                                        break;
-                                    }
-                                    let cell = Rect {
-                                        x: gap_area.x,
-                                        y: row,
-                                        width: gap_area.width,
-                                        height: 1,
-                                    };
-                                    let span = Span::styled(
-                                        ch.to_string(),
-                                        Style::default().fg(Color::Black).bg(*bg),
-                                    );
-                                    frame.render_widget(
-                                        Paragraph::new(Line::from(span))
-                                            .alignment(ratatui::layout::Alignment::Center),
-                                        cell,
-                                    );
-                                }
+                                frame.render_widget(
+                                    Paragraph::new(Line::from(spans))
+                                        .alignment(ratatui::layout::Alignment::Center),
+                                    gap_area,
+                                );
                             }
                         }
                     }
