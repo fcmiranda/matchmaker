@@ -622,6 +622,18 @@ impl ResultsUI {
         self.status = status.clone();
         self.medians = medians;
         widths[0] += self.indentation() as u16;
+
+        // When symlink targets are enabled, expand column 0 to use all
+        // remaining horizontal space so the annotation has room to display.
+        if self.config.symlink_target {
+            let other_cols: u16 = widths[1..].iter().sum();
+            let col0_max = self
+                .width
+                .saturating_sub(other_cols)
+                .saturating_sub(self.column_spacing_width());
+            widths[0] = widths[0].max(col0_max);
+        }
+
         // should generally be true already, but act as a safeguard
         // for x in widths.iter_mut().zip(&self.hidden_columns) {
         //     if *x.1 {
