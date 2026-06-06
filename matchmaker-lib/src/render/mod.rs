@@ -1262,24 +1262,31 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                         Rect::default()
                     };
 
-                // Compute how wide the gap needs to be to show the counter inline.
+                // Compute how wide the gap needs to be to show the counter.
+                // Rules:
+                //   - suppress selected if sel_count == yank_count (fully covered by yank)
+                //   - suppress yank    if yank_count == cut_count  (fully covered by cut)
+                //   - if only one group: horizontal, width = " N " of that group
+                //   - if multiple groups: vertical (one row each), width = widest " N "
                 let _counter_gap_width: u16 = {
-                    let sel = picker_ui.selector.len();
-                    let yank = picker_ui.results.yank_paths.len();
-                    let cut = picker_ui.results.cut_paths.len();
-                    if sel > 0 || yank > 0 || cut > 0 {
-                        // Each non-zero group contributes " N " (digits + 2 spaces).
-                        let w: usize = [
-                            (cut  > 0).then(|| cut.to_string().len()  + 2).unwrap_or(0),
-                            (yank > 0).then(|| yank.to_string().len() + 2).unwrap_or(0),
-                            (sel  > 0).then(|| sel.to_string().len()  + 2).unwrap_or(0),
-                        ]
-                        .iter()
-                        .sum();
-                        w as u16
-                    } else {
-                        0
-                    }
+                    let sel_raw  = picker_ui.selector.len();
+                    let yank_raw = picker_ui.results.yank_paths.len();
+                    let cut_raw  = picker_ui.results.cut_paths.len();
+
+                    let show_cut  = cut_raw  > 0;
+                    let show_yank = yank_raw > 0 && yank_raw != cut_raw;
+                    let show_sel  = sel_raw  > 0 && sel_raw  != yank_raw && sel_raw != cut_raw;
+
+                    let widths: Vec<usize> = [
+                        show_cut .then(|| cut_raw .to_string().len() + 2),
+                        show_yank.then(|| yank_raw.to_string().len() + 2),
+                        show_sel .then(|| sel_raw .to_string().len() + 2),
+                    ]
+                    .into_iter()
+                    .flatten()
+                    .collect();
+
+                    widths.iter().copied().max().unwrap_or(0) as u16
                 };
 
                 let [preview, picker_area, footer, gap_area] = if let Some(preview_ui) =
@@ -1482,42 +1489,63 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                                 frame.render_widget(gap_block, gap_area);
                             }
 
-                            // Counter bar: render cut / yank / selected counts inline.
-                            let sel_count = picker_ui.selector.len();
-                            let yank_count = picker_ui.results.yank_paths.len();
-                            let cut_count = picker_ui.results.cut_paths.len();
+                            // Counter bar: render cut / yank / selected counts.
+                            // - suppress selected if fully covered by yank (same count)
+                            // - suppress yank    if fully covered by cut  (same count)
+                            // - single group → one horizontal row
+                            // - multiple groups → stacked vertically, one row per group
+                            // - positioned 5 rows from the bottom of the gap
+                            let sel_raw  = picker_ui.selector.len();
+                            let yank_raw = picker_ui.results.yank_paths.len();
+                            let cut_raw  = picker_ui.results.cut_paths.len();
 
-                            if sel_count > 0 || yank_count > 0 || cut_count > 0 {
-                                let rcfg = &picker_ui.results.config;
-                                let mut spans: Vec<Span<'static>> = Vec::new();
+                            let show_cut  = cut_raw  > 0;
+                            let show_yank = yank_raw > 0 && yank_raw != cut_raw;
+                            let show_sel  = sel_raw  > 0 && sel_raw  != yank_raw && sel_raw != cut_raw;
 
-                                if cut_count > 0 {
-                                    let bg = rcfg.cut_prefix_style.fg.unwrap_or(Color::Red);
-                                    spans.push(Span::styled(
-                                        format!(" {} ", cut_count),
-                                        Style::default().fg(Color::Black).bg(bg),
-                                    ));
-                                }
-                                if yank_count > 0 {
-                                    let bg = rcfg.yank_prefix_style.fg.unwrap_or(Color::Yellow);
-                                    spans.push(Span::styled(
-                                        format!(" {} ", yank_count),
-                                        Style::default().fg(Color::Black).bg(bg),
-                                    ));
-                                }
-                                if sel_count > 0 {
-                                    let bg = rcfg.selected_prefix_style.fg.unwrap_or(Color::Cyan);
-                                    spans.push(Span::styled(
-                                        format!(" {} ", sel_count),
-                                        Style::default().fg(Color::Black).bg(bg),
-                                    ));
-                                }
+                            // Collect the groups to render (cut first = highest priority).
+                            let rcfg = &picker_ui.results.config;
+                            let groups: Vec<(usize, Color)> = [
+                                show_cut .then(|| (cut_raw,  rcfg.cut_prefix_style.fg.unwrap_or(Color::Red))),
+                                show_yank.then(|| (yank_raw, rcfg.yank_prefix_style.fg.unwrap_or(Color::Yellow))),
+                                show_sel .then(|| (sel_raw,  rcfg.selected_prefix_style.fg.unwrap_or(Color::Cyan))),
+                            ]
+                            .into_iter()
+                            .flatten()
+                            .collect();
 
-                                frame.render_widget(
-                                    Paragraph::new(Line::from(spans))
-                                        .alignment(ratatui::layout::Alignment::Center),
-                                    gap_area,
-                                );
+                            if !groups.is_empty() {
+                                let n_rows = groups.len() as u16;
+                                // Place counter 5 rows from the bottom.
+                                let offset_from_bottom: u16 = 5;
+                                let start_y = gap_area
+                                    .y
+                                    .saturating_add(gap_area.height)
+                                    .saturating_sub(offset_from_bottom)
+                                    .saturating_sub(n_rows)
+                                    .max(gap_area.y);
+
+                                for (row_idx, (count, bg)) in groups.iter().enumerate() {
+                                    let row_y = start_y + row_idx as u16;
+                                    if row_y >= gap_area.y + gap_area.height {
+                                        break;
+                                    }
+                                    let row_rect = Rect {
+                                        x: gap_area.x,
+                                        y: row_y,
+                                        width: gap_area.width,
+                                        height: 1,
+                                    };
+                                    let span = Span::styled(
+                                        format!(" {} ", count),
+                                        Style::default().fg(Color::Black).bg(*bg),
+                                    );
+                                    frame.render_widget(
+                                        Paragraph::new(Line::from(span))
+                                            .alignment(ratatui::layout::Alignment::Center),
+                                        row_rect,
+                                    );
+                                }
                             }
                         }
                     }
