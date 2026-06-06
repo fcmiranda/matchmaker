@@ -1201,6 +1201,13 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
         // ------------- update state + render ------------------------
         if state.filtering {
             picker_ui.update();
+            // Auto-clear selections when no items match the query.
+            {
+                let PickerUI { worker, selector, .. } = &mut picker_ui;
+                if !selector.is_empty() && worker.raw_results().is_empty() {
+                    selector.clear();
+                }
+            }
         } else {
             // nothing
         }
