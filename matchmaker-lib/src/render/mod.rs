@@ -1465,7 +1465,7 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                                         .fg
                                         .unwrap_or(Color::Red);
                                     spans.push(Span::styled(
-                                        format!(" ✂ {} ", cut_count),
+                                        format!(" {} ", cut_count),
                                         Style::default().fg(Color::Black).bg(bg),
                                     ));
                                 }
