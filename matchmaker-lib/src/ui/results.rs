@@ -491,7 +491,7 @@ impl ResultsUI {
         };
 
         macro_rules! get_prefix {
-            ($row:expr, $is_selected:expr, $idx:expr) => {{
+            ($row:expr, $is_selected:expr, $idx:expr, $item:expr, $columns:expr) => {{
                 let mut icon_name = String::new();
                 let mut is_spinner = false;
                 let mut spinner_col_idx = 0;
@@ -502,12 +502,16 @@ impl ResultsUI {
                         if text_content.contains(&self.config.spinner_prefix) {
                             is_spinner = true;
                             spinner_col_idx = i;
-                            icon_name = text_content;
                             break;
                         }
                     }
-                } else if !$row.is_empty() {
-                    icon_name = extract_col0_name(&$row[0]);
+                }
+
+                if !$row.is_empty() {
+                    icon_name = $columns[0].raw($item).into_owned();
+                    if is_spinner && spinner_col_idx == 0 {
+                        icon_name = icon_name.replace(&self.config.spinner_prefix, "");
+                    }
                 }
 
                 if is_spinner {
@@ -519,17 +523,11 @@ impl ResultsUI {
                             &self.config.spinner_prefix,
                             &format!(" {frame}"),
                         );
-                        if spinner_col_idx == 0 {
-                            icon_name = extract_col0_name(&$row[0]);
-                        }
                     } else {
                         crate::utils::text::strip_string_from_text(
                             &mut $row[spinner_col_idx],
                             &self.config.spinner_prefix,
                         );
-                        if spinner_col_idx == 0 {
-                            icon_name = extract_col0_name(&$row[0]);
-                        }
                     }
                 }
                 let is_yanked = if !icon_name.is_empty() {
@@ -586,6 +584,7 @@ impl ResultsUI {
                 .collect()
         };
 
+        let columns = worker.columns.clone();
         let (mut results, mut widths, medians, status) = worker.results(
             offset,
             end,
@@ -746,7 +745,7 @@ impl ResultsUI {
                 if trunc_height < h {
                     let mut remaining_height = h - trunc_height;
                     let is_selected = selector.contains(item);
-                    let (prefix, icon_name, is_spinner, spinner_col_idx, is_yanked, is_cut) = get_prefix!(row, is_selected, 0);
+                    let (prefix, icon_name, is_spinner, spinner_col_idx, is_yanked, is_cut) = get_prefix!(row, is_selected, 0, item, columns);
 
                     total_height += remaining_height;
 
@@ -905,7 +904,7 @@ impl ResultsUI {
             let h = height_of(&results[0]);
             let (_, row, item) = &mut results[0];
             let is_selected = selector.contains(item);
-            let (prefix, icon_name, is_spinner, spinner_col_idx, is_yanked, is_cut) = get_prefix!(row, is_selected, 0);
+            let (prefix, icon_name, is_spinner, spinner_col_idx, is_yanked, is_cut) = get_prefix!(row, is_selected, 0, item, columns);
 
             total_height += remaining_height;
 
@@ -1104,7 +1103,7 @@ impl ResultsUI {
 
             // determine prefix
             let is_selected = selector.contains(item);
-            let (prefix, icon_name_hz, is_spinner, spinner_col_idx, is_yanked, is_cut) = get_prefix!(row, is_selected, i);
+            let (prefix, icon_name_hz, is_spinner, spinner_col_idx, is_yanked, is_cut) = get_prefix!(row, is_selected, i, item, columns);
 
             if as_cols {
                 // scroll down
