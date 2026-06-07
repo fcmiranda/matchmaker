@@ -1,3 +1,7 @@
+ mm --nav bar:plain color:black --media --icons --symlink-target --color symlink:cyan,preview-title:cyan p.l.percentage=50 p.b.color=blue
+
+
+
 # Matchmaker — Feature Usage Guide
 
 This document covers every feature added in the current fork, with concrete `mm` command
