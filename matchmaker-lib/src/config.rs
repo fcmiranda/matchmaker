@@ -456,7 +456,7 @@ impl Default for OverlayLayoutSettings {
 // pub struct OverlaySize
 
 #[partial(path, derive(Debug, Clone, PartialEq, Deserialize, Serialize))]
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct AutoscrollSettings {
     /// Number of characters at the start of the line to always keep visible.
@@ -473,6 +473,10 @@ pub struct AutoscrollSettings {
     pub end: bool,
     /// Enable autoscroll even when wrap = true. Ignored if enable = false.
     pub always: bool,
+    /// The string to show when text is horizontally scrolled.
+    pub indicator: String,
+    /// Style of the hscroll indicator.
+    pub indicator_style: StyleSetting,
 }
 
 impl Default for AutoscrollSettings {
@@ -483,6 +487,11 @@ impl Default for AutoscrollSettings {
             context: 4,
             end: false,
             always: false,
+            indicator: "..".to_string(),
+            indicator_style: crate::config_types::StyleSetting {
+                fg: Some(ratatui::style::Color::DarkGray),
+                ..Default::default()
+            },
         }
     }
 }

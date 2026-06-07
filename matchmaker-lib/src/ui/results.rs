@@ -593,7 +593,7 @@ impl ResultsUI {
             self.config.max_height,
             self.config.match_style.into(),
             matcher,
-            self.config.autoscroll,
+            self.config.autoscroll.clone(),
             self.hscroll,
             (
                 if self.config.vscroll_current_only {

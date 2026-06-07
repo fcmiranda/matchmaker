@@ -19,7 +19,7 @@ use crate::{
     SSS,
     config::AutoscrollSettings,
     nucleo::Render,
-    utils::text::{hscroll_indicator, truncation_indicator, wrap_text, wrapping_indicator},
+    utils::text::{truncation_indicator, wrap_text, wrapping_indicator},
 };
 
 type ColumnFormatFn<T> = Box<dyn for<'a> Fn(&'a T) -> Text<'a> + Send + Sync>;
@@ -407,7 +407,7 @@ impl<T: SSS> Worker<T> {
                             wrap,
                             effective_limit,
                             &mut self.col_indices_buffer,
-                            autoscroll,
+                            autoscroll.clone(),
                             hscroll_offset,
                         )
                     } else if wrap {
@@ -592,9 +592,9 @@ fn render_cell<T: SSS>(
             let mut current_width = 0;
 
             while i > autoscroll.initial_preserved {
-                let w = line_graphemes[i].0.width();
+                let w = line_graphemes[i - 1].0.width();
                 let indicator_width = if i - 1 > autoscroll.initial_preserved {
-                    1
+                    autoscroll.indicator.as_str().width()
                 } else {
                     0
                 };
@@ -630,7 +630,7 @@ fn render_cell<T: SSS>(
                 let prev_width = line_graphemes[i - 1].0.width();
                 // Only reserve space for "..." if we aren't reaching the very start
                 let indicator_width = if i - 1 > autoscroll.initial_preserved {
-                    1
+                    autoscroll.indicator.as_str().width()
                 } else {
                     0
                 };
@@ -680,8 +680,8 @@ fn render_cell<T: SSS>(
             i -= autoscroll.initial_preserved;
 
             current_width += current_spans.iter().map(|x| x.width()).sum::<usize>();
-            current_spans.push(hscroll_indicator());
-            current_width += 1;
+            current_spans.push(Span::styled(autoscroll.indicator.clone(), Style::from(autoscroll.indicator_style)));
+            current_width += autoscroll.indicator.as_str().width();
 
             current_span = String::new();
             current_style = Style::default();
