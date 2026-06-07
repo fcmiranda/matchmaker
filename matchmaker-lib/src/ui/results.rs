@@ -760,34 +760,6 @@ impl ResultsUI {
                             }
                         }
 
-                        prefix_span(
-                            &mut row[spinner_col_idx],
-                            prefix.clone(),
-                            self.active_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
-                            self.inactive_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
-                            is_current_row,
-                            if !is_selected && !is_yanked && !is_cut {
-                                nav_bar_span.clone()
-                            } else {
-                                None
-                            },
-                        );
-                        if self.config.icons {
-                            insert_icon_span(
-                                &mut row[spinner_col_idx],
-                                &icon_name,
-                                !is_selected && nav_bar_span.is_some(),
-                            );
-                        }
-                        if self.config.symlink_target {
-                            maybe_append_symlink_target(
-                                &mut row[spinner_col_idx],
-                                &icon_name,
-                                self.config.symlink_target_style.into(),
-                                widths[spinner_col_idx],
-                            );
-                        }
-
                         let last_visible = widths
                             .iter()
                             .enumerate()
@@ -801,7 +773,7 @@ impl ResultsUI {
                             .enumerate()
                             .map(|(x, mut t)| {
                                 t = style_text(t, x, is_current_row);
-                                if x == 0 {
+                                if x == spinner_col_idx {
                                     prefix_span(
                                         &mut t,
                                         prefix.clone(),
@@ -824,6 +796,21 @@ impl ResultsUI {
                                             None
                                         },
                                     );
+                                    if self.config.icons {
+                                        insert_icon_span(
+                                            &mut t,
+                                            &icon_name,
+                                            !is_selected && nav_bar_span.is_some(),
+                                        );
+                                    }
+                                    if self.config.symlink_target {
+                                        maybe_append_symlink_target(
+                                            &mut t,
+                                            &icon_name,
+                                            self.config.symlink_target_style.into(),
+                                            widths[spinner_col_idx],
+                                        );
+                                    }
                                 }
                                 t
                             })
@@ -929,34 +916,6 @@ impl ResultsUI {
                     }
                 }
 
-                prefix_span(
-                    &mut row[spinner_col_idx],
-                    prefix.clone(),
-                    self.active_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
-                    self.inactive_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
-                    is_current_row,
-                    if !is_selected && !is_yanked && !is_cut {
-                        nav_bar_span.clone()
-                    } else {
-                        None
-                    },
-                );
-                if self.config.icons {
-                    insert_icon_span(
-                        &mut row[spinner_col_idx],
-                        &icon_name,
-                        !is_selected && nav_bar_span.is_some(),
-                    );
-                }
-                if self.config.symlink_target {
-                    maybe_append_symlink_target(
-                        &mut row[spinner_col_idx],
-                        &icon_name,
-                        self.config.symlink_target_style.into(),
-                        widths[spinner_col_idx],
-                    );
-                }
-
                 let last_visible = widths
                     .iter()
                     .enumerate()
@@ -970,7 +929,7 @@ impl ResultsUI {
                     .enumerate()
                     .map(|(x, mut t)| {
                         t = style_text(t, x, is_current_row);
-                        if x == 0 {
+                        if x == spinner_col_idx {
                             prefix_span(
                                 &mut t,
                                 prefix.clone(),
@@ -988,6 +947,21 @@ impl ResultsUI {
                                     None
                                 },
                             );
+                            if self.config.icons {
+                                insert_icon_span(
+                                    &mut t,
+                                    &icon_name,
+                                    !is_selected && nav_bar_span.is_some(),
+                                );
+                            }
+                            if self.config.symlink_target {
+                                maybe_append_symlink_target(
+                                    &mut t,
+                                    &icon_name,
+                                    self.config.symlink_target_style.into(),
+                                    widths[spinner_col_idx],
+                                );
+                            }
                         }
                         t
                     })
