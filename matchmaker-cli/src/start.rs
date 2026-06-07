@@ -893,33 +893,21 @@ pub async fn start(config: Config, no_read: bool, group_prefix: Option<String>) 
 
     options = options
         .ext_handler(move |x, y| action_handler(x, y, &mut action_context))
-        .ext_aliaser(|a, state| {
-            let has_clipboard = !state.picker_ui.results.yank_paths.is_empty()
-                || !state.picker_ui.results.cut_paths.is_empty();
-            match a {
-                Action::Accept => acs![MMAction::Accept],
-                Action::Semantic(ref s) if s == "fm_create" => acs![MMAction::FmCreateStart],
-                Action::Semantic(ref s) if s == "fm_delete" => acs![MMAction::FmDeleteStart],
-                Action::Semantic(ref s) if s == "fm_rename" => acs![MMAction::FmRenameStart],
-                Action::Semantic(ref s) if s == "fm_unzip" => acs![MMAction::FmUnzipStart],
-                Action::Semantic(ref s) if s == "fm_zip" => acs![MMAction::FmZipStart],
-                // When items are already cut/yanked, yank is disabled.
-                Action::Semantic(ref s) if s == "fm_yank" => {
-                    if has_clipboard { acs![] } else { acs![MMAction::FmYank] }
-                }
-                // Y (unyank) always available.
-                Action::Semantic(ref s) if s == "fm_unyank" => acs![MMAction::FmUnyank],
-                // When clipboard has items, x is repurposed as uncut instead of cut.
-                Action::Semantic(ref s) if s == "fm_cut" => {
-                    if has_clipboard { acs![MMAction::FmUncut] } else { acs![MMAction::FmCut] }
-                }
-                // X (uncut) always available.
-                Action::Semantic(ref s) if s == "fm_uncut" => acs![MMAction::FmUncut],
-                Action::Semantic(ref s) if s == "fm_paste" => acs![MMAction::FmPaste],
-                Action::Semantic(ref s) if s == "fm_undo" => acs![MMAction::FmUndo],
-                Action::Semantic(ref s) if s == "fm_redo" => acs![MMAction::FmRedo],
-                _ => acs![a],
-            }
+        .ext_aliaser(|a, _state| match a {
+            Action::Accept => acs![MMAction::Accept],
+            Action::Semantic(ref s) if s == "fm_create" => acs![MMAction::FmCreateStart],
+            Action::Semantic(ref s) if s == "fm_delete" => acs![MMAction::FmDeleteStart],
+            Action::Semantic(ref s) if s == "fm_rename" => acs![MMAction::FmRenameStart],
+            Action::Semantic(ref s) if s == "fm_unzip" => acs![MMAction::FmUnzipStart],
+            Action::Semantic(ref s) if s == "fm_zip" => acs![MMAction::FmZipStart],
+            Action::Semantic(ref s) if s == "fm_yank" => acs![MMAction::FmYank],
+            Action::Semantic(ref s) if s == "fm_unyank" => acs![MMAction::FmUnyank],
+            Action::Semantic(ref s) if s == "fm_cut" => acs![MMAction::FmCut],
+            Action::Semantic(ref s) if s == "fm_uncut" => acs![MMAction::FmUncut],
+            Action::Semantic(ref s) if s == "fm_paste" => acs![MMAction::FmPaste],
+            Action::Semantic(ref s) if s == "fm_undo" => acs![MMAction::FmUndo],
+            Action::Semantic(ref s) if s == "fm_redo" => acs![MMAction::FmRedo],
+            _ => acs![a],
         });
 
     if nav_mode {
