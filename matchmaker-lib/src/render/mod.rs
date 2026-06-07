@@ -660,6 +660,15 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                                 picker_ui.action_visible = false;
                                 picker_ui.action.cancel();
                                 crate::ACTION_BOX_ACTIVE.store(false, std::sync::atomic::Ordering::Relaxed);
+                            } else if !picker_ui.selector.is_empty() {
+                                // First Esc: clear multi-selections.
+                                picker_ui.selector.clear();
+                            } else if !picker_ui.results.yank_paths.is_empty() {
+                                // Second Esc: clear yanked paths.
+                                picker_ui.results.yank_paths.clear();
+                            } else if !picker_ui.results.cut_paths.is_empty() {
+                                // Third Esc: clear cut paths.
+                                picker_ui.results.cut_paths.clear();
                             } else {
                                 return Err(MatchError::Abort(code));
                             }
