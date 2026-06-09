@@ -261,6 +261,7 @@ pub struct UiConfig {
 
     /// Key bindings active while navigation mode is enabled and results pane has focus.
     #[serde(alias = "focus_binds")]
+    #[partial(no_recurse, unwrap)]
     pub nav_binds: HashMap<String, Actions<NullActionExt>>,
 
     /// Show notifications for file-manager clipboard actions.
