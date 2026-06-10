@@ -1300,7 +1300,11 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                         .setting()
                         .map(|s| s.layout.gap)
                         .unwrap_or(0);
-                    let effective_gap = original_gap.max(_counter_gap_width);
+                    let effective_gap = original_gap.max(if _counter_gap_width > 0 {
+                        _counter_gap_width + 2
+                    } else {
+                        0
+                    });
                     if let Some(s) = preview_ui.setting_mut() {
                         s.layout.gap = effective_gap;
                     }
