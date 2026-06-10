@@ -646,12 +646,15 @@ pub fn action_handler(
                         had_error = true;
                     }
                 }
-                if clip.op == crate::fm::ClipOp::Cut && !had_error {
+                if !had_error {
                     if let Ok(mut cb) = clipboard.lock() {
                         *cb = None;
                     }
                     let _ = render_tx.send(RenderCommand::Action(Action::Custom(
                         MMAction::FmSetCutPaths(String::new()),
+                    )));
+                    let _ = render_tx.send(RenderCommand::Action(Action::Custom(
+                        MMAction::FmSetYankPaths(String::new()),
                     )));
                 }
                 if *fm_notify {
