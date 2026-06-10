@@ -799,7 +799,7 @@ impl ResultsUI {
                                         insert_icon_span(
                                             &mut t,
                                             &icon_name,
-                                            !is_selected && nav_bar_span.is_some(),
+                                            !is_selected && !is_yanked && !is_cut && nav_bar_span.is_some(),
                                         );
                                     }
                                     if self.config.symlink_target {
@@ -860,9 +860,9 @@ impl ResultsUI {
                             );
                             if self.config.icons && col_idx == 0 {
                                 insert_icon_span(
-                                    col,
+                                    &mut col,
                                     &icon_name,
-                                    !is_selected && nav_bar_span.is_some(),
+                                    !is_selected && !is_yanked && !is_cut && nav_bar_span.is_some(),
                                 );
                             }
                             if self.config.symlink_target && col_idx == 0 {
@@ -950,7 +950,7 @@ impl ResultsUI {
                                 insert_icon_span(
                                     &mut t,
                                     &icon_name,
-                                    !is_selected && nav_bar_span.is_some(),
+                                    !is_selected && !is_yanked && !is_cut && nav_bar_span.is_some(),
                                 );
                             }
                             if self.config.symlink_target {
@@ -1005,7 +1005,7 @@ impl ResultsUI {
                         },
                     );
                     if self.config.icons && col_idx == 0 {
-                        insert_icon_span(col, &icon_name, !is_selected && nav_bar_span.is_some());
+                        insert_icon_span(&mut col, &icon_name, !is_selected && !is_yanked && !is_cut && nav_bar_span.is_some());
                     }
                     if self.config.symlink_target && col_idx == 0 {
                         maybe_append_symlink_target(
@@ -1180,7 +1180,7 @@ impl ResultsUI {
                                 insert_icon_span(
                                     &mut t,
                                     &icon_name_hz,
-                                    !is_selected && nav_bar_span.is_some(),
+                                    !is_selected && !is_yanked && !is_cut && nav_bar_span.is_some(),
                                 );
                             }
                             if self.config.symlink_target {
@@ -1269,7 +1269,7 @@ impl ResultsUI {
                         insert_icon_span(
                             &mut col,
                             &icon_name_hz,
-                            !is_selected && nav_bar_span.is_some(),
+                            !is_selected && !is_yanked && !is_cut && nav_bar_span.is_some(),
                         );
                     }
                     if self.config.symlink_target && x == 0 {
