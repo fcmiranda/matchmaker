@@ -1522,7 +1522,7 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                                 let offset_from_top = preview_ui
                                     .setting()
                                     .map(|s| s.layout.gap_counter_offset)
-                                    .unwrap_or(5);
+                                    .unwrap_or(0);
                                 let start_y = (gap_area.y + offset_from_top)
                                     .min(gap_area.y + gap_area.height.saturating_sub(n_rows));
 

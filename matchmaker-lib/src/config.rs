@@ -1297,7 +1297,7 @@ impl Default for PreviewLayout {
             min: 15,
             max: i16::MAX,
             gap: 1,
-            gap_counter_offset: 5,
+            gap_counter_offset: 0,
         }
     }
 }
