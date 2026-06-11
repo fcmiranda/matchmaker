@@ -163,6 +163,8 @@ pub struct RenderConfig {
     pub header: DisplayConfig,
     /// Action dialog box above the filter input.
     pub action: ActionBoxConfig,
+    /// Breadcrumb showing the current directory.
+    pub breadcrumb: BreadcrumbConfig,
 }
 
 impl RenderConfig {
@@ -425,6 +427,41 @@ impl Default for ActionBoxConfig {
             preview_height: 0,
             border: BorderSetting {
                 sides: Some(Borders::BOTTOM),
+                ..Default::default()
+            },
+        }
+    }
+}
+
+/// Configuration for the breadcrumb showing current path.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+#[partial(path, derive(Debug, Clone, PartialEq, Deserialize, Serialize))]
+pub struct BreadcrumbConfig {
+    /// Show a breadcrumb on top.
+    pub show: bool,
+    /// Separator used in the breadcrumb.
+    pub separator: String,
+    /// Style of the breadcrumb text.
+    #[partial(recurse)]
+    pub style: StyleSetting,
+    /// Style of the breadcrumb separator.
+    #[partial(recurse)]
+    pub separator_style: StyleSetting,
+}
+
+impl Default for BreadcrumbConfig {
+    fn default() -> Self {
+        Self {
+            show: false,
+            separator: "  ".to_string(),
+            style: StyleSetting {
+                fg: Some(Color::Cyan),
+                modifier: Modifier::BOLD,
+                ..Default::default()
+            },
+            separator_style: StyleSetting {
+                fg: Some(Color::DarkGray),
                 ..Default::default()
             },
         }

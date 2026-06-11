@@ -1353,7 +1353,7 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                     [Rect::default(), _area, footer, Rect::default()]
                 };
 
-                let [action, input, status, header, results] = picker_ui.layout(picker_area);
+                let [breadcrumb, action, input, status, header, results] = picker_ui.layout(picker_area);
 
                 // save dimensions and check if dimensions changed
                 did_resize = state.update_layout(Layout {
@@ -1450,26 +1450,67 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                         frame.render_widget(cfg.border.as_static_block(), action_full_rect);
                     }
 
-                    let action_input_rect = Rect {
-                        x: action_full_rect.x,
-                        y: action_full_rect.y,
-                        width: action_w,
-                        height: action_full_rect.height.min(1),
-                    };
-                    render_input(frame, action_input_rect, &mut picker_ui.action, None, None);
+                let mut current_y = action_full_rect.y;
 
-                    // Render preview area below if preview_height > 0.
-                    if cfg.preview_height > 0 && action.height > 2 {
-                        let preview_rect = Rect {
-                            x: action_full_rect.x,
-                            y: action_full_rect.y + 1,
-                            width: action_w,
-                            height: cfg.preview_height,
-                        };
-                        let block = ratatui::widgets::Block::bordered();
-                        frame.render_widget(block, preview_rect);
-                    }
+                let action_input_rect = Rect {
+                    x: action_full_rect.x,
+                    y: current_y,
+                    width: action_w,
+                    height: action_full_rect.height.min(1),
+                };
+                render_input(frame, action_input_rect, &mut picker_ui.action, None, None);
+                current_y += 1;
+
+                // Render preview area below if preview_height > 0.
+                if cfg.preview_height > 0 && action_full_rect.height > current_y - action_full_rect.y {
+                    let preview_rect = Rect {
+                        x: action_full_rect.x,
+                        y: current_y,
+                        width: action_w,
+                        height: cfg.preview_height,
+                    };
+                    let block = ratatui::widgets::Block::bordered();
+                    frame.render_widget(block, preview_rect);
                 }
+            }
+
+            if picker_ui.breadcrumb_config.show && breadcrumb.height > 0 {
+                if let Ok(cwd) = std::env::current_dir() {
+                    let mut components = Vec::new();
+                    let home_dir = std::env::var("HOME").ok().map(std::path::PathBuf::from);
+
+                    if let Some(home) = home_dir {
+                        if let Ok(stripped) = cwd.strip_prefix(&home) {
+                            components.push("~".to_string());
+                            for comp in stripped.components() {
+                                components.push(comp.as_os_str().to_string_lossy().to_string());
+                            }
+                        }
+                    }
+
+                    if components.is_empty() {
+                        for comp in cwd.components() {
+                            components.push(comp.as_os_str().to_string_lossy().to_string());
+                        }
+                    }
+
+                    let mut spans = Vec::new();
+                    for (i, text) in components.iter().enumerate() {
+                        spans.push(ratatui::text::Span::styled(
+                            text.clone(),
+                            ratatui::style::Style::from(picker_ui.breadcrumb_config.style.clone()),
+                        ));
+                        if i < components.len() - 1 {
+                            spans.push(ratatui::text::Span::styled(
+                                picker_ui.breadcrumb_config.separator.clone(),
+                                ratatui::style::Style::from(picker_ui.breadcrumb_config.separator_style.clone()),
+                            ));
+                        }
+                    }
+                    let p = ratatui::widgets::Paragraph::new(ratatui::text::Line::from(spans));
+                    frame.render_widget(p, breadcrumb);
+                }
+            }
                 if picker_ui.query.config.show {
                     cursor_y_offset = render_input(
                         frame,

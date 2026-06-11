@@ -78,6 +78,7 @@ impl UI {
             config.query,
             config.header,
             config.action,
+            config.breadcrumb,
             matcher,
             worker,
             selection_set,
@@ -137,6 +138,7 @@ pub struct PickerUI<'a, T: SSS, S: Selection> {
     pub action: QueryUI,
     pub action_visible: bool,
     pub action_config: ActionBoxConfig,
+    pub breadcrumb_config: crate::config::BreadcrumbConfig,
     pub results: ResultsUI,
     pub query: QueryUI,
     pub header: DisplayUI,
@@ -152,6 +154,7 @@ impl<'a, T: SSS, S: Selection> PickerUI<'a, T, S> {
         input_config: QueryConfig,
         header_config: DisplayConfig,
         action_config: ActionBoxConfig,
+        breadcrumb_config: crate::config::BreadcrumbConfig,
         matcher: &'a mut nucleo::Matcher,
         worker: Worker<T>,
         selections: Selector<T, S>,
@@ -164,6 +167,7 @@ impl<'a, T: SSS, S: Selection> PickerUI<'a, T, S> {
             }),
             action_visible: false,
             action_config,
+            breadcrumb_config,
             results: ResultsUI::new(results_config, status_config),
             query: QueryUI::new(input_config),
             header: DisplayUI::new(header_config),
@@ -173,13 +177,14 @@ impl<'a, T: SSS, S: Selection> PickerUI<'a, T, S> {
         }
     }
 
-    pub fn layout(&self, area: Rect) -> [Rect; 5] {
+    pub fn layout(&self, area: Rect) -> [Rect; 6] {
         let PickerUI {
             query,
             header,
             results,
             action_visible,
             action_config,
+            breadcrumb_config,
             ..
         } = self;
 
@@ -192,6 +197,7 @@ impl<'a, T: SSS, S: Selection> PickerUI<'a, T, S> {
         };
 
         let mut constraints = [
+            Constraint::Length(if breadcrumb_config.show { 1 } else { 0 }), // breadcrumb
             Constraint::Length(action_height), // action (input + preview)
             Constraint::Length(if query.config.show { 1 + query.config.border.height() } else { 0 }), // filter input
             Constraint::Length(if query.config.status_inline {
