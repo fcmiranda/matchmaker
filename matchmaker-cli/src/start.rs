@@ -243,6 +243,7 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
             "ctrl-r",
             matchmaker::acs![Action::Semantic("fm_redo".into())],
         );
+        nb("D", matchmaker::acs![Action::Semantic("fm_dragdrop".into())]);
     }
 
     if cli.dump_config {
@@ -941,6 +942,7 @@ pub async fn start(config: Config, no_read: bool, group_prefix: Option<String>) 
             Action::Semantic(ref s) if s == "fm_paste" => acs![MMAction::FmPaste],
             Action::Semantic(ref s) if s == "fm_undo" => acs![MMAction::FmUndo],
             Action::Semantic(ref s) if s == "fm_redo" => acs![MMAction::FmRedo],
+            Action::Semantic(ref s) if s == "fm_dragdrop" => acs![MMAction::FmDragDrop],
             Action::Semantic(ref s) if s == "reloadnext" => acs![MMAction::ReloadNext(None)],
             Action::Semantic(ref s) if s == "reload_local" => acs![MMAction::ReloadNext(Some(0))],
             _ => acs![a],

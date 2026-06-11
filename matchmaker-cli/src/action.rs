@@ -99,6 +99,7 @@ pub enum MMAction {
     FmPaste,
     FmUndo,
     FmRedo,
+    FmDragDrop,
     ReloadReady(Vec<String>),
 }
 
@@ -722,6 +723,18 @@ pub fn action_handler(
                 let _ = render_tx.send(RenderCommand::Action(Action::Reload(String::new())));
             }
         }
+        MMAction::FmDragDrop => {
+            let paths = fm_current_items(state);
+            if !paths.is_empty() {
+                let cwd = std::env::current_dir().unwrap_or_default();
+                let mut cmd = std::process::Command::new("ripdrag");
+                cmd.args(&paths);
+                cmd.current_dir(cwd);
+                if let Err(e) = cmd.spawn() {
+                    log::error!("fm dragdrop: {e}");
+                }
+            }
+        }
     }
 }
 
@@ -785,7 +798,7 @@ enum_from_str_display! {
     MMAction;
 
     units:
-    CycleSort, HistoryUp, HistoryDown, Accept, ReloadPrev, FmCreateStart, FmDeleteStart, FmRenameStart, FmUnzipStart, FmZipStart, FmYank, FmUnyank, FmCut, FmUncut, FmPaste, FmUndo, FmRedo;
+    CycleSort, HistoryUp, HistoryDown, Accept, ReloadPrev, FmCreateStart, FmDeleteStart, FmRenameStart, FmUnzipStart, FmZipStart, FmYank, FmUnyank, FmCut, FmUncut, FmPaste, FmUndo, FmRedo, FmDragDrop;
 
 
     tuples:
