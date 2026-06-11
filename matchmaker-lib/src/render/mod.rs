@@ -1494,6 +1494,12 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                         }
                     }
 
+                    if picker_ui.breadcrumb_config.current_folder_only && !components.is_empty() {
+                        let last = components.pop().unwrap();
+                        components.clear();
+                        components.push(last);
+                    }
+
                     let mut spans = Vec::new();
                     let truncate_len = picker_ui.breadcrumb_config.truncate_length;
                     let num_components = components.len();

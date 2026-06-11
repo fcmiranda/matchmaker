@@ -450,6 +450,8 @@ pub struct BreadcrumbConfig {
     pub separator_style: StyleSetting,
     /// Maximum length for intermediate folder names. 0 means no truncation.
     pub truncate_length: usize,
+    /// If true, only show the current folder name.
+    pub current_folder_only: bool,
 }
 
 impl Default for BreadcrumbConfig {
@@ -467,6 +469,7 @@ impl Default for BreadcrumbConfig {
                 ..Default::default()
             },
             truncate_length: 0,
+            current_folder_only: false,
         }
     }
 }
