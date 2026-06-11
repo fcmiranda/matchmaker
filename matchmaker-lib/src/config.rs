@@ -448,6 +448,8 @@ pub struct BreadcrumbConfig {
     /// Style of the breadcrumb separator.
     #[partial(recurse)]
     pub separator_style: StyleSetting,
+    /// Maximum length for intermediate folder names. 0 means no truncation.
+    pub truncate_length: usize,
 }
 
 impl Default for BreadcrumbConfig {
@@ -464,6 +466,7 @@ impl Default for BreadcrumbConfig {
                 fg: Some(Color::DarkGray),
                 ..Default::default()
             },
+            truncate_length: 0,
         }
     }
 }

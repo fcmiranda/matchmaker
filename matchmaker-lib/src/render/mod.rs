@@ -1495,12 +1495,21 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                     }
 
                     let mut spans = Vec::new();
-                    for (i, text) in components.iter().enumerate() {
+                    let truncate_len = picker_ui.breadcrumb_config.truncate_length;
+                    let num_components = components.len();
+
+                    for (i, mut text) in components.into_iter().enumerate() {
+                        if truncate_len > 0 && i < num_components.saturating_sub(1) {
+                            if text != "~" && text.chars().count() > truncate_len {
+                                text = text.chars().take(truncate_len).collect();
+                            }
+                        }
+
                         spans.push(ratatui::text::Span::styled(
-                            text.clone(),
+                            text,
                             ratatui::style::Style::from(picker_ui.breadcrumb_config.style.clone()),
                         ));
-                        if i < components.len() - 1 {
+                        if i < num_components - 1 {
                             spans.push(ratatui::text::Span::styled(
                                 picker_ui.breadcrumb_config.separator.clone(),
                                 ratatui::style::Style::from(picker_ui.breadcrumb_config.separator_style.clone()),
