@@ -1279,6 +1279,81 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                 let full_width_footer = footer_ui.is_single_column()
                     && footer_ui.config.row_connection == RowConnectionStyle::Full;
 
+                let mut breadcrumb_spans = Vec::new();
+                let mut is_global_breadcrumb = false;
+                let mut global_breadcrumb_rect = Rect::default();
+
+                if picker_ui.breadcrumb_config.show {
+                    if let Ok(cwd) = std::env::current_dir() {
+                        let mut components = Vec::new();
+                        let home_dir = std::env::var("HOME").ok().map(std::path::PathBuf::from);
+
+                        if let Some(home) = home_dir {
+                            if let Ok(stripped) = cwd.strip_prefix(&home) {
+                                components.push("~".to_string());
+                                for comp in stripped.components() {
+                                    components.push(comp.as_os_str().to_string_lossy().to_string());
+                                }
+                            }
+                        }
+
+                        if components.is_empty() {
+                            for comp in cwd.components() {
+                                components.push(comp.as_os_str().to_string_lossy().to_string());
+                            }
+                        }
+
+                        if picker_ui.breadcrumb_config.current_folder_only && !components.is_empty() {
+                            let last = components.pop().unwrap();
+                            components.clear();
+                            components.push(last);
+                        }
+
+                        let truncate_len = picker_ui.breadcrumb_config.truncate_length;
+                        let num_components = components.len();
+                        let mut breadcrumb_width = 0;
+
+                        for (i, mut text) in components.into_iter().enumerate() {
+                            if truncate_len > 0 && i < num_components.saturating_sub(1) {
+                                if text != "~" && text.chars().count() > truncate_len {
+                                    text = text.chars().take(truncate_len).collect();
+                                }
+                            }
+
+                            breadcrumb_width += text.chars().count() as u16;
+                            breadcrumb_spans.push(ratatui::text::Span::styled(
+                                text,
+                                ratatui::style::Style::from(picker_ui.breadcrumb_config.style.clone()),
+                            ));
+                            if i < num_components - 1 {
+                                let sep = picker_ui.breadcrumb_config.separator.clone();
+                                breadcrumb_width += sep.chars().count() as u16;
+                                breadcrumb_spans.push(ratatui::text::Span::styled(
+                                    sep,
+                                    ratatui::style::Style::from(picker_ui.breadcrumb_config.separator_style.clone()),
+                                ));
+                            }
+                        }
+
+                        // Determine if we need global breadcrumb
+                        let picker_w = if let Some(p) = preview_ui.as_ref() {
+                            if p.visible() {
+                                let [_, p_area, _] = p.split(_area);
+                                p_area.width
+                            } else {
+                                _area.width
+                            }
+                        } else {
+                            _area.width
+                        };
+
+                        if breadcrumb_width > picker_w {
+                            is_global_breadcrumb = true;
+                            global_breadcrumb_rect = split(&mut _area, 1, !picker_ui.reverse());
+                        }
+                    }
+                }
+
                 let mut footer =
                     if full_width_footer || preview_ui.as_ref().is_none_or(|p| !p.visible()) {
                         split(&mut _area, footer_ui.height(), picker_ui.reverse())
@@ -1353,7 +1428,14 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                     [Rect::default(), _area, footer, Rect::default()]
                 };
 
+                let original_breadcrumb_show = picker_ui.breadcrumb_config.show;
+                if is_global_breadcrumb {
+                    picker_ui.breadcrumb_config.show = false;
+                }
                 let [breadcrumb, action, input, status, header, results] = picker_ui.layout(picker_area);
+                if is_global_breadcrumb {
+                    picker_ui.breadcrumb_config.show = original_breadcrumb_show;
+                }
 
                 // save dimensions and check if dimensions changed
                 did_resize = state.update_layout(Layout {
@@ -1474,56 +1556,16 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                 }
             }
 
-            if picker_ui.breadcrumb_config.show && breadcrumb.height > 0 {
-                if let Ok(cwd) = std::env::current_dir() {
-                    let mut components = Vec::new();
-                    let home_dir = std::env::var("HOME").ok().map(std::path::PathBuf::from);
+            if picker_ui.breadcrumb_config.show && !breadcrumb_spans.is_empty() {
+                let target_rect = if is_global_breadcrumb {
+                    global_breadcrumb_rect
+                } else {
+                    breadcrumb
+                };
 
-                    if let Some(home) = home_dir {
-                        if let Ok(stripped) = cwd.strip_prefix(&home) {
-                            components.push("~".to_string());
-                            for comp in stripped.components() {
-                                components.push(comp.as_os_str().to_string_lossy().to_string());
-                            }
-                        }
-                    }
-
-                    if components.is_empty() {
-                        for comp in cwd.components() {
-                            components.push(comp.as_os_str().to_string_lossy().to_string());
-                        }
-                    }
-
-                    if picker_ui.breadcrumb_config.current_folder_only && !components.is_empty() {
-                        let last = components.pop().unwrap();
-                        components.clear();
-                        components.push(last);
-                    }
-
-                    let mut spans = Vec::new();
-                    let truncate_len = picker_ui.breadcrumb_config.truncate_length;
-                    let num_components = components.len();
-
-                    for (i, mut text) in components.into_iter().enumerate() {
-                        if truncate_len > 0 && i < num_components.saturating_sub(1) {
-                            if text != "~" && text.chars().count() > truncate_len {
-                                text = text.chars().take(truncate_len).collect();
-                            }
-                        }
-
-                        spans.push(ratatui::text::Span::styled(
-                            text,
-                            ratatui::style::Style::from(picker_ui.breadcrumb_config.style.clone()),
-                        ));
-                        if i < num_components - 1 {
-                            spans.push(ratatui::text::Span::styled(
-                                picker_ui.breadcrumb_config.separator.clone(),
-                                ratatui::style::Style::from(picker_ui.breadcrumb_config.separator_style.clone()),
-                            ));
-                        }
-                    }
-                    let p = ratatui::widgets::Paragraph::new(ratatui::text::Line::from(spans));
-                    frame.render_widget(p, breadcrumb);
+                if target_rect.height > 0 {
+                    let p = ratatui::widgets::Paragraph::new(ratatui::text::Line::from(breadcrumb_spans));
+                    frame.render_widget(p, target_rect);
                 }
             }
                 if picker_ui.query.config.show {
