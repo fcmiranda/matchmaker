@@ -767,6 +767,7 @@ pub async fn start(config: Config, no_read: bool, group_prefix: Option<String>) 
     );
     mm._register_become_handler(cli_formatter.clone());
     let chdir_formatter = cli_formatter.clone();
+    let mut history: std::collections::HashMap<std::path::PathBuf, String> = std::collections::HashMap::new();
     mm.register_interrupt_handler(Interrupt::ChDir, move |state| {
         let template = state.payload().clone();
         if template.is_empty() {
@@ -787,16 +788,41 @@ pub async fn start(config: Config, no_read: bool, group_prefix: Option<String>) 
             }
         }
 
+        let mut old_cwd = None;
+        if state.ui.config.nav_mode {
+            if let Ok(cwd) = std::env::current_dir() {
+                history.insert(cwd.clone(), state.picker_ui.query.input.clone());
+                old_cwd = Some(cwd);
+            }
+        }
+
         log::debug!("ChDir: {path}");
         if let Err(e) = std::env::set_current_dir(&path) {
             log::warn!("ChDir({path}) failed: {e}");
-        } else if let Some(t) = target_to_select {
-            unsafe {
-                std::env::set_var("MM_TARGET_ITEM", t);
-            }
         } else {
-            unsafe {
-                std::env::remove_var("MM_TARGET_ITEM");
+            if let Some(t) = target_to_select {
+                unsafe {
+                    std::env::set_var("MM_TARGET_ITEM", t);
+                }
+            } else {
+                unsafe {
+                    std::env::remove_var("MM_TARGET_ITEM");
+                }
+            }
+
+            if state.ui.config.nav_mode {
+                if let Ok(new_cwd) = std::env::current_dir() {
+                    let is_parent = old_cwd.as_ref().map_or(false, |old| old.starts_with(&new_cwd) && old != &new_cwd);
+                    if is_parent {
+                        if let Some(saved) = history.remove(&new_cwd) {
+                            state.picker_ui.query.set(Some(saved), 0);
+                        } else {
+                            state.picker_ui.query.set(Some(String::new()), 0);
+                        }
+                    } else {
+                        state.picker_ui.query.set(Some(String::new()), 0);
+                    }
+                }
             }
         }
     });
