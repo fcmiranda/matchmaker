@@ -14,6 +14,14 @@ use crate::{
     utils::serde::{escaped_opt_char, escaped_opt_string},
 };
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum NavFocus {
+    #[default]
+    Filter,
+    Picker,
+}
+
 use cba::serde::transform::{camelcase_normalized, camelcase_normalized_option};
 use ratatui::{
     style::{Color, Modifier, Style},
@@ -281,6 +289,11 @@ pub struct UiConfig {
     /// semantic binds (d, a, r, …) are not injected.  Enable with
     /// `--nav basic` or in TOML as `nav_basic = true`.
     pub nav_basic: bool,
+
+    #[partial(alias = "fm_focus_on_start")]
+    #[serde(alias = "focus_on_start")]
+    #[serde(default)]
+    pub nav_focus_on_start: NavFocus,
 }
 
 impl Default for UiConfig {
@@ -324,6 +337,7 @@ impl Default for UiConfig {
             nav_notify: false,
             nav_passthrough: false,
             nav_basic: false,
+            nav_focus_on_start: NavFocus::Filter,
         }
     }
 }
