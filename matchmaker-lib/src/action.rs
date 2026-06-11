@@ -153,6 +153,10 @@ pub enum Action<A: ActionExt = NullActionExt> {
     DeleteChar,
     /// Delete word
     DeleteWord,
+    /// Delete next char
+    DeleteNextChar,
+    /// Delete next word
+    DeleteNextWord,
     /// Delete to start of line
     DeleteLineStart,
     /// Delete to end of line
@@ -377,7 +381,7 @@ enum_from_str_display!(
 
     PreviewHalfPageUp, PreviewHalfPageDown,
 
-    ForwardChar,BackwardChar, ForwardWord, BackwardWord, DeleteChar, DeleteWord, DeleteLineStart, DeleteLineEnd, Cancel, Redraw, NextColumn, PrevColumn, PrintKey;
+    ForwardChar,BackwardChar, ForwardWord, BackwardWord, DeleteChar, DeleteWord, DeleteNextChar, DeleteNextWord, DeleteLineStart, DeleteLineEnd, Cancel, Redraw, NextColumn, PrevColumn, PrintKey;
 
     tuples:
     Execute, ExecuteAsync, ExecuteThen, ExecuteSilent, Become, BecomeSilent, Preview,

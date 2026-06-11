@@ -249,6 +249,27 @@ impl InputUI {
         self.recompute_graphemes();
     }
 
+    pub fn delete_next(&mut self) {
+        if self.cursor < self.graphemes.len() {
+            let start = self.byte_index(self.cursor);
+            let end = self.byte_index(self.cursor + 1);
+            self.input.replace_range(start..end, "");
+            self.recompute_graphemes();
+        }
+    }
+
+    pub fn delete_next_word(&mut self) {
+        let old_cursor = self.cursor;
+        self.forward_word();
+        let new_cursor = self.cursor;
+
+        let start = self.byte_index(old_cursor);
+        let end = self.byte_index(new_cursor);
+        self.input.replace_range(start..end, "");
+        self.recompute_graphemes();
+        self.cursor = old_cursor;
+    }
+
     pub fn delete_line_start(&mut self) {
         let end = self.byte_index(self.cursor);
         self.input.replace_range(0..end, "");

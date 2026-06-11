@@ -86,6 +86,8 @@ fn action_from_null<A: ActionExt>(action: Action<NullActionExt>) -> Option<Actio
         Action::BackwardWord => Action::BackwardWord,
         Action::DeleteChar => Action::DeleteChar,
         Action::DeleteWord => Action::DeleteWord,
+        Action::DeleteNextChar => Action::DeleteNextChar,
+        Action::DeleteNextWord => Action::DeleteNextWord,
         Action::DeleteLineStart => Action::DeleteLineStart,
         Action::DeleteLineEnd => Action::DeleteLineEnd,
         Action::Cancel => Action::Cancel,
@@ -1053,6 +1055,20 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                                 action_input.delete_word()
                             } else {
                                 query.delete_word()
+                            }
+                        }
+                        Action::DeleteNextChar => {
+                            if *action_visible {
+                                action_input.delete_next()
+                            } else {
+                                query.delete_next()
+                            }
+                        }
+                        Action::DeleteNextWord => {
+                            if *action_visible {
+                                action_input.delete_next_word()
+                            } else {
+                                query.delete_next_word()
                             }
                         }
                         Action::DeleteLineStart => {
