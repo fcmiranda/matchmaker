@@ -261,6 +261,10 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
             "tab".parse().expect("tab trigger should parse"),
             matchmaker::acs![matchmaker::Action::ToggleFocus],
         );
+        config.binds.insert(
+            "shift-enter".parse().expect("shift-enter should parse"),
+            matchmaker::acs![matchmaker::Action::Print("{=}".to_string()), matchmaker::Action::Quit(2)],
+        );
     }
     config.binds.check_cycles().map_err(anyhow::Error::msg)?;
     config.binds.retain(|_, actions| !actions.is_empty());
@@ -373,6 +377,10 @@ fn apply_nav_props(props: &[String], config: &mut Config) {
                     config.render.ui.nav_blink = true;
                     config.render.ui.nav_blink_rate = parse_blink_rate(s);
                 }
+                Some(("focus-on-start", s)) => match s.trim().to_ascii_lowercase().as_str() {
+                    "picker" => config.render.ui.nav_focus_on_start = matchmaker::config::NavFocus::Picker,
+                    _ => config.render.ui.nav_focus_on_start = matchmaker::config::NavFocus::Filter,
+                },
                 Some(("marker", s)) => config.render.ui.nav_marker = s.to_string(),
                 Some(("prompt", s)) => config.render.ui.nav_prompt = s.to_string(),
                 Some(("color", s)) => match s.trim().parse::<ratatui::style::Color>() {

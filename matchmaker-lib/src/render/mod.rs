@@ -245,6 +245,12 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
     mut paste_handler: Option<PasteHandler<T, S>>,
 ) -> Result<Vec<S>, MatchError> {
     let mut state = State::new();
+    if ui.config.nav_mode {
+        match ui.config.nav_focus_on_start {
+            crate::config::NavFocus::Picker => state.focus = Focus::Results,
+            crate::config::NavFocus::Filter => state.focus = Focus::Input,
+        }
+    }
 
     if let Some(handler) = initializer {
         handler(&mut state.dispatcher(
