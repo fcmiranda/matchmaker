@@ -111,7 +111,9 @@ if (Get-Command fd -ErrorAction SilentlyContinue) {
 
 # Navigation
 "up" = "Up"
+"ctrl-k" = "Up"
 "down" = "Down"
+"ctrl-j" = "Down"
 "pagedown" = "HalfPageDown"
 "pageup" = "HalfPageUp"
 "shift-up" = "PreviewHalfPageUp"

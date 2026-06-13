@@ -110,7 +110,9 @@ ansi = false # don't set to true here
 
 # Navigation
 "up" = "Up"
+"ctrl-k" = "Up"
 "down" = "Down"
+"ctrl-j" = "Down"
 "pagedown" = "HalfPageDown"
 "pageup" = "HalfPageUp"
 "shift-up" = "PreviewHalfPageUp"
