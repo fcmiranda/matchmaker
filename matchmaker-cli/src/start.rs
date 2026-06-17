@@ -902,10 +902,11 @@ pub async fn start(config: Config, no_read: bool, group_prefix: Option<String>) 
                     for line in lines {
                         let _ = push_fn(line.to_string());
                     }
-                    let _ = reload_render_tx.send(matchmaker::message::RenderCommand::Action(
-                        matchmaker::action::Action::Custom(crate::action::MMAction::ReloadReady(vec![]))
-                    ));
                 }
+                
+                let _ = reload_render_tx.send(matchmaker::message::RenderCommand::Action(
+                    matchmaker::action::Action::Custom(crate::action::MMAction::ReloadReady(vec![]))
+                ));
             });
         }
     });
