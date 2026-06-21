@@ -457,41 +457,54 @@ impl ResultsUI {
         let end = self.bottom + self.height as u32;
         let as_cols = !self.config.stacked_columns;
 
-        let nav_bar_span = nav_bar_style.map(|(border_type, style)| {
-            let border_char = match border_type {
-                ratatui::widgets::BorderType::Plain => "│".to_string(),
-                ratatui::widgets::BorderType::Rounded => "│".to_string(),
-                ratatui::widgets::BorderType::Double => "║".to_string(),
-                ratatui::widgets::BorderType::Thick => "▌".to_string(),
-                ratatui::widgets::BorderType::QuadrantInside => "▐".to_string(),
-                ratatui::widgets::BorderType::QuadrantOutside => "▌".to_string(),
-                _ => "│".to_string(),
-            };
-            ratatui::text::Span::styled(border_char, style)
-        });
-
-        let dynamic_multi_prefix = if let Some((border_type, _)) = nav_bar_style {
-            let border_char = match border_type {
-                ratatui::widgets::BorderType::Plain => "│",
-                ratatui::widgets::BorderType::Rounded => "│",
+        let get_border_char = |is_first: bool, is_last: bool, border_type: ratatui::widgets::BorderType| -> &'static str {
+            match border_type {
+                ratatui::widgets::BorderType::Plain | ratatui::widgets::BorderType::Rounded => {
+                    if is_first && is_last {
+                        "│"
+                    } else if is_first {
+                        "╷"
+                    } else if is_last {
+                        "╵"
+                    } else {
+                        "│"
+                    }
+                },
                 ratatui::widgets::BorderType::Double => "║",
                 ratatui::widgets::BorderType::Thick => "▌",
                 ratatui::widgets::BorderType::QuadrantInside => "▐",
                 ratatui::widgets::BorderType::QuadrantOutside => "▌",
                 _ => "│",
-            };
-            if let Some(_first_char) = self.config.multi_prefix.chars().next() {
-                let rest: String = self.config.multi_prefix.chars().skip(1).collect();
-                format!("{}{}", border_char, rest)
-            } else {
-                format!("{} ", border_char)
             }
-        } else {
-            self.config.multi_prefix.clone()
         };
 
+        let nav_bar_style_clone = nav_bar_style.clone();
+        let get_nav_bar_span = move |is_first: bool, is_last: bool| -> Option<ratatui::text::Span<'static>> {
+            nav_bar_style_clone.clone().map(|(border_type, style)| {
+                let border_char = get_border_char(is_first, is_last, border_type);
+                ratatui::text::Span::styled(border_char, style)
+            })
+        };
+
+        let nav_bar_style_clone2 = nav_bar_style.clone();
+        let multi_prefix = self.config.multi_prefix.clone();
+        let get_dynamic_multi_prefix = move |is_first: bool, is_last: bool| -> String {
+            if let Some((border_type, _)) = nav_bar_style_clone2 {
+                let border_char = get_border_char(is_first, is_last, border_type);
+                if let Some(_first_char) = multi_prefix.chars().next() {
+                    let rest: String = multi_prefix.chars().skip(1).collect();
+                    format!("{}{}", border_char, rest)
+                } else {
+                    format!("{} ", border_char)
+                }
+            } else {
+                multi_prefix.clone()
+            }
+        };
+
+
         macro_rules! get_prefix {
-            ($row:expr, $is_selected:expr, $idx:expr, $item:expr, $columns:expr) => {{
+            ($row:expr, $is_selected:expr, $idx:expr, $item:expr, $columns:expr, $is_first:expr, $is_last:expr) => {{
                 let mut icon_name = String::new();
                 let mut is_spinner = false;
                 let mut spinner_col_idx = 0;
@@ -560,7 +573,7 @@ impl ResultsUI {
                     let f = format!("{frame} ");
                     crate::utils::string::fit_width(&f, self.config.multi_prefix.width())
                 } else if $is_selected || is_yanked || is_cut {
-                    dynamic_multi_prefix.clone()
+                    get_dynamic_multi_prefix($is_first, $is_last)
                 } else {
                     self.default_prefix($idx)
                 };
@@ -606,6 +619,7 @@ impl ResultsUI {
             self.config.show_skipped,
             freeze_snapshot,
         );
+        let results_len = results.len();
 
         // log::trace!(
         //     "len: {}, hscroll: {},  offset: {}, end: {}, limits: {:?}, medians: {:?}, last_widths: {:?}",
@@ -745,7 +759,10 @@ impl ResultsUI {
                 if trunc_height < h {
                     let mut remaining_height = h - trunc_height;
                     let is_selected = selector.contains(item);
-                    let (prefix, icon_name, is_spinner, spinner_col_idx, is_yanked, is_cut) = get_prefix!(row, is_selected, 0, item, columns);
+                    let is_first = rows.is_empty();
+                    let is_last = (self.height <= total_height + remaining_height) || (start_index as usize >= results_len);
+                    let nav_bar_span = get_nav_bar_span(is_first, is_last);
+                    let (prefix, icon_name, is_spinner, spinner_col_idx, is_yanked, is_cut) = get_prefix!(row, is_selected, 0, item, columns, is_first, is_last);
 
                     total_height += remaining_height;
 
@@ -904,7 +921,10 @@ impl ResultsUI {
             let h = height_of(&results[0]);
             let (_, row, item) = &mut results[0];
             let is_selected = selector.contains(item);
-            let (prefix, icon_name, is_spinner, spinner_col_idx, is_yanked, is_cut) = get_prefix!(row, is_selected, 0, item, columns);
+            let is_first = rows.is_empty();
+            let is_last = (self.height <= total_height + remaining_height) || (start_index as usize >= results_len);
+            let nav_bar_span = get_nav_bar_span(is_first, is_last);
+            let (prefix, icon_name, is_spinner, spinner_col_idx, is_yanked, is_cut) = get_prefix!(row, is_selected, 0, item, columns, is_first, is_last);
 
             total_height += remaining_height;
 
@@ -1033,7 +1053,8 @@ impl ResultsUI {
 
         let mut i = self.bottom_clip.is_some() as usize;
 
-        for (group, mut row, item) in results.drain(start_index as usize..) {
+        let mut drain_iter = results.drain(start_index as usize..).peekable();
+        while let Some((group, mut row, item)) = drain_iter.next() {
             let is_current_row = self.is_current(i);
             // note that the index changes *next* frame
             if let Click::ResultPos(c) = click {
@@ -1103,7 +1124,16 @@ impl ResultsUI {
 
             // determine prefix
             let is_selected = selector.contains(item);
-            let (prefix, icon_name_hz, is_spinner, spinner_col_idx, is_yanked, is_cut) = get_prefix!(row, is_selected, i, item, columns);
+            let is_first = rows.is_empty();
+            let is_last_in_results = drain_iter.peek().is_none();
+            let h = if as_cols {
+                row.iter().map(|t| t.height() as u16).max().unwrap_or_default()
+            } else {
+                row.iter().map(|t| t.height() as u16).sum::<u16>()
+            };
+            let is_last = is_last_in_results || (remaining_height <= h);
+            let nav_bar_span = get_nav_bar_span(is_first, is_last);
+            let (prefix, icon_name_hz, is_spinner, spinner_col_idx, is_yanked, is_cut) = get_prefix!(row, is_selected, i, item, columns, is_first, is_last);
 
             if as_cols {
                 // scroll down
