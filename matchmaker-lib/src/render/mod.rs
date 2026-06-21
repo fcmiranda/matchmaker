@@ -1499,7 +1499,7 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                     color: nav_color,
                     do_blink: nav_do_blink,
                     bold: nav_bold,
-                    bar: nav_bar,
+                    bar: None,
                     marker: String::new(),
                     nav_char: nav_char.clone(),
                 });
