@@ -471,9 +471,28 @@ impl ResultsUI {
                     }
                 },
                 ratatui::widgets::BorderType::Double => "║",
-                ratatui::widgets::BorderType::Thick => "▌",
-                ratatui::widgets::BorderType::QuadrantInside => "▐",
-                ratatui::widgets::BorderType::QuadrantOutside => "▌",
+                ratatui::widgets::BorderType::Thick | ratatui::widgets::BorderType::QuadrantOutside => {
+                    if is_first && is_last {
+                        "▌"
+                    } else if is_first {
+                        "▖"
+                    } else if is_last {
+                        "▘"
+                    } else {
+                        "▌"
+                    }
+                },
+                ratatui::widgets::BorderType::QuadrantInside => {
+                    if is_first && is_last {
+                        "▐"
+                    } else if is_first {
+                        "▗"
+                    } else if is_last {
+                        "▝"
+                    } else {
+                        "▐"
+                    }
+                },
                 _ => "│",
             }
         };
