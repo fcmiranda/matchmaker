@@ -5,13 +5,13 @@ max = 120
 
 # --- UI ---
 [ui]
+border = { type = "Rounded" }
 
 [query]
 prompt_style.fg = "Gray"
 
 [results]
 # wrap = true
-max_height = 16
 
 [status]
 
