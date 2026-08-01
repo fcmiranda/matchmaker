@@ -129,7 +129,7 @@ All colors and modifiers come from ratatui:
 
 #### Worker *(flattened)*
 
-- `sort_threshold`, `sort`: (number) Similarity threshold within which item order is preserved (0 to always sort).
+- `sort_threshold`, `sort`: (number | bool | string) Similarity threshold or mode: `0` or `true` to always sort, `false` or `u32::MAX` to never sort (preserve stream insertion order), `"smart"` or `"auto"` to preserve natural stream order on empty query and rank by fuzzy relevance score when typing.
 - `raw`: Enable raw mode where non-matching items are also displayed in a dimmed color. (unimplemented)
 - `track`: Track the current selection when the result list is updated. (unimplemented)
 - `reverse`: Reverse the order of the input (unimplemented)

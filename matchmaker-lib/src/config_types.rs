@@ -688,6 +688,30 @@ mod tests {
         let res: Result<TestName, _> = toml::from_str("name = \"col_1\"");
         assert!(res.is_err());
     }
+
+    #[derive(Deserialize)]
+    struct TestSort {
+        sort: SortThreshold,
+    }
+
+    #[test]
+    fn test_sort_threshold_smart_deserialization() {
+        let smart1: TestSort = toml::from_str("sort = \"smart\"").unwrap();
+        assert!(smart1.sort.is_smart());
+
+        let smart2: TestSort = toml::from_str("sort = \"auto\"").unwrap();
+        assert!(smart2.sort.is_smart());
+
+        let false_threshold: TestSort = toml::from_str("sort = false").unwrap();
+        assert_eq!(false_threshold.sort, SortThreshold::NEVER);
+
+        let true_threshold: TestSort = toml::from_str("sort = true").unwrap();
+        assert_eq!(true_threshold.sort, SortThreshold::ALWAYS);
+
+        assert_eq!(smart1.sort.get_effective_threshold(""), u32::MAX);
+        assert_eq!(smart1.sort.get_effective_threshold("   "), u32::MAX);
+        assert_eq!(smart1.sort.get_effective_threshold("gpu"), 0);
+    }
 }
 
 // ---------------------------------
@@ -696,6 +720,28 @@ define_transparent_wrapper!(
     #[serde(transparent)]
     SortThreshold: u32 = 0
 );
+
+impl SortThreshold {
+    pub const ALWAYS: Self = SortThreshold(0);
+    pub const NEVER: Self = SortThreshold(u32::MAX);
+    pub const SMART: Self = SortThreshold(u32::MAX - 1);
+
+    pub fn is_smart(&self) -> bool {
+        self.0 == u32::MAX - 1
+    }
+
+    pub fn get_effective_threshold(&self, query: &str) -> u32 {
+        if self.is_smart() {
+            if query.trim().is_empty() {
+                u32::MAX
+            } else {
+                0
+            }
+        } else {
+            self.0
+        }
+    }
+}
 
 impl<'de> Deserialize<'de> for SortThreshold {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -708,7 +754,7 @@ impl<'de> Deserialize<'de> for SortThreshold {
             type Value = SortThreshold;
 
             fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                write!(f, "a u32 or boolean")
+                write!(f, "a u32, boolean, or string ('smart', 'auto', 'true', 'false')")
             }
 
             fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
@@ -733,7 +779,29 @@ impl<'de> Deserialize<'de> for SortThreshold {
             where
                 E: serde::de::Error,
             {
-                Ok(SortThreshold(if v { 0 } else { u32::MAX }))
+                Ok(if v { SortThreshold::ALWAYS } else { SortThreshold::NEVER })
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                match v.to_lowercase().as_str() {
+                    "smart" | "auto" => Ok(SortThreshold::SMART),
+                    "true" => Ok(SortThreshold::ALWAYS),
+                    "false" => Ok(SortThreshold::NEVER),
+                    s => s
+                        .parse::<u32>()
+                        .map(SortThreshold)
+                        .map_err(|_| E::custom(format!("invalid sort option: '{}'", v))),
+                }
+            }
+
+            fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                self.visit_str(&v)
             }
         }
 
