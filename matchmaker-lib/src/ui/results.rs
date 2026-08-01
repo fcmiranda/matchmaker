@@ -1438,7 +1438,7 @@ impl ResultsUI {
 
         // log::trace!("{table:?}");
 
-        if self.config.border.sides.is_some() {
+        if !self.config.border.is_empty() {
             table = table.block(self.config.border.as_static_block());
         }
         table

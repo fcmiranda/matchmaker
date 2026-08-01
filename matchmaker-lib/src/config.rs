@@ -1205,7 +1205,7 @@ impl BorderSetting {
     pub fn sides(&self) -> Borders {
         if let Some(s) = self.sides {
             s
-        } else if self.color != Default::default() || self.r#type != Default::default() {
+        } else if self.r#type.is_some() {
             Borders::ALL
         } else {
             Borders::NONE

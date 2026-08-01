@@ -1980,8 +1980,10 @@ fn render_display(frame: &mut Frame, area: Rect, ui: &mut DisplayUI, results_ui:
 
 // a bit weird, do we want mutable, do we want &mut ui, whatever this is simplest
 fn render_ui(frame: &mut Frame, area: &mut Rect, ui: &UI) {
-    let widget = ui.make_ui();
-    frame.render_widget(widget, *area);
+    if ui.config.border.sides.is_some() {
+        let widget = ui.make_ui();
+        frame.render_widget(widget, *area);
+    }
     *area = ui.compute_area(area);
 }
 
