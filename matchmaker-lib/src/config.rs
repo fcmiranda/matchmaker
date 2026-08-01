@@ -1203,7 +1203,13 @@ impl BorderSetting {
     }
 
     pub fn sides(&self) -> Borders {
-        self.sides.unwrap_or(Borders::NONE)
+        if let Some(s) = self.sides {
+            s
+        } else if self.color != Default::default() || self.r#type != Default::default() {
+            Borders::ALL
+        } else {
+            Borders::NONE
+        }
     }
 
     pub fn as_static_block(&self) -> ratatui::widgets::Block<'static> {

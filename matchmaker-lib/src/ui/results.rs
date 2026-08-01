@@ -1438,7 +1438,9 @@ impl ResultsUI {
 
         // log::trace!("{table:?}");
 
-        table = table.block(self.config.border.as_static_block());
+        if self.config.border.sides.is_some() {
+            table = table.block(self.config.border.as_static_block());
+        }
         table
     }
 }
