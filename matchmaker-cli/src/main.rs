@@ -196,6 +196,101 @@ fn handle_frecency_cli(args: &[String]) -> bool {
             }
             true
         }
+        "init" => {
+            let shell = args.get(1).map(|s| s.as_str()).unwrap_or("zsh");
+            match shell {
+                "zsh" => println!("{}", include_str!("shell/zsh.sh")),
+                "bash" => println!("{}", include_str!("shell/bash.sh")),
+                "fish" => println!("{}", include_str!("shell/fish.fish")),
+                "nushell" | "nu" => println!("{}", include_str!("shell/nu.nu")),
+                "powershell" | "pwsh" => println!("{}", include_str!("shell/pwsh.ps1")),
+                _ => {
+                    eprintln!("Unsupported shell '{shell}'. Supported shells: zsh, bash, fish, nushell, powershell");
+                    exit(1);
+                }
+            }
+            true
+        }
+        "import" => {
+            let target = args.get(1).map(|s| s.as_str()).unwrap_or("zoxide");
+            if target == "zoxide" {
+                import_zoxide();
+            } else {
+                eprintln!("Unknown import target '{target}'. Supported targets: zoxide");
+                exit(1);
+            }
+            true
+        }
+        "clean" | "prune" => {
+            let store = matchmaker::frecency::FrecencyStore::open();
+            match store.clean_stale() {
+                Ok(count) => {
+                    println!("Cleaned {count} stale entries from frecency database.");
+                }
+                Err(err) => {
+                    eprintln!("Failed to clean frecency database: {err}");
+                    exit(1);
+                }
+            }
+            true
+        }
         _ => false,
+    }
+}
+
+fn import_zoxide() {
+    let store = matchmaker::frecency::FrecencyStore::open();
+    let mut imported_count = 0;
+
+    if let Ok(output) = std::process::Command::new("zoxide")
+        .args(["query", "-l", "-s"])
+        .output()
+    {
+        if output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            for line in stdout.lines() {
+                let trimmed = line.trim();
+                if trimmed.is_empty() {
+                    continue;
+                }
+                let parts: Vec<&str> = trimmed.split_whitespace().collect();
+                if parts.len() >= 2 {
+                    if let Ok(score) = parts[0].parse::<f64>() {
+                        let path = parts[1..].join(" ");
+                        let weight = score.round() as u64;
+                        if store.import_entry(&path, weight).is_ok() {
+                            imported_count += 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if imported_count == 0 {
+        let zoxide_db_path = dirs::data_local_dir()
+            .map(|d| d.join("zoxide").join("db.zo"))
+            .or_else(|| dirs::home_dir().map(|h| h.join(".local/share/zoxide/db.zo")));
+
+        if let Some(db_path) = zoxide_db_path {
+            if db_path.exists() {
+                if let Ok(content) = std::fs::read_to_string(&db_path) {
+                    for line in content.lines() {
+                        let trimmed = line.trim();
+                        if !trimmed.is_empty() && std::path::Path::new(trimmed).exists() {
+                            if store.import_entry(trimmed, 1).is_ok() {
+                                imported_count += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if imported_count > 0 {
+        println!("Successfully imported {imported_count} entries from zoxide into matchmaker frecency database.");
+    } else {
+        println!("No zoxide entries found to import.");
     }
 }

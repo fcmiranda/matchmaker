@@ -285,6 +285,79 @@ impl FrecencyStore {
         }
         records
     }
+
+    /// Import an entry with a specified access count/weight into the database.
+    pub fn import_entry(&self, raw_path: &str, count: u64) -> anyhow::Result<()> {
+        let Some(db) = self.db.as_ref() else {
+            return Ok(());
+        };
+
+        let key = clean_path(raw_path);
+        let now = current_unix_secs();
+
+        let write_txn = db.begin_write()?;
+        {
+            let mut table = write_txn.open_table(FRECENCY_TABLE)?;
+            let mut record = if let Some(guard) = table.get(key)? {
+                let json_str = guard.value();
+                serde_json::from_str::<FrecencyRecord>(json_str)
+                    .unwrap_or_else(|_| FrecencyRecord::new(key.to_string()))
+            } else {
+                FrecencyRecord::new(key.to_string())
+            };
+
+            let iterations = count.clamp(1, 50);
+            for _ in 0..iterations {
+                record.record_access(now);
+            }
+
+            let json_str = serde_json::to_string(&record)?;
+            table.insert(key, json_str.as_str())?;
+        }
+
+        write_txn.commit()?;
+        Ok(())
+    }
+
+    /// Purges all entries whose file/directory path no longer exists on disk.
+    pub fn clean_stale(&self) -> anyhow::Result<usize> {
+        let Some(db) = self.db.as_ref() else {
+            return Ok(0);
+        };
+
+        let mut keys_to_remove = Vec::new();
+        if let Ok(read_txn) = db.begin_read() {
+            if let Ok(table) = read_txn.open_table(FRECENCY_TABLE) {
+                if let Ok(iter) = table.iter() {
+                    for entry in iter.flatten() {
+                        let path_str = entry.0.value();
+                        if !Path::new(path_str).exists() {
+                            keys_to_remove.push(path_str.to_string());
+                        }
+                    }
+                }
+            }
+        }
+
+        if keys_to_remove.is_empty() {
+            return Ok(0);
+        }
+
+        let write_txn = db.begin_write()?;
+        let removed_count = {
+            let mut table = write_txn.open_table(FRECENCY_TABLE)?;
+            let mut count = 0;
+            for key in &keys_to_remove {
+                if table.remove(key.as_str())?.is_some() {
+                    count += 1;
+                }
+            }
+            count
+        };
+
+        write_txn.commit()?;
+        Ok(removed_count)
+    }
 }
 
 fn current_unix_secs() -> u64 {
@@ -344,6 +417,32 @@ mod tests {
 
         let snapshot = store.get_snapshot();
         assert_eq!(snapshot.get_bonus(path), score2);
+
+        let _ = fs::remove_dir_all(&temp_dir);
+        Ok(())
+    }
+
+    #[test]
+    fn test_store_import_and_clean_stale() -> anyhow::Result<()> {
+        let temp_dir = std::env::temp_dir().join("mm_test_frecency_clean");
+        let _ = fs::remove_dir_all(&temp_dir);
+        let db_path = temp_dir.join("test.redb");
+
+        let store = FrecencyStore::open_at(&db_path)?;
+        let existing_path = temp_dir.to_str().unwrap();
+        let non_existing_path = "/non/existent/path/for/mm/test.rs";
+
+        store.import_entry(existing_path, 3)?;
+        store.import_entry(non_existing_path, 5)?;
+
+        assert!(store.get_bonus(existing_path) > 0);
+        assert!(store.get_bonus(non_existing_path) > 0);
+
+        let cleaned = store.clean_stale()?;
+        assert_eq!(cleaned, 1);
+
+        assert!(store.get_bonus(existing_path) > 0);
+        assert_eq!(store.get_bonus(non_existing_path), 0);
 
         let _ = fs::remove_dir_all(&temp_dir);
         Ok(())
