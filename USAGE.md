@@ -748,6 +748,11 @@ printf "--- Group A\nItem 1\nItem 2\n--- Group B\nItem 3" | mm --group-prefix '-
 | `results.spinner_style` | `StyleSetting` | — |
 | `results.yank_prefix_style` | `StyleSetting` | `fg: Yellow, modifier: BOLD` |
 | `results.symlink_target_style` | `StyleSetting` | `fg: DarkGray` |
+| `results.dim_directory_path` | `bool` | `true` |
+| `results.directory_path_style` | `StyleSetting` | `fg: DarkGray` |
+| `matcher.worker.frecency` | `bool` | `false` |
+| `matcher.worker.frecency_weight` | `u32` | `1` |
+| `matcher.worker.typo_tolerance` | `bool` | `false` |
 | `ui.nav_color` | `Color` | `Reset` |
 
 ### `--color` shorthand keys
@@ -760,6 +765,43 @@ input-border  input-label
 header-border  header-label
 nav  selected-fg  selected-bg  selected-prefix  unselected-prefix  spinner  yank  symlink
 ```
+
+### Frecency & Navigation Subcommands (`mm <subcommand>`)
+
+- `mm add <path>`: Record an access event in the `redb` frecency database.
+- `mm rank <path>`: View access score, count, and timestamp for a path.
+- `mm list [keywords...]`: Query frecency database sorted by score, filtered by all keywords.
+- `mm init <shell> [--cmd <alias>]`: Output shell integration script (`zsh`, `bash`, `fish`, `nushell`, `powershell`).
+- `mm import zoxide`: Import historical frecency records from `zoxide`.
+- `mm clean` / `mm prune`: Remove non-existent paths from the database.
+- `mm cache [path]`: Fast-index files into warm cache (< 1ms).
+
+### Preset: `jump.toml` (Directory Jumping Optimization)
+
+The `jump.toml` preset is engineered for instant directory navigation:
+
+```toml
+[matcher]
+sort = "smart"
+depth_penalty = 15
+frecency = true
+frecency_weight = 2
+typo_tolerance = true
+
+[results]
+reverse = false
+icons = true
+symlink_target = true
+symlink_target_style.fg = "cyan"
+dim_directory_path = true
+directory_path_style.fg = "dark_gray"
+```
+
+- **Frecency Ranking:** Ranks results by exponential decay frequency + recency.
+- **Depth Penalty:** Penalizes deeply nested paths (`15`), prioritizing project root folders.
+- **Typo Tolerance:** Allows matching with 1-character typos/substitutions.
+- **Dim Directory Path:** Dims parent paths (`/home/user/dev/`) while highlighting target folder basenames (`matchmaker`).
+- **Multi-keyword Query:** `j dotfiles main` filters by all keywords and jumps directly to `~/.dotfiles/main`.
 
 ### New actions (for use in `[binds]` or `mm b '...'`)
 

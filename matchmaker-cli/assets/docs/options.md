@@ -315,8 +315,8 @@ See `mm --doc binds`.
 
 - `mm add <path>`: Record an access event for a file or directory path.
 - `mm rank <path>`: Query current frecency score and access statistics for a path.
-- `mm list [query]` / `mm query`: List all tracked paths ordered by frecency score descending.
-- `mm init <shell>`: Generate shell integration code (`zsh`, `bash`, `fish`, `nushell`, `powershell`).
+- `mm list [keyword1 keyword2 ...]` / `mm query`: List tracked paths sorted by frecency score descending, filtered to paths matching ALL keywords (e.g. `mm list dotfiles main`).
+- `mm init <shell> [--cmd <alias>]`: Generate shell integration code (`zsh`, `bash`, `fish`, `nushell`, `powershell`) with optional custom command alias (e.g. `mm init zsh --cmd j`).
 - `mm import zoxide`: Import historical directory records and scores from `zoxide`.
 - `mm clean` / `mm prune`: Purge stale/deleted paths from the frecency database.
 - `mm cache [path]`: Fast-index files in target directory into warm cache.
