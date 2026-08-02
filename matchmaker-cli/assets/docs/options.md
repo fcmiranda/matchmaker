@@ -130,6 +130,7 @@ All colors and modifiers come from ratatui:
 #### Worker *(flattened)*
 
 - `sort_threshold`, `sort`: (number | bool | string) Similarity threshold or mode: `0` or `true` to always sort, `false` or `u32::MAX` to never sort (preserve stream insertion order), `"smart"` or `"auto"` to preserve natural stream order on empty query and rank by fuzzy relevance score when typing.
+- `depth_penalty`, `dp`: (number) Penalty subtracted from fuzzy match rank score per directory depth level ('/' or '\'). Default `0` (disabled). Set to e.g. `15` to prioritize root/shallow files over deeply nested subfolders.
 - `raw`: Enable raw mode where non-matching items are also displayed in a dimmed color. (unimplemented)
 - `track`: Track the current selection when the result list is updated. (unimplemented)
 - `reverse`: Reverse the order of the input (unimplemented)

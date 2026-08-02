@@ -98,6 +98,7 @@ where
     pub col_indices_buffer: Vec<u32>,
     pub columns: Arc<[Column<T>]>,
     pub sort_threshold: crate::config::SortThreshold,
+    pub depth_penalty: u32,
 
     // Background tasks which push to the injector check their version matches this or exit
     pub(super) version: Arc<AtomicU32>,
@@ -141,6 +142,7 @@ impl<T: SSS> Worker<T> {
             group_header: None,
             columns,
             sort_threshold: crate::config::SortThreshold::NEVER,
+            depth_penalty: 0,
             version: Arc::new(AtomicU32::new(0)),
         }
     }
@@ -339,8 +341,49 @@ impl<T: SSS> Worker<T> {
         let total_width_limit: u16 = width_limits.iter().sum();
         let last_nonzero_idx = width_limits.iter().rposition(|&w| w != 0); // lowpri: not sure if this should be per row
 
-        let iter =
-            snapshot.matched_items(start.min(status.matched_count)..end.min(status.matched_count));
+        let items_buf: Vec<_> = if self.depth_penalty > 0
+            && !self
+                .query
+                .primary_column_query()
+                .unwrap_or_default()
+                .is_empty()
+        {
+            let total = status.matched_count;
+            let mut items: Vec<_> = snapshot
+                .matched_items(0..total)
+                .enumerate()
+                .collect();
+            let penalty = self.depth_penalty;
+            let col0 = &self.columns[0];
+            items.sort_by_key(|(idx, item)| {
+                let raw_path = col0.raw(item.data);
+                let depth = raw_path
+                    .as_bytes()
+                    .iter()
+                    .filter(|&&b| b == b'/' || b == b'\\')
+                    .count() as u32;
+                let base_score = total.saturating_sub(*idx as u32);
+                let effective_score = base_score.saturating_sub(depth * penalty);
+                std::cmp::Reverse(effective_score)
+            });
+            let range_start = start.min(total) as usize;
+            let range_end = end.min(total) as usize;
+            if range_start < items.len() {
+                let take_count = range_end.saturating_sub(range_start);
+                items
+                    .into_iter()
+                    .skip(range_start)
+                    .take(take_count)
+                    .map(|(_, item)| item)
+                    .collect()
+            } else {
+                Vec::new()
+            }
+        } else {
+            snapshot
+                .matched_items(start.min(status.matched_count)..end.min(status.matched_count))
+                .collect()
+        };
 
         let (vscroll_offset, stacked) = vscroll;
 
@@ -348,7 +391,7 @@ impl<T: SSS> Worker<T> {
         let mut last_emitted_group: Option<Arc<str>> = None;
         let group_header = &self.group_header;
 
-        for item in iter {
+        for item in &items_buf {
             let mut row = vec![];
 
             let mut to_skip = vscroll_offset as usize;

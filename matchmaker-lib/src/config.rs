@@ -54,6 +54,9 @@ pub struct WorkerConfig {
     /// How "stable" the results are. Higher values prioritize the initial ordering.
     #[serde(alias = "sort")]
     pub sort_threshold: SortThreshold,
+    /// Score penalty subtracted per path depth level ('/' or '\'). 0 disables penalty.
+    #[partial(alias = "dp")]
+    pub depth_penalty: u32,
     /// TODO: Enable raw mode where non-matching items are also displayed in a dimmed color.
     #[partial(alias = "r")]
     pub raw: bool,

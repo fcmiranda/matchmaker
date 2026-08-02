@@ -153,6 +153,7 @@ impl ConfigMatchmaker {
 
         worker.reverse_items(worker_config.reverse);
         worker.set_stability(worker_config.sort_threshold);
+        worker.depth_penalty = worker_config.depth_penalty;
 
         let injector = worker.injector();
 
