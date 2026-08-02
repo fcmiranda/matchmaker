@@ -174,6 +174,28 @@ fn handle_frecency_cli(args: &[String]) -> bool {
             }
             true
         }
+        "list" | "query" => {
+            let filter = args
+                .iter()
+                .skip(1)
+                .filter(|a| *a != "-l" && *a != "--list")
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(" ");
+
+            let store = matchmaker::frecency::FrecencyStore::open();
+            let snapshot = store.get_snapshot();
+            let mut entries: Vec<_> = snapshot.scores.into_iter().collect();
+            // Sort by score descending
+            entries.sort_by(|a, b| b.1.cmp(&a.1));
+
+            for (path, _score) in entries {
+                if filter.is_empty() || path.to_lowercase().contains(&filter.to_lowercase()) {
+                    println!("{path}");
+                }
+            }
+            true
+        }
         _ => false,
     }
 }
