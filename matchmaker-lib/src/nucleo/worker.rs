@@ -102,6 +102,7 @@ where
     pub frecency: bool,
     pub frecency_weight: u32,
     pub frecency_snapshot: Option<crate::frecency::FrecencySnapshot>,
+    pub typo_tolerance: bool,
 
     // Background tasks which push to the injector check their version matches this or exit
     pub(super) version: Arc<AtomicU32>,
@@ -149,6 +150,7 @@ impl<T: SSS> Worker<T> {
             frecency: false,
             frecency_weight: 1,
             frecency_snapshot: None,
+            typo_tolerance: false,
             version: Arc::new(AtomicU32::new(0)),
         }
     }

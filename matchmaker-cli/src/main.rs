@@ -234,8 +234,42 @@ fn handle_frecency_cli(args: &[String]) -> bool {
             }
             true
         }
+        "cache" => {
+            let start = std::time::Instant::now();
+            let root = args.get(1).map(std::path::PathBuf::from).unwrap_or_else(|| std::path::PathBuf::from("."));
+            let (count, cache_file) = cache_index(&root);
+            let elapsed = start.elapsed();
+            println!("Cached {count} entries into {} in {:.2?}", cache_file.display(), elapsed);
+            true
+        }
         _ => false,
     }
+}
+
+fn cache_index(root: &std::path::Path) -> (usize, std::path::PathBuf) {
+    let cache_dir = state_dir();
+    let _ = std::fs::create_dir_all(&cache_dir);
+    let cache_file = cache_dir.join("index_cache.txt");
+
+    let mut count = 0;
+    if let Ok(mut file) = std::fs::File::create(&cache_file) {
+        use std::io::Write;
+        let mut stack = vec![root.to_path_buf()];
+        while let Some(dir) = stack.pop() {
+            if let Ok(entries) = std::fs::read_dir(&dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    let path_str = path.display().to_string();
+                    let _ = writeln!(file, "{path_str}");
+                    count += 1;
+                    if path.is_dir() && !path_str.contains("/.") && !path_str.contains("node_modules") && !path_str.contains("/target/") {
+                        stack.push(path);
+                    }
+                }
+            }
+        }
+    }
+    (count, cache_file)
 }
 
 fn import_zoxide() {

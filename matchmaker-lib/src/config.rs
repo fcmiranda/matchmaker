@@ -62,6 +62,9 @@ pub struct WorkerConfig {
     pub frecency: bool,
     /// Multiplier for frecency bonus score added to matching items. Default is 1.
     pub frecency_weight: u32,
+    /// Enable typo tolerance for search queries >= 3 characters.
+    #[partial(alias = "tt")]
+    pub typo_tolerance: bool,
     /// TODO: Enable raw mode where non-matching items are also displayed in a dimmed color.
     #[partial(alias = "r")]
     pub raw: bool,
@@ -681,6 +684,12 @@ pub struct ResultsConfig {
     #[partial(recurse)]
     pub symlink_target_style: StyleSetting,
 
+    /// Dim directory prefixes in path results (e.g., 'dir/subdir/' is dimmed, 'filename' is bold).
+    pub dim_directory_path: bool,
+    /// Style for dimmed directory prefix text in path results.
+    #[partial(recurse)]
+    pub directory_path_style: StyleSetting,
+
     /// Style for multi-selected rows (not the cursor row).
     #[partial(recurse)]
     pub selected_style: StyleSetting,
@@ -760,6 +769,11 @@ impl Default for ResultsConfig {
             icons: false,
             symlink_target: false,
             symlink_target_style: StyleSetting {
+                fg: Some(Color::DarkGray),
+                ..Default::default()
+            },
+            dim_directory_path: true,
+            directory_path_style: StyleSetting {
                 fg: Some(Color::DarkGray),
                 ..Default::default()
             },

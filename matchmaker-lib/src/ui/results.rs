@@ -846,6 +846,9 @@ impl ResultsUI {
                                             widths[spinner_col_idx],
                                         );
                                     }
+                                    if self.config.dim_directory_path && x == 0 {
+                                        apply_dim_directory_path(&mut t, self.config.directory_path_style.into());
+                                    }
                                 }
                                 t
                             })
@@ -908,6 +911,9 @@ impl ResultsUI {
                                     self.config.symlink_target_style.into(),
                                     self.width,
                                 );
+                            }
+                            if self.config.dim_directory_path && col_idx == 0 {
+                                apply_dim_directory_path(col, self.config.directory_path_style.into());
                             }
 
                             let row = Row::new(vec![col.clone()]).height(height);
@@ -1852,5 +1858,43 @@ fn icon_for_name(name: &str) -> (char, Color) {
         "r" | "rmd" => ('\u{f25d}', Color::Blue),
         "tf" | "tfvars" => ('\u{e20f}', Color::Magenta),
         _ => ('\u{f15b}', Color::Gray), // nf-fa-file
+    }
+}
+
+fn apply_dim_directory_path(col: &mut ratatui::text::Text<'_>, dim_style: ratatui::style::Style) {
+    for line in &mut col.lines {
+        let full_str: String = line.spans.iter().map(|s| s.content.as_ref()).collect();
+        if let Some(last_slash_pos) = full_str.rfind(|c| c == '/' || c == '\\') {
+            let dir_end_idx = last_slash_pos + 1;
+            let mut curr_offset = 0;
+            let mut new_spans = Vec::new();
+            for span in line.spans.drain(..) {
+                let span_len = span.content.len();
+                let span_end = curr_offset + span_len;
+                if span_end <= dir_end_idx {
+                    let mut s = span;
+                    s.style = s.style.patch(dim_style);
+                    new_spans.push(s);
+                } else if curr_offset >= dir_end_idx {
+                    new_spans.push(span);
+                } else {
+                    let split_at = dir_end_idx - curr_offset;
+                    let dir_part = span.content[..split_at].to_string();
+                    let base_part = span.content[split_at..].to_string();
+
+                    let mut dir_span = span.clone();
+                    dir_span.content = dir_part.into();
+                    dir_span.style = dir_span.style.patch(dim_style);
+
+                    let mut base_span = span;
+                    base_span.content = base_part.into();
+
+                    new_spans.push(dir_span);
+                    new_spans.push(base_span);
+                }
+                curr_offset = span_end;
+            }
+            line.spans = new_spans;
+        }
     }
 }

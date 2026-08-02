@@ -298,3 +298,26 @@ Most UI components have a `border` block:
 ### Key Binds (`binds.`, `b`)
 
 See `mm --doc binds`.
+
+### Frecency & Search Ranking (`matcher.worker.`)
+
+- `frecency`: (bool) Enable frecency (frequency + recency) score boosting for match ranking.
+- `frecency_weight`: (number) Multiplier for frecency bonus score (default: 1).
+- `depth_penalty` / `dp`: (number) Score penalty per path depth level ('/' or '\'). 0 disables.
+- `typo_tolerance` / `tt`: (bool) Allow character substitutions/typo matching for queries >= 3 chars.
+
+### Path Rendering & Styling (`results.`)
+
+- `dim_directory_path`: (bool) Render directory prefixes in dimmed gray while keeping basenames bold.
+- `directory_path_style`: (style) Custom style for dimmed directory path prefixes.
+
+### Frecency Subcommands
+
+- `mm add <path>`: Record an access event for a file or directory path.
+- `mm rank <path>`: Query current frecency score and access statistics for a path.
+- `mm list [query]` / `mm query`: List all tracked paths ordered by frecency score descending.
+- `mm init <shell>`: Generate shell integration code (`zsh`, `bash`, `fish`, `nushell`, `powershell`).
+- `mm import zoxide`: Import historical directory records and scores from `zoxide`.
+- `mm clean` / `mm prune`: Purge stale/deleted paths from the frecency database.
+- `mm cache [path]`: Fast-index files in target directory into warm cache.
+
