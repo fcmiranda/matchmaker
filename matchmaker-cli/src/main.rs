@@ -46,6 +46,10 @@ async fn main() {
     display_doc(&cli);
     handle_download(&cli);
 
+    if handle_frecency_cli(&config_args) {
+        exit(0);
+    }
+
     // get config overrides
     let partial = get_partial(config_args).__ebog();
     log::trace!("{partial:?}");
@@ -127,5 +131,49 @@ fn display_doc(cli: &Cli) {
         skin.bold.set_fg(Color::Yellow);
         skin.print_text(&md);
         exit(0)
+    }
+}
+
+fn handle_frecency_cli(args: &[String]) -> bool {
+    if args.is_empty() {
+        return false;
+    }
+    match args[0].as_str() {
+        "add" => {
+            let path = args.get(1).cloned().unwrap_or_else(|| {
+                std::env::current_dir()
+                    .map(|p| p.display().to_string())
+                    .unwrap_or_default()
+            });
+            let store = matchmaker::frecency::FrecencyStore::open();
+            match store.add(&path) {
+                Ok(score) => {
+                    log::info!("Recorded access for '{path}' (frecency score: {score})");
+                }
+                Err(err) => {
+                    log::error!("Failed to record frecency for '{path}': {err}");
+                }
+            }
+            true
+        }
+        "rank" => {
+            let path = args.get(1).cloned().unwrap_or_else(|| {
+                std::env::current_dir()
+                    .map(|p| p.display().to_string())
+                    .unwrap_or_default()
+            });
+            let store = matchmaker::frecency::FrecencyStore::open();
+            if let Some(record) = store.rank(&path) {
+                let score = store.get_bonus(&path);
+                println!(
+                    "Path: {}\nScore: {}\nCount: {}\nLast Accessed: {}",
+                    record.path, score, record.count, record.last_accessed
+                );
+            } else {
+                println!("Path '{}' not found in frecency database", path);
+            }
+            true
+        }
+        _ => false,
     }
 }

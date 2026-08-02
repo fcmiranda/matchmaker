@@ -45,6 +45,9 @@ phf = { version = "0.13.1", features = ["macros", "phf_macros"] }
 regex = "1.12.2"
 rustc-hash = "2.1.1"
 serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+redb = "2.4.0"
+dirs = "6.0.0"
 strum = "0.27.2"
 strum_macros = "0.27.2"
 thiserror = "2.0.17"

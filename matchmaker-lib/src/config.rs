@@ -57,6 +57,11 @@ pub struct WorkerConfig {
     /// Score penalty subtracted per path depth level ('/' or '\'). 0 disables penalty.
     #[partial(alias = "dp")]
     pub depth_penalty: u32,
+    /// Enable frecency (frequency + recency) score boosting for matched items.
+    #[partial(alias = "frec")]
+    pub frecency: bool,
+    /// Multiplier for frecency bonus score added to matching items. Default is 1.
+    pub frecency_weight: u32,
     /// TODO: Enable raw mode where non-matching items are also displayed in a dimmed color.
     #[partial(alias = "r")]
     pub raw: bool,

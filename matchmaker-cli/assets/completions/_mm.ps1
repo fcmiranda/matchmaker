@@ -40,6 +40,7 @@ Register-ArgumentCompleter -Native -CommandName 'mm' -ScriptBlock {
             [CompletionResult]::new('-q', '-q', [CompletionResultType]::ParameterName, 'Reduce the verbosity level')
             [CompletionResult]::new('-v', '-v', [CompletionResultType]::ParameterName, 'Increase the verbosity level')
             [CompletionResult]::new('--sort', '--sort', [CompletionResultType]::ParameterName, 'Sort input lines alphabetically before injecting into the picker')
+            [CompletionResult]::new('--frecency', '--frecency', [CompletionResultType]::ParameterName, 'Enable frecency tracking and re-ranking for search results')
             [CompletionResult]::new('--icons', '--icons', [CompletionResultType]::ParameterName, 'Prepend a Nerd Font file-type icon before each result row')
             [CompletionResult]::new('--symlink-target', '--symlink-target', [CompletionResultType]::ParameterName, 'Append symlink target path after the first column when the entry is a symlink')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')

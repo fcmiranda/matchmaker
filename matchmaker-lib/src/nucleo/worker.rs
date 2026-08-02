@@ -99,6 +99,9 @@ where
     pub columns: Arc<[Column<T>]>,
     pub sort_threshold: crate::config::SortThreshold,
     pub depth_penalty: u32,
+    pub frecency: bool,
+    pub frecency_weight: u32,
+    pub frecency_snapshot: Option<crate::frecency::FrecencySnapshot>,
 
     // Background tasks which push to the injector check their version matches this or exit
     pub(super) version: Arc<AtomicU32>,
@@ -143,6 +146,9 @@ impl<T: SSS> Worker<T> {
             columns,
             sort_threshold: crate::config::SortThreshold::NEVER,
             depth_penalty: 0,
+            frecency: false,
+            frecency_weight: 1,
+            frecency_snapshot: None,
             version: Arc::new(AtomicU32::new(0)),
         }
     }
@@ -341,7 +347,8 @@ impl<T: SSS> Worker<T> {
         let total_width_limit: u16 = width_limits.iter().sum();
         let last_nonzero_idx = width_limits.iter().rposition(|&w| w != 0); // lowpri: not sure if this should be per row
 
-        let items_buf: Vec<_> = if self.depth_penalty > 0
+        let items_buf: Vec<_> = if (self.depth_penalty > 0
+            || (self.frecency && self.frecency_snapshot.is_some()))
             && !self
                 .query
                 .primary_column_query()
@@ -354,16 +361,31 @@ impl<T: SSS> Worker<T> {
                 .enumerate()
                 .collect();
             let penalty = self.depth_penalty;
+            let frec_weight = self.frecency_weight;
+            let snapshot_ref = if self.frecency {
+                self.frecency_snapshot.as_ref()
+            } else {
+                None
+            };
             let col0 = &self.columns[0];
             items.sort_by_key(|(idx, item)| {
                 let raw_path = col0.raw(item.data);
-                let depth = raw_path
-                    .as_bytes()
-                    .iter()
-                    .filter(|&&b| b == b'/' || b == b'\\')
-                    .count() as u32;
                 let base_score = total.saturating_sub(*idx as u32);
-                let effective_score = base_score.saturating_sub(depth * penalty);
+                let frecency_bonus = snapshot_ref
+                    .map(|snap| snap.get_bonus(raw_path.as_ref()) * frec_weight)
+                    .unwrap_or(0);
+                let depth = if penalty > 0 {
+                    raw_path
+                        .as_bytes()
+                        .iter()
+                        .filter(|&&b| b == b'/' || b == b'\\')
+                        .count() as u32
+                } else {
+                    0
+                };
+                let effective_score = base_score
+                    .saturating_add(frecency_bonus)
+                    .saturating_sub(depth * penalty);
                 std::cmp::Reverse(effective_score)
             });
             let range_start = start.min(total) as usize;

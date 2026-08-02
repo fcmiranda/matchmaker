@@ -7,6 +7,7 @@ pub mod binds;
 pub mod config;
 mod config_types;
 pub mod event;
+pub mod frecency;
 
 pub mod message;
 pub mod render;

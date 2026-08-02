@@ -166,6 +166,10 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
         config.start.sort = true;
     }
 
+    if cli.frecency {
+        config.matcher.worker.frecency = true;
+    }
+
     if cli.icons {
         config.render.results.icons = true;
     }

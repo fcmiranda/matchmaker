@@ -154,6 +154,12 @@ impl ConfigMatchmaker {
         worker.reverse_items(worker_config.reverse);
         worker.set_stability(worker_config.sort_threshold);
         worker.depth_penalty = worker_config.depth_penalty;
+        worker.frecency = worker_config.frecency;
+        worker.frecency_weight = worker_config.frecency_weight;
+        if worker_config.frecency {
+            let store = crate::frecency::FrecencyStore::open();
+            worker.frecency_snapshot = Some(store.get_snapshot());
+        }
 
         let injector = worker.injector();
 

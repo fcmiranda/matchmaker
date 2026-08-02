@@ -34,6 +34,7 @@ _mm() {
 '(-v)*-q[Reduce the verbosity level]' \
 '(-q)*-v[Increase the verbosity level]' \
 '--sort[Sort input lines alphabetically before injecting into the picker]' \
+'--frecency[Enable frecency tracking and re-ranking for search results]' \
 '--icons[Prepend a Nerd Font file-type icon before each result row]' \
 '--symlink-target[Append symlink target path after the first column when the entry is a symlink]' \
 '-h[Print help]' \

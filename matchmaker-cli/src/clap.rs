@@ -51,6 +51,10 @@ pub struct Cli {
     #[arg(long)]
     pub sort: bool,
 
+    /// Enable frecency tracking and re-ranking for search results.
+    #[arg(long)]
+    pub frecency: bool,
+
     /// Prepend a Nerd Font file-type icon before each result row.
     #[arg(long)]
     pub icons: bool,
@@ -199,6 +203,7 @@ impl Cli {
                 "--last-key",
                 "--no-read",
                 "--sort",
+                "--frecency",
                 "--icons",
                 "--symlink-target",
                 "--nav",
