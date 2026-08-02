@@ -171,10 +171,7 @@ impl<T: SSS> Worker<T> {
     pub fn find(&mut self, line: &str) {
         if self.sort_threshold.is_smart() {
             let effective = self.sort_threshold.get_effective_threshold(line);
-            if self.nucleo.get_stability() != effective {
-                self.nucleo.set_stability(effective);
-                self.nucleo.restart(false);
-            }
+            self.nucleo.set_stability(effective);
         }
         let old_query = self.query.parse(line);
         if self.query == old_query {
