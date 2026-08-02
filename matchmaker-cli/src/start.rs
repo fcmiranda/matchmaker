@@ -569,10 +569,10 @@ pub async fn start(config: Config, no_read: bool, group_prefix: Option<String>) 
         source: _,
     } = config;
 
-    if sort {
+    if sort && !worker.sort_threshold.is_smart() {
         // Force nucleo to preserve insertion order (stable sort) so the alphabetically
         // sorted input is displayed in the same order when no query is typed.
-        worker.sort_threshold = matchmaker::config::SortThreshold(u32::MAX);
+        worker.sort_threshold = matchmaker::config::SortThreshold::NEVER;
     }
 
     // -------- determine command ------------

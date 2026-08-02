@@ -152,7 +152,7 @@ impl ConfigMatchmaker {
         worker.group_header = Some(Box::new(|item| item.inner.group.clone()));
 
         worker.reverse_items(worker_config.reverse);
-        worker.set_stability(*worker_config.sort_threshold);
+        worker.set_stability(worker_config.sort_threshold);
 
         let injector = worker.injector();
 

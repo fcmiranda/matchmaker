@@ -97,6 +97,7 @@ where
     /// from the matcher. This avoids having to re-allocate on each pass.
     pub col_indices_buffer: Vec<u32>,
     pub columns: Arc<[Column<T>]>,
+    pub sort_threshold: crate::config::SortThreshold,
 
     // Background tasks which push to the injector check their version matches this or exit
     pub(super) version: Arc<AtomicU32>,
@@ -139,6 +140,7 @@ impl<T: SSS> Worker<T> {
             column_options: vec![ColumnOptions::default(); columns.len()],
             group_header: None,
             columns,
+            sort_threshold: crate::config::SortThreshold::NEVER,
             version: Arc::new(AtomicU32::new(0)),
         }
     }
@@ -167,6 +169,13 @@ impl<T: SSS> Worker<T> {
     }
 
     pub fn find(&mut self, line: &str) {
+        if self.sort_threshold.is_smart() {
+            let effective = self.sort_threshold.get_effective_threshold(line);
+            if self.nucleo.get_stability() != effective {
+                self.nucleo.set_stability(effective);
+                self.nucleo.restart(false);
+            }
+        }
         let old_query = self.query.parse(line);
         if self.query == old_query {
             return;
@@ -252,8 +261,14 @@ impl<T: SSS> Worker<T> {
         (snapshot.matched_item_count(), snapshot.item_count())
     }
 
-    pub fn set_stability(&mut self, threshold: u32) {
-        self.nucleo.set_stability(threshold);
+    pub fn set_stability(&mut self, threshold: crate::config::SortThreshold) {
+        self.sort_threshold = threshold;
+        let effective = threshold.get_effective_threshold(
+            self.query
+                .primary_column_query()
+                .unwrap_or_default(),
+        );
+        self.nucleo.set_stability(effective);
     }
 
     pub fn get_stability(&self) -> u32 {
