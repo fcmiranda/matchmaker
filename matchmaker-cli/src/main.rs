@@ -222,7 +222,7 @@ fn handle_frecency_cli(args: &[String]) -> bool {
                 }
             };
 
-            let script = if cmd_name != "z" {
+            let mut script = if cmd_name != "z" {
                 raw_script
                     .replace("z()", &format!("{cmd_name}()"))
                     .replace("zi()", &format!("{cmd_name}i()"))
@@ -233,6 +233,10 @@ fn handle_frecency_cli(args: &[String]) -> bool {
             } else {
                 raw_script.to_string()
             };
+
+            if cmd_name != "z" {
+                script.push_str(&format!("\nalias z={cmd_name} 2>/dev/null\nalias zi={cmd_name}i 2>/dev/null\n"));
+            }
 
             println!("{script}");
             true
