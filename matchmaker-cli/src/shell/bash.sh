@@ -8,21 +8,19 @@ fi
 
 z() {
     if [ "$#" -eq 0 ]; then
-        local dir
-        dir="$(mm -o jump)"
-        if [ -n "$dir" ]; then
-            cd "$dir" || return
-        fi
+        cd ~ || return
     elif [ "$#" -eq 1 ] && [ -d "$1" ]; then
         cd "$1" || return
     else
         local dir
         dir="$(mm list "$@" | head -n 1)"
         if [ -n "$dir" ]; then
+            dir="$(realpath "$dir" 2>/dev/null || readlink -f "$dir" 2>/dev/null || echo "$dir")"
             cd "$dir" || return
         else
             dir="$(mm -o jump "$@")"
             if [ -n "$dir" ]; then
+                dir="$(realpath "$dir" 2>/dev/null || readlink -f "$dir" 2>/dev/null || echo "$dir")"
                 cd "$dir" || return
             fi
         fi
@@ -33,6 +31,7 @@ zi() {
     local dir
     dir="$(mm -o jump "$@")"
     if [ -n "$dir" ]; then
+        dir="$(realpath "$dir" 2>/dev/null || readlink -f "$dir" 2>/dev/null || echo "$dir")"
         cd "$dir" || return
     fi
 }
