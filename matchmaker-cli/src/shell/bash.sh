@@ -8,7 +8,11 @@ fi
 
 z() {
     if [ "$#" -eq 0 ]; then
-        cd ~ || return
+        local dir
+        dir="$(mm -o jump)"
+        if [ -n "$dir" ]; then
+            cd "$dir" || return
+        fi
     elif [ "$#" -eq 1 ] && [ -d "$1" ]; then
         cd "$1" || return
     else
@@ -17,15 +21,17 @@ z() {
         if [ -n "$dir" ]; then
             cd "$dir" || return
         else
-            echo "mm: no matching directory found" >&2
-            return 1
+            dir="$(mm -o jump "$@")"
+            if [ -n "$dir" ]; then
+                cd "$dir" || return
+            fi
         fi
     fi
 }
 
 zi() {
     local dir
-    dir="$(mm list | mm --frecency)"
+    dir="$(mm -o jump "$@")"
     if [ -n "$dir" ]; then
         cd "$dir" || return
     fi
