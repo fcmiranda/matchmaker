@@ -175,13 +175,12 @@ fn handle_frecency_cli(args: &[String]) -> bool {
             true
         }
         "list" | "query" => {
-            let filter = args
+            let keywords: Vec<String> = args
                 .iter()
                 .skip(1)
-                .filter(|a| *a != "-l" && *a != "--list")
-                .cloned()
-                .collect::<Vec<_>>()
-                .join(" ");
+                .filter(|a| *a != "-l" && *a != "--list" && !a.starts_with('-'))
+                .map(|a| a.to_lowercase())
+                .collect();
 
             let store = matchmaker::frecency::FrecencyStore::open();
             let snapshot = store.get_snapshot();
@@ -190,7 +189,9 @@ fn handle_frecency_cli(args: &[String]) -> bool {
             entries.sort_by(|a, b| b.1.cmp(&a.1));
 
             for (path, _score) in entries {
-                if filter.is_empty() || path.to_lowercase().contains(&filter.to_lowercase()) {
+                let lower_path = path.to_lowercase();
+                let matches_all = keywords.iter().all(|kw| lower_path.contains(kw));
+                if matches_all {
                     println!("{path}");
                 }
             }
@@ -198,17 +199,42 @@ fn handle_frecency_cli(args: &[String]) -> bool {
         }
         "init" => {
             let shell = args.get(1).map(|s| s.as_str()).unwrap_or("zsh");
-            match shell {
-                "zsh" => println!("{}", include_str!("shell/zsh.sh")),
-                "bash" => println!("{}", include_str!("shell/bash.sh")),
-                "fish" => println!("{}", include_str!("shell/fish.fish")),
-                "nushell" | "nu" => println!("{}", include_str!("shell/nu.nu")),
-                "powershell" | "pwsh" => println!("{}", include_str!("shell/pwsh.ps1")),
+            let mut cmd_name = "z";
+            for (idx, arg) in args.iter().enumerate() {
+                if arg == "--cmd" {
+                    if let Some(val) = args.get(idx + 1) {
+                        cmd_name = val.as_str();
+                    }
+                } else if let Some(val) = arg.strip_prefix("--cmd=") {
+                    cmd_name = val;
+                }
+            }
+
+            let raw_script = match shell {
+                "zsh" => include_str!("shell/zsh.sh"),
+                "bash" => include_str!("shell/bash.sh"),
+                "fish" => include_str!("shell/fish.fish"),
+                "nushell" | "nu" => include_str!("shell/nu.nu"),
+                "powershell" | "pwsh" => include_str!("shell/pwsh.ps1"),
                 _ => {
                     eprintln!("Unsupported shell '{shell}'. Supported shells: zsh, bash, fish, nushell, powershell");
                     exit(1);
                 }
-            }
+            };
+
+            let script = if cmd_name != "z" {
+                raw_script
+                    .replace("z()", &format!("{cmd_name}()"))
+                    .replace("zi()", &format!("{cmd_name}i()"))
+                    .replace("function z\n", &format!("function {cmd_name}\n"))
+                    .replace("function zi\n", &format!("function {cmd_name}i\n"))
+                    .replace("def --env z ", &format!("def --env {cmd_name} "))
+                    .replace("function z ", &format!("function {cmd_name} "))
+            } else {
+                raw_script.to_string()
+            };
+
+            println!("{script}");
             true
         }
         "import" => {
