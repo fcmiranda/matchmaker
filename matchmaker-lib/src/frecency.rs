@@ -85,7 +85,40 @@ impl FrecencySnapshot {
     }
 }
 
-/// Helper function to normalize path strings (trim whitespace, remove trailing slashes).
+/// Helper function to normalize path strings (expand tilde, convert relative paths to absolute, trim trailing slashes).
+pub fn normalize_path(path: &str) -> String {
+    let trimmed = path.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+
+    let p = PathBuf::from(trimmed);
+    let abs = if p.is_absolute() {
+        p
+    } else if trimmed == "~" || trimmed.starts_with("~/") || trimmed.starts_with("~\\") {
+        if let Some(home) = dirs::home_dir() {
+            if trimmed == "~" {
+                home
+            } else {
+                home.join(&trimmed[2..])
+            }
+        } else {
+            p
+        }
+    } else if let Ok(cwd) = std::env::current_dir() {
+        cwd.join(&p)
+    } else {
+        p
+    };
+
+    let resolved = abs.canonicalize().unwrap_or(abs);
+    let mut s = resolved.to_string_lossy().to_string();
+    if s.len() > 1 && (s.ends_with('/') || s.ends_with('\\')) {
+        s.pop();
+    }
+    s
+}
+
 pub fn clean_path(path: &str) -> &str {
     let p = path.trim();
     if p.len() > 1 {
@@ -170,7 +203,11 @@ impl FrecencyStore {
             return Ok(0);
         };
 
-        let key = clean_path(raw_path);
+        let key_str = normalize_path(raw_path);
+        if key_str.is_empty() {
+            return Ok(0);
+        }
+        let key = key_str.as_str();
         let now = current_unix_secs();
 
         let write_txn = db.begin_write()?;
@@ -201,7 +238,8 @@ impl FrecencyStore {
             return 0;
         };
 
-        let key = clean_path(raw_path);
+        let key_str = normalize_path(raw_path);
+        let key = key_str.as_str();
         let now = current_unix_secs();
 
         let read_txn = match db.begin_read() {
@@ -222,7 +260,17 @@ impl FrecencyStore {
                     0
                 }
             }
-            _ => 0,
+            _ => {
+                let clean = clean_path(raw_path);
+                if clean != key {
+                    if let Ok(Some(guard)) = table.get(clean) {
+                        if let Ok(record) = serde_json::from_str::<FrecencyRecord>(guard.value()) {
+                            return record.calculate_score(now);
+                        }
+                    }
+                }
+                0
+            }
         }
     }
 
@@ -232,11 +280,17 @@ impl FrecencyStore {
             return None;
         };
 
-        let key = clean_path(raw_path);
+        let key_str = normalize_path(raw_path);
+        let key = key_str.as_str();
         let read_txn = db.begin_read().ok()?;
         let table = read_txn.open_table(FRECENCY_TABLE).ok()?;
-        let guard = table.get(key).ok()??;
-        serde_json::from_str::<FrecencyRecord>(guard.value()).ok()
+        if let Some(guard) = table.get(key).ok()? {
+            serde_json::from_str::<FrecencyRecord>(guard.value()).ok()
+        } else {
+            let clean = clean_path(raw_path);
+            let guard = table.get(clean).ok()??;
+            serde_json::from_str::<FrecencyRecord>(guard.value()).ok()
+        }
     }
 
     /// Load all tracked entries into an in-memory snapshot for sub-millisecond lookup.
@@ -292,7 +346,11 @@ impl FrecencyStore {
             return Ok(());
         };
 
-        let key = clean_path(raw_path);
+        let key_str = normalize_path(raw_path);
+        if key_str.is_empty() {
+            return Ok(());
+        }
+        let key = key_str.as_str();
         let now = current_unix_secs();
 
         let write_txn = db.begin_write()?;
@@ -319,7 +377,7 @@ impl FrecencyStore {
         Ok(())
     }
 
-    /// Purges all entries whose file/directory path no longer exists on disk.
+    /// Purges all entries whose file/directory path is not absolute or no longer exists on disk.
     pub fn clean_stale(&self) -> anyhow::Result<usize> {
         let Some(db) = self.db.as_ref() else {
             return Ok(0);
@@ -331,7 +389,8 @@ impl FrecencyStore {
                 if let Ok(iter) = table.iter() {
                     for entry in iter.flatten() {
                         let path_str = entry.0.value();
-                        if !Path::new(path_str).exists() {
+                        let p = Path::new(path_str);
+                        if !p.is_absolute() || !p.exists() {
                             keys_to_remove.push(path_str.to_string());
                         }
                     }
@@ -365,11 +424,20 @@ impl FrecencyStore {
             return Ok(false);
         };
 
-        let key = clean_path(raw_path);
+        let key_str = normalize_path(raw_path);
+        let key = key_str.as_str();
+        let clean = clean_path(raw_path);
+
         let write_txn = db.begin_write()?;
         let removed = {
             let mut table = write_txn.open_table(FRECENCY_TABLE)?;
-            table.remove(key)?.is_some()
+            let r1 = table.remove(key)?.is_some();
+            let r2 = if clean != key {
+                table.remove(clean)?.is_some()
+            } else {
+                false
+            };
+            r1 || r2
         };
 
         write_txn.commit()?;
