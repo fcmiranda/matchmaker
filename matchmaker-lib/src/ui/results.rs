@@ -973,6 +973,9 @@ impl ResultsUI {
                     .enumerate()
                     .map(|(x, mut t)| {
                         t = style_text(t, x, is_current_row);
+                        if self.config.dim_directory_path && x == 0 {
+                            apply_dim_directory_path(&mut t, self.config.directory_path_style.into());
+                        }
                         if x == spinner_col_idx {
                             prefix_span(
                                 &mut t,
@@ -1037,6 +1040,9 @@ impl ResultsUI {
                     }
                     remaining_height -= height;
 
+                    if self.config.dim_directory_path && col_idx == 0 {
+                        apply_dim_directory_path(&mut col, self.config.directory_path_style.into());
+                    }
                     prefix_span(
                         &mut col,
                         prefix.clone(),
@@ -1206,6 +1212,9 @@ impl ResultsUI {
                     .enumerate()
                     .map(|(x, mut t)| {
                         t = style_text(t, x, self.is_current(i));
+                        if self.config.dim_directory_path && x == 0 {
+                            apply_dim_directory_path(&mut t, self.config.directory_path_style.into());
+                        }
 
                         // prefix after hscroll
                         if x == spinner_col_idx {
@@ -1303,6 +1312,9 @@ impl ResultsUI {
                     remaining_height -= height;
 
                     let is_current_row = self.is_current(i);
+                    if self.config.dim_directory_path && x == 0 {
+                        apply_dim_directory_path(&mut col, self.config.directory_path_style.into());
+                    }
                     prefix_span(
                         &mut col,
                         prefix.clone(),
