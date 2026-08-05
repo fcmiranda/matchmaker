@@ -156,6 +156,26 @@ fn handle_frecency_cli(args: &[String]) -> bool {
             }
             true
         }
+        "remove" | "rm" => {
+            if let Some(path) = args.get(1) {
+                let store = matchmaker::frecency::FrecencyStore::open();
+                match store.remove(path) {
+                    Ok(true) => {
+                        println!("Removed '{path}' from frecency database.");
+                    }
+                    Ok(false) => {
+                        println!("Path '{path}' not found in frecency database.");
+                    }
+                    Err(err) => {
+                        eprintln!("Failed to remove '{path}' from frecency database: {err}");
+                    }
+                }
+            } else {
+                eprintln!("Usage: mm remove <path>");
+                exit(1);
+            }
+            true
+        }
         "rank" => {
             let path = args.get(1).cloned().unwrap_or_else(|| {
                 std::env::current_dir()

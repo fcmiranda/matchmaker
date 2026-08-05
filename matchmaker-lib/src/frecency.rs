@@ -358,6 +358,23 @@ impl FrecencyStore {
         write_txn.commit()?;
         Ok(removed_count)
     }
+
+    /// Removes a specific path entry from the frecency database. Returns true if key was present.
+    pub fn remove(&self, raw_path: &str) -> anyhow::Result<bool> {
+        let Some(db) = self.db.as_ref() else {
+            return Ok(false);
+        };
+
+        let key = clean_path(raw_path);
+        let write_txn = db.begin_write()?;
+        let removed = {
+            let mut table = write_txn.open_table(FRECENCY_TABLE)?;
+            table.remove(key)?.is_some()
+        };
+
+        write_txn.commit()?;
+        Ok(removed)
+    }
 }
 
 fn current_unix_secs() -> u64 {
@@ -443,6 +460,29 @@ mod tests {
 
         assert!(store.get_bonus(existing_path) > 0);
         assert_eq!(store.get_bonus(non_existing_path), 0);
+
+        let _ = fs::remove_dir_all(&temp_dir);
+        Ok(())
+    }
+
+    #[test]
+    fn test_store_remove() -> anyhow::Result<()> {
+        let temp_dir = std::env::temp_dir().join("mm_test_frecency_remove");
+        let _ = fs::remove_dir_all(&temp_dir);
+        let db_path = temp_dir.join("test.redb");
+
+        let store = FrecencyStore::open_at(&db_path)?;
+        let path = "/path/to/remove";
+
+        store.add(path)?;
+        assert!(store.get_bonus(path) > 0);
+
+        let removed = store.remove(path)?;
+        assert!(removed);
+        assert_eq!(store.get_bonus(path), 0);
+
+        let removed_again = store.remove(path)?;
+        assert!(!removed_again);
 
         let _ = fs::remove_dir_all(&temp_dir);
         Ok(())
