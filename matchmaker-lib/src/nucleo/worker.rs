@@ -244,7 +244,16 @@ impl<T: SSS> Worker<T> {
             return None;
         }
 
-        if self.frecency || self.depth_penalty > 0 {
+        let is_query_empty = self
+            .query
+            .primary_column_query()
+            .unwrap_or_default()
+            .is_empty();
+
+        let should_sort = (self.frecency && self.frecency_snapshot.is_some())
+            || (self.depth_penalty > 0 && !is_query_empty);
+
+        if should_sort {
             let total_sort = if self.sort_cap > 0 {
                 total.min(self.sort_cap as u32)
             } else {
@@ -392,16 +401,17 @@ impl<T: SSS> Worker<T> {
         let mut widths = vec![0u16; self.columns.len()];
         let mut raw_widths = vec![vec![]; self.columns.len()];
         let total_width_limit: u16 = width_limits.iter().sum();
-        let last_nonzero_idx = width_limits.iter().rposition(|&w| w != 0); // lowpri: not sure if this should be per row
+        let last_nonzero_idx = width_limits.iter().rposition(|&w| w != 0);
+        let is_query_empty = self
+            .query
+            .primary_column_query()
+            .unwrap_or_default()
+            .is_empty();
 
-        let items_buf: Vec<_> = if (self.depth_penalty > 0
-            || (self.frecency && self.frecency_snapshot.is_some()))
-            && !self
-                .query
-                .primary_column_query()
-                .unwrap_or_default()
-                .is_empty()
-        {
+        let should_sort = (self.frecency && self.frecency_snapshot.is_some())
+            || (self.depth_penalty > 0 && !is_query_empty);
+
+        let items_buf: Vec<_> = if should_sort {
             let total = status.matched_count;
             let total_sort = if self.sort_cap > 0 {
                 total.min(self.sort_cap as u32)

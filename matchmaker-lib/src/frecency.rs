@@ -511,10 +511,13 @@ mod tests {
     fn test_store_open_add_rank() -> anyhow::Result<()> {
         let temp_dir = std::env::temp_dir().join("mm_test_frecency");
         let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir)?;
+        let test_file = temp_dir.join("file.rs");
+        fs::write(&test_file, "")?;
         let db_path = temp_dir.join("test.redb");
 
         let store = FrecencyStore::open_at(&db_path)?;
-        let path = "/test/path/file.rs";
+        let path = test_file.to_str().unwrap();
 
         let score1 = store.add(path)?;
         assert!(score1 >= 100);
@@ -523,7 +526,7 @@ mod tests {
         assert!(rank_res.is_some());
         let record = rank_res.unwrap();
         assert_eq!(record.count, 1);
-        assert_eq!(record.path, "/test/path/file.rs");
+        assert_eq!(record.path, path);
 
         let score2 = store.add(path)?;
         assert!(score2 > score1);
@@ -539,6 +542,7 @@ mod tests {
     fn test_store_import_and_clean_stale() -> anyhow::Result<()> {
         let temp_dir = std::env::temp_dir().join("mm_test_frecency_clean");
         let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir)?;
         let db_path = temp_dir.join("test.redb");
 
         let store = FrecencyStore::open_at(&db_path)?;
@@ -565,10 +569,13 @@ mod tests {
     fn test_store_remove() -> anyhow::Result<()> {
         let temp_dir = std::env::temp_dir().join("mm_test_frecency_remove");
         let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(&temp_dir)?;
+        let test_file = temp_dir.join("remove_target");
+        fs::write(&test_file, "")?;
         let db_path = temp_dir.join("test.redb");
 
         let store = FrecencyStore::open_at(&db_path)?;
-        let path = "/path/to/remove";
+        let path = test_file.to_str().unwrap();
 
         store.add(path)?;
         assert!(store.get_bonus(path) > 0);
@@ -597,6 +604,8 @@ mod tests {
             .join("skill-creator")
             .join("scripts")
             .join("run_eval.py");
+        fs::create_dir_all(abs_path.parent().unwrap())?;
+        fs::write(&abs_path, "")?;
         let abs_str = abs_path.to_str().unwrap();
 
         store.add(abs_str)?;
