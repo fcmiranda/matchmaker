@@ -225,7 +225,7 @@ impl FrecencyStore {
         };
 
         let key_str = normalize_path(raw_path);
-        if key_str.is_empty() {
+        if key_str.is_empty() || !Path::new(&key_str).exists() {
             return Ok(0);
         }
         let key = key_str.as_str();

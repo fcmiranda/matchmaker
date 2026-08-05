@@ -167,10 +167,12 @@ pub fn action_handler(
                 }
             };
 
-            let store = matchmaker::frecency::FrecencyStore::open();
             let selected_items = state.map_selected_to_vec(|_, x| x.to_cow().to_string());
-            for item in &selected_items {
-                let _ = store.add(item);
+            if state.picker_ui.worker.frecency {
+                let store = matchmaker::frecency::FrecencyStore::open();
+                for item in &selected_items {
+                    let _ = store.add(item);
+                }
             }
 
             if let Some(template) = output_template {
