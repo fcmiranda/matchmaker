@@ -808,6 +808,9 @@ impl ResultsUI {
                             .enumerate()
                             .map(|(x, mut t)| {
                                 t = style_text(t, x, is_current_row);
+                                if self.config.dim_directory_path && x == 0 {
+                                    apply_dim_directory_path(&mut t, self.config.directory_path_style.into());
+                                }
                                 if x == spinner_col_idx {
                                     prefix_span(
                                         &mut t,
@@ -846,9 +849,6 @@ impl ResultsUI {
                                             widths[spinner_col_idx],
                                         );
                                     }
-                                    if self.config.dim_directory_path && x == 0 {
-                                        apply_dim_directory_path(&mut t, self.config.directory_path_style.into());
-                                    }
                                 }
                                 t
                             })
@@ -880,6 +880,9 @@ impl ResultsUI {
                             }
                             remaining_height -= height;
 
+                            if self.config.dim_directory_path && col_idx == 0 {
+                                apply_dim_directory_path(col, self.config.directory_path_style.into());
+                            }
                             prefix_span(
                                 &mut col,
                                 prefix.clone(),
@@ -911,9 +914,6 @@ impl ResultsUI {
                                     self.config.symlink_target_style.into(),
                                     self.width,
                                 );
-                            }
-                            if self.config.dim_directory_path && col_idx == 0 {
-                                apply_dim_directory_path(col, self.config.directory_path_style.into());
                             }
 
                             let row = Row::new(vec![col.clone()]).height(height);
@@ -1874,6 +1874,9 @@ fn apply_dim_directory_path(col: &mut ratatui::text::Text<'_>, dim_style: ratatu
                 if span_end <= dir_end_idx {
                     let mut s = span;
                     s.style = s.style.patch(dim_style);
+                    if let Some(fg) = dim_style.fg {
+                        s.style.fg = Some(fg);
+                    }
                     new_spans.push(s);
                 } else if curr_offset >= dir_end_idx {
                     new_spans.push(span);
@@ -1885,6 +1888,9 @@ fn apply_dim_directory_path(col: &mut ratatui::text::Text<'_>, dim_style: ratatu
                     let mut dir_span = span.clone();
                     dir_span.content = dir_part.into();
                     dir_span.style = dir_span.style.patch(dim_style);
+                    if let Some(fg) = dim_style.fg {
+                        dir_span.style.fg = Some(fg);
+                    }
 
                     let mut base_span = span;
                     base_span.content = base_part.into();
