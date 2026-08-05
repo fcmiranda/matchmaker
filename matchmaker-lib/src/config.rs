@@ -35,17 +35,13 @@ use serde::{Deserialize, Serialize};
 ///
 /// Does not deny unknown fields.
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[partial(recurse, path, derive(Debug, Deserialize))]
+#[partial(recurse, path, derive(Debug, Clone, PartialEq, Deserialize, Serialize))]
 pub struct MatcherConfig {
     #[serde(flatten)]
     #[partial(skip)]
     pub matcher: NucleoMatcherConfig,
     #[serde(flatten)]
     pub worker: WorkerConfig,
-}
-
-fn default_sort_cap() -> usize {
-    1000
 }
 
 /// "Input/output specific". Configures the matchmaker worker.
@@ -67,7 +63,6 @@ pub struct WorkerConfig {
     /// Multiplier for frecency bonus score added to matching items. Default is 1.
     pub frecency_weight: u32,
     /// Maximum number of top matched items to re-sort by frecency/depth penalty (0 = unlimited). Default is 1000.
-    #[serde(default = "default_sort_cap")]
     #[partial(alias = "sc")]
     pub sort_cap: usize,
     /// Enable typo tolerance for search queries >= 3 characters.

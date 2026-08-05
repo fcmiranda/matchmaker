@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use crate::action::MMAction;
 
 #[derive(Clone, PartialEq, Serialize)]
-#[partial(recurse, path)]
+#[partial(recurse, path, derive(Debug, Clone, PartialEq, Deserialize, Serialize))]
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
@@ -61,10 +61,70 @@ pub struct Config {
     #[serde(default)]
     pub exit: ExitConfig,
 
+    #[partial(no_recurse)]
+    #[serde(default)]
+    #[serde(alias = "rules")]
+    pub rule: Vec<PathRule>,
+
     /// imports: only supported on overrides and with one nesting level
     #[serde(default)]
     #[partial(no_recurse)]
     pub source: Option<std::path::PathBuf>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum PathMatchPattern {
+    Single(String),
+    Multiple(Vec<String>),
+}
+
+impl PathMatchPattern {
+    pub fn matches(&self, current_dir: &std::path::Path) -> bool {
+        let cwd_str = current_dir.to_string_lossy();
+        let home = dirs::home_dir().map(|h| h.to_string_lossy().to_string());
+
+        let check_single = |pattern: &str| -> bool {
+            let mut expanded = pattern.trim().to_string();
+            if let Some(ref h) = home {
+                if expanded == "$HOME" || expanded == "~" {
+                    expanded = h.clone();
+                } else if expanded.starts_with("~/") {
+                    expanded = format!("{}/{}", h, &expanded[2..]);
+                } else if expanded.starts_with("$HOME/") {
+                    expanded = format!("{}/{}", h, &expanded[6..]);
+                }
+            }
+
+            let exp_path = std::path::Path::new(&expanded);
+            if current_dir == exp_path || current_dir.starts_with(exp_path) {
+                return true;
+            }
+
+            if let Ok(glob_pattern) = glob::Pattern::new(&expanded) {
+                if glob_pattern.matches(&cwd_str) {
+                    return true;
+                }
+            }
+            false
+        };
+
+        match self {
+            PathMatchPattern::Single(p) => check_single(p),
+            PathMatchPattern::Multiple(list) => list.iter().any(|p| check_single(p)),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct PathRule {
+    #[serde(alias = "paths")]
+    pub path: PathMatchPattern,
+
+    pub preset: Option<std::path::PathBuf>,
+
+    #[serde(flatten)]
+    pub override_config: PartialConfig,
 }
 
 // -----------------------
@@ -94,5 +154,30 @@ mod tests {
 
         // Assert the round-trip produces the same data
         assert_eq!(config, deserialized);
+    }
+
+    #[test]
+    fn test_path_rule_deserialization_and_matching() {
+        let toml_str = r#"
+            [[rule]]
+            path = ["$HOME", "~"]
+            preset = "jump"
+
+            [[rule]]
+            path = "~/dev/**"
+            matcher.sort = "smart"
+            matcher.frecency = true
+        "#;
+
+        let partial: PartialConfig = toml::from_str(toml_str).expect("failed to parse path rules TOML");
+        let rules = partial.rule.expect("rules should be present");
+        assert_eq!(rules.len(), 2);
+
+        let home_dir = dirs::home_dir().expect("home dir");
+        assert!(rules[0].path.matches(&home_dir));
+        assert_eq!(rules[0].preset, Some(std::path::PathBuf::from("jump")));
+
+        let dev_subdir = home_dir.join("dev").join("github").join("project");
+        assert!(rules[1].path.matches(&dev_subdir));
     }
 }

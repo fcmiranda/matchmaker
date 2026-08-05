@@ -94,6 +94,29 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
         config.render.status.template = r#"\m/\t"#.to_string();
     }
 
+    // Apply matching directory / path rules
+    let current_dir = std::env::current_dir().unwrap_or_default();
+    let rules = std::mem::take(&mut config.rule);
+    for rule in &rules {
+        if rule.path.matches(&current_dir) {
+            if let Some(ref p) = rule.preset {
+                let mut preset_path = p.clone();
+                if preset_path.is_relative() && preset_path.extension().is_none() {
+                    let main_p = presets_path().join(&preset_path).join("main.toml");
+                    preset_path = if !main_p.exists() {
+                        presets_path().join(preset_path.with_extension("toml"))
+                    } else {
+                        main_p
+                    };
+                }
+                if let Ok(preset_config) = load_type(&preset_path, |s| toml::from_str(s)) {
+                    config.apply(preset_config);
+                }
+            }
+            config.apply(rule.override_config.clone());
+        }
+    }
+
     // apply overrides
     for mut p in cli.r#override {
         if p.is_relative() && p.extension().is_none() {
@@ -571,6 +594,7 @@ pub async fn start(config: Config, no_read: bool, group_prefix: Option<String>) 
         mut exit,
         mut envs,
         source: _,
+        rule: _,
     } = config;
 
     if sort && !worker.sort_threshold.is_smart() {
