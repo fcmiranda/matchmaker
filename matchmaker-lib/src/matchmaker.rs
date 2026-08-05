@@ -1060,14 +1060,31 @@ impl<T: SSS, S: Selection + 'static> Matchmaker<T, S> {
                 return;
             }
 
-            let path = use_formatter(&formatter, state, &template, None);
+            let mut path = use_formatter(&formatter, state, &template, None);
             if path.is_empty() {
                 return;
             }
 
-            debug!("ChDir: {path}");
-            if let Err(e) = std::env::set_current_dir(&path) {
-                warn!("ChDir({path}) failed: {e}");
+            if path.starts_with("~/") || path == "~" {
+                if let Ok(home) = std::env::var("HOME") {
+                    if path == "~" {
+                        path = home;
+                    } else {
+                        path = format!("{home}/{}", &path[2..]);
+                    }
+                }
+            }
+
+            let target_path = std::path::Path::new(&path);
+            let target_dir = if target_path.is_file() {
+                target_path.parent().unwrap_or(target_path)
+            } else {
+                target_path
+            };
+
+            debug!("ChDir: {}", target_dir.display());
+            if let Err(e) = std::env::set_current_dir(target_dir) {
+                warn!("ChDir({}) failed: {e}", target_dir.display());
             }
         });
     }
