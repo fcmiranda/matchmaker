@@ -310,10 +310,6 @@ See `mm --doc binds`.
 - `depth_penalty` / `dp`: (number) Score penalty per path depth level ('/' or '\'). 0 disables.
 - `typo_tolerance` / `tt`: (bool) Allow character substitutions/typo matching for queries >= 3 chars.
 
-### Path Rendering & Styling (`results.`)
-
-- `dim_directory_path`: (bool) Render directory prefixes in dimmed gray while keeping basenames bold.
-- `directory_path_style`: (style) Custom style for dimmed directory path prefixes.
 
 ### Frecency Subcommands
 
