@@ -86,15 +86,13 @@ impl FrecencySnapshot {
             return score;
         }
 
-        if !path.starts_with('/') && !path.starts_with('\\') {
-            let filename = Path::new(clean)
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or(clean);
+        let filename = Path::new(clean)
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or(clean);
 
-            if let Some(&score) = self.basename_scores.get(filename) {
-                return score;
-            }
+        if let Some(&score) = self.basename_scores.get(filename) {
+            return score;
         }
 
         let normalized = normalize_path(path);

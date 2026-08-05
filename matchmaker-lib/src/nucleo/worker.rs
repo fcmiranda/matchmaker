@@ -271,6 +271,16 @@ impl<T: SSS> Worker<T> {
                 None
             };
             let col0 = &self.columns[0];
+            if let Some(snap) = snapshot_ref {
+                if total > total_sort {
+                    for (idx, item) in snapshot.matched_items(total_sort..total).enumerate() {
+                        let raw_path = col0.raw(item.data);
+                        if snap.get_bonus(raw_path.as_ref()) > 0 {
+                            items.push((total_sort as usize + idx, item));
+                        }
+                    }
+                }
+            }
             items.sort_by_key(|(idx, item)| {
                 let raw_path = col0.raw(item.data);
                 let base_score = total.saturating_sub(*idx as u32);
@@ -430,6 +440,16 @@ impl<T: SSS> Worker<T> {
                 None
             };
             let col0 = &self.columns[0];
+            if let Some(snap) = snapshot_ref {
+                if total > total_sort {
+                    for (idx, item) in snapshot.matched_items(total_sort..total).enumerate() {
+                        let raw_path = col0.raw(item.data);
+                        if snap.get_bonus(raw_path.as_ref()) > 0 {
+                            items.push((total_sort as usize + idx, item));
+                        }
+                    }
+                }
+            }
             items.sort_by_key(|(idx, item)| {
                 let raw_path = col0.raw(item.data);
                 let base_score = total.saturating_sub(*idx as u32);
@@ -1061,6 +1081,7 @@ mod tests {
             AutoscrollSettings {
                 initial_preserved: 0,
                 context: 1,
+                indicator: "…".to_string(),
                 ..Default::default()
             },
             0,
@@ -1105,6 +1126,7 @@ mod tests {
             AutoscrollSettings {
                 initial_preserved: 3,
                 context: 1,
+                indicator: "…".to_string(),
                 ..Default::default()
             },
             0,
@@ -1201,6 +1223,7 @@ mod tests {
             AutoscrollSettings {
                 end: true,
                 context: 4,
+                indicator: "…".to_string(),
                 ..Default::default()
             },
             0,
@@ -1233,6 +1256,7 @@ mod tests {
             AutoscrollSettings {
                 end: true,
                 context: 2,
+                indicator: "…".to_string(),
                 ..Default::default()
             },
             0,
