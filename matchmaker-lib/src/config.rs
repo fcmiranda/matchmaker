@@ -44,10 +44,14 @@ pub struct MatcherConfig {
     pub worker: WorkerConfig,
 }
 
+fn default_sort_cap() -> usize {
+    1000
+}
+
 /// "Input/output specific". Configures the matchmaker worker.
 ///
 /// Does not deny unknown fields.
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 #[partial(path, derive(Debug, Clone, PartialEq, Deserialize, Serialize))]
 pub struct WorkerConfig {
@@ -62,6 +66,10 @@ pub struct WorkerConfig {
     pub frecency: bool,
     /// Multiplier for frecency bonus score added to matching items. Default is 1.
     pub frecency_weight: u32,
+    /// Maximum number of top matched items to re-sort by frecency/depth penalty (0 = unlimited). Default is 1000.
+    #[serde(default = "default_sort_cap")]
+    #[partial(alias = "sc")]
+    pub sort_cap: usize,
     /// Enable typo tolerance for search queries >= 3 characters.
     #[partial(alias = "tt")]
     pub typo_tolerance: bool,
@@ -72,6 +80,22 @@ pub struct WorkerConfig {
     pub track: bool,
     /// Reverse the order of the input
     pub reverse: bool, // TODO: test with sort_threshold
+}
+
+impl Default for WorkerConfig {
+    fn default() -> Self {
+        Self {
+            sort_threshold: SortThreshold::default(),
+            depth_penalty: 0,
+            frecency: false,
+            frecency_weight: 1,
+            sort_cap: 1000,
+            typo_tolerance: false,
+            raw: false,
+            track: false,
+            reverse: false,
+        }
+    }
 }
 
 /// Configures how input is fed to to the worker(s).

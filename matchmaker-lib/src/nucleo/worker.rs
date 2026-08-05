@@ -101,6 +101,7 @@ where
     pub depth_penalty: u32,
     pub frecency: bool,
     pub frecency_weight: u32,
+    pub sort_cap: usize,
     pub frecency_snapshot: Option<crate::frecency::FrecencySnapshot>,
     pub typo_tolerance: bool,
 
@@ -149,6 +150,7 @@ impl<T: SSS> Worker<T> {
             depth_penalty: 0,
             frecency: false,
             frecency_weight: 1,
+            sort_cap: 1000,
             frecency_snapshot: None,
             typo_tolerance: false,
             version: Arc::new(AtomicU32::new(0)),
@@ -243,7 +245,11 @@ impl<T: SSS> Worker<T> {
         }
 
         if self.frecency || self.depth_penalty > 0 {
-            let total_sort = total.min(1000);
+            let total_sort = if self.sort_cap > 0 {
+                total.min(self.sort_cap as u32)
+            } else {
+                total
+            };
             let mut items: Vec<_> = snapshot
                 .matched_items(0..total_sort)
                 .enumerate()
@@ -397,7 +403,11 @@ impl<T: SSS> Worker<T> {
                 .is_empty()
         {
             let total = status.matched_count;
-            let total_sort = total.min(1000);
+            let total_sort = if self.sort_cap > 0 {
+                total.min(self.sort_cap as u32)
+            } else {
+                total
+            };
             let mut items: Vec<_> = snapshot
                 .matched_items(0..total_sort)
                 .enumerate()

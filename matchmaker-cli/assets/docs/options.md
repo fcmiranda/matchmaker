@@ -131,6 +131,10 @@ All colors and modifiers come from ratatui:
 
 - `sort_threshold`, `sort`: (number | bool | string) Similarity threshold or mode: `0` or `true` to always sort, `false` or `u32::MAX` to never sort (preserve stream insertion order), `"smart"` or `"auto"` to preserve natural stream order on empty query and rank by fuzzy relevance score when typing.
 - `depth_penalty`, `dp`: (number) Penalty subtracted from fuzzy match rank score per directory depth level ('/' or '\'). Default `0` (disabled). Set to e.g. `15` to prioritize root/shallow files over deeply nested subfolders.
+- `frecency`, `frec`: (bool) Enable frecency (frequency + recency) score boosting for matched items. Default `false`.
+- `frecency_weight`: (number) Weight multiplier for frecency bonus points. Default `1`.
+- `sort_cap`, `sc`: (number) Maximum number of top matched items to re-sort by frecency/depth penalty. Default `1000`. Set to `0` for unlimited.
+- `typo_tolerance`, `tt`: (bool) Enable typo-tolerant fuzzy matching for queries >= 3 characters. Default `false`.
 - `raw`: Enable raw mode where non-matching items are also displayed in a dimmed color. (unimplemented)
 - `track`: Track the current selection when the result list is updated. (unimplemented)
 - `reverse`: Reverse the order of the input (unimplemented)

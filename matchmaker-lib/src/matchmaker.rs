@@ -156,6 +156,7 @@ impl ConfigMatchmaker {
         worker.depth_penalty = worker_config.depth_penalty;
         worker.frecency = worker_config.frecency;
         worker.frecency_weight = worker_config.frecency_weight;
+        worker.sort_cap = worker_config.sort_cap;
         worker.typo_tolerance = worker_config.typo_tolerance;
         if worker_config.frecency {
             let store = crate::frecency::FrecencyStore::open();
