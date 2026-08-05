@@ -1185,6 +1185,7 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                 Interrupt::Reload => {
                     state.synced = [false; 2];
                     did_reload = true;
+                    picker_ui.results.cursor_jump(0);
                 }
                 Interrupt::Become => {
                     tui.exit(None);
