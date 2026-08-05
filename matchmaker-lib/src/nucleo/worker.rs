@@ -235,12 +235,50 @@ impl<T: SSS> Worker<T> {
         }
     }
 
-    // --------- UTILS
     pub fn get_nth(&self, n: u32) -> Option<&T> {
-        self.nucleo
-            .snapshot()
-            .get_matched_item(n)
-            .map(|item| item.data)
+        let snapshot = self.nucleo.snapshot();
+        let total = snapshot.matched_item_count();
+        if n >= total {
+            return None;
+        }
+
+        if self.frecency || self.depth_penalty > 0 {
+            let mut items: Vec<_> = snapshot
+                .matched_items(0..total)
+                .enumerate()
+                .collect();
+            let penalty = self.depth_penalty;
+            let frec_weight = self.frecency_weight;
+            let snapshot_ref = if self.frecency {
+                self.frecency_snapshot.as_ref()
+            } else {
+                None
+            };
+            let col0 = &self.columns[0];
+            items.sort_by_key(|(idx, item)| {
+                let raw_path = col0.raw(item.data);
+                let base_score = total.saturating_sub(*idx as u32);
+                let frecency_bonus = snapshot_ref
+                    .map(|snap| snap.get_bonus(raw_path.as_ref()) * frec_weight)
+                    .unwrap_or(0);
+                let depth = if penalty > 0 {
+                    raw_path
+                        .as_bytes()
+                        .iter()
+                        .filter(|&&b| b == b'/' || b == b'\\')
+                        .count() as u32
+                } else {
+                    0
+                };
+                let effective_score = base_score
+                    .saturating_add(frecency_bonus)
+                    .saturating_sub(depth * penalty);
+                std::cmp::Reverse(effective_score)
+            });
+            items.get(n as usize).map(|(_, item)| item.data)
+        } else {
+            snapshot.get_matched_item(n).map(|item| item.data)
+        }
     }
 
     pub fn new_snapshot(nucleo: &mut nucleo::Nucleo<T>) -> (&nucleo::Snapshot<T>, Status) {
