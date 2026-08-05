@@ -125,7 +125,7 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
 
     // Apply matching directory / path rules (from config.toml and loaded presets)
     let current_dir = std::env::current_dir().unwrap_or_default();
-    let rules = std::mem::take(&mut config.rule);
+    let rules = config.rule.clone();
     for rule in &rules {
         if rule.path.matches(&current_dir) {
             if let Some(ref p) = rule.preset {
@@ -594,7 +594,7 @@ pub async fn start(config: Config, no_read: bool, group_prefix: Option<String>) 
         mut exit,
         mut envs,
         source: _,
-        rule: _,
+        rule: all_rules,
     } = config;
 
     if sort && !worker.sort_threshold.is_smart() {
@@ -883,12 +883,28 @@ pub async fn start(config: Config, no_read: bool, group_prefix: Option<String>) 
     // reload handler
     let reload_formatter = cli_formatter.clone();
     let reload_render_tx = render_tx.clone();
+    let reload_rules = all_rules.clone();
+    let default_base_cmd = command.clone();
 
     let mut cmd = command.clone();
     mm.register_interrupt_handler(Interrupt::Reload, move |state| {
+        let current_dir = std::env::current_dir().unwrap_or_default();
+        let mut active_cmd = default_base_cmd.clone();
+        for rule in &reload_rules {
+            if rule.path.matches(&current_dir) {
+                if let Some(ref cmd_setting) = rule.override_config.start.command {
+                    if !cmd_setting.command.is_empty() {
+                        active_cmd = cmd_setting.command.clone();
+                    }
+                }
+            }
+        }
+
         if !state.payload().is_empty() {
             cmd = use_formatter(&reload_formatter, state, state.payload(), None);
-        };
+        } else {
+            cmd = active_cmd;
+        }
 
         if !cmd.is_empty() {
             state.picker_ui.worker.restart(false);
