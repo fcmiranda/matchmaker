@@ -81,7 +81,30 @@ impl FrecencySnapshot {
     #[inline]
     pub fn get_bonus(&self, path: &str) -> u32 {
         let clean = clean_path(path);
-        self.scores.get(clean).copied().unwrap_or(0)
+        if let Some(&score) = self.scores.get(clean) {
+            return score;
+        }
+
+        let normalized = normalize_path(path);
+        if let Some(&score) = self.scores.get(normalized.as_str()) {
+            return score;
+        }
+
+        if !path.starts_with('/') && !path.starts_with('\\') {
+            for (stored_path, &score) in &self.scores {
+                if stored_path.ends_with(clean) {
+                    let clean_len = clean.len();
+                    if stored_path.len() > clean_len {
+                        let sep_char = stored_path.as_bytes()[stored_path.len() - clean_len - 1];
+                        if sep_char == b'/' || sep_char == b'\\' {
+                            return score;
+                        }
+                    }
+                }
+            }
+        }
+
+        0
     }
 }
 
@@ -551,6 +574,39 @@ mod tests {
 
         let removed_again = store.remove(path)?;
         assert!(!removed_again);
+
+        let _ = fs::remove_dir_all(&temp_dir);
+        Ok(())
+    }
+
+    #[test]
+    fn test_snapshot_relative_path_lookup() -> anyhow::Result<()> {
+        let temp_dir = std::env::temp_dir().join("mm_test_frecency_relative");
+        let _ = fs::remove_dir_all(&temp_dir);
+        let db_path = temp_dir.join("test.redb");
+
+        let store = FrecencyStore::open_at(&db_path)?;
+        let abs_path = temp_dir
+            .join(".agents")
+            .join("skills")
+            .join("skill-creator")
+            .join("scripts")
+            .join("run_eval.py");
+        let abs_str = abs_path.to_str().unwrap();
+
+        store.add(abs_str)?;
+        let snapshot = store.get_snapshot();
+
+        // Exact match
+        assert!(snapshot.get_bonus(abs_str) > 0);
+
+        // Relative suffix match
+        let rel_suffix = ".agents/skills/skill-creator/scripts/run_eval.py";
+        assert!(snapshot.get_bonus(rel_suffix) > 0);
+
+        // Short suffix match
+        let short_suffix = "scripts/run_eval.py";
+        assert!(snapshot.get_bonus(short_suffix) > 0);
 
         let _ = fs::remove_dir_all(&temp_dir);
         Ok(())
