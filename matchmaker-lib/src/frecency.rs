@@ -75,6 +75,7 @@ impl FrecencyRecord {
 #[derive(Debug, Clone, Default)]
 pub struct FrecencySnapshot {
     pub scores: FxHashMap<String, u32>,
+    pub basename_scores: FxHashMap<String, u32>,
 }
 
 impl FrecencySnapshot {
@@ -85,23 +86,20 @@ impl FrecencySnapshot {
             return score;
         }
 
+        if !path.starts_with('/') && !path.starts_with('\\') {
+            let filename = Path::new(clean)
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or(clean);
+
+            if let Some(&score) = self.basename_scores.get(filename) {
+                return score;
+            }
+        }
+
         let normalized = normalize_path(path);
         if let Some(&score) = self.scores.get(normalized.as_str()) {
             return score;
-        }
-
-        if !path.starts_with('/') && !path.starts_with('\\') {
-            for (stored_path, &score) in &self.scores {
-                if stored_path.ends_with(clean) {
-                    let clean_len = clean.len();
-                    if stored_path.len() > clean_len {
-                        let sep_char = stored_path.as_bytes()[stored_path.len() - clean_len - 1];
-                        if sep_char == b'/' || sep_char == b'\\' {
-                            return score;
-                        }
-                    }
-                }
-            }
         }
 
         0
@@ -332,7 +330,14 @@ impl FrecencyStore {
                         let json_val = entry.1.value();
                         if let Ok(record) = serde_json::from_str::<FrecencyRecord>(json_val) {
                             let score = record.calculate_score(now);
-                            snapshot.scores.insert(key.to_string(), score);
+                            if score > 0 {
+                                snapshot.scores.insert(key.to_string(), score);
+                                if let Some(name) = Path::new(key).file_name().and_then(|n| n.to_str()) {
+                                    snapshot.basename_scores.entry(name.to_string())
+                                        .and_modify(|s| *s = (*s).max(score))
+                                        .or_insert(score);
+                                }
+                            }
                         }
                     }
                 }

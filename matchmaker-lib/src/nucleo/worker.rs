@@ -243,8 +243,9 @@ impl<T: SSS> Worker<T> {
         }
 
         if self.frecency || self.depth_penalty > 0 {
+            let total_sort = total.min(1000);
             let mut items: Vec<_> = snapshot
-                .matched_items(0..total)
+                .matched_items(0..total_sort)
                 .enumerate()
                 .collect();
             let penalty = self.depth_penalty;
@@ -396,8 +397,9 @@ impl<T: SSS> Worker<T> {
                 .is_empty()
         {
             let total = status.matched_count;
+            let total_sort = total.min(1000);
             let mut items: Vec<_> = snapshot
-                .matched_items(0..total)
+                .matched_items(0..total_sort)
                 .enumerate()
                 .collect();
             let penalty = self.depth_penalty;
