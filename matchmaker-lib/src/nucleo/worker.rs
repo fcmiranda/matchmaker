@@ -250,8 +250,8 @@ impl<T: SSS> Worker<T> {
             .unwrap_or_default()
             .is_empty();
 
-        let should_sort = (self.frecency && self.frecency_snapshot.is_some())
-            || (self.depth_penalty > 0 && !is_query_empty);
+        let should_sort = !is_query_empty
+            && ((self.frecency && self.frecency_snapshot.is_some()) || self.depth_penalty > 0);
 
         if should_sort {
             let total_sort = if self.sort_cap > 0 {
@@ -419,8 +419,8 @@ impl<T: SSS> Worker<T> {
             .unwrap_or_default()
             .is_empty();
 
-        let should_sort = (self.frecency && self.frecency_snapshot.is_some())
-            || (self.depth_penalty > 0 && !is_query_empty);
+        let should_sort = !is_query_empty
+            && ((self.frecency && self.frecency_snapshot.is_some()) || self.depth_penalty > 0);
 
         let items_buf: Vec<_> = if should_sort {
             let total = status.matched_count;
