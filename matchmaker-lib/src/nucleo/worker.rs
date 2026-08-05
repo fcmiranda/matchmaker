@@ -272,10 +272,11 @@ impl<T: SSS> Worker<T> {
             };
             let col0 = &self.columns[0];
             if let Some(snap) = snapshot_ref {
-                if total > total_sort {
-                    for (idx, item) in snapshot.matched_items(total_sort..total).enumerate() {
+                let scan_end = total.min(total_sort + 3000);
+                if scan_end > total_sort {
+                    for (idx, item) in snapshot.matched_items(total_sort..scan_end).enumerate() {
                         let raw_path = col0.raw(item.data);
-                        if snap.get_bonus(raw_path.as_ref()) > 0 {
+                        if snap.has_bonus_fast(raw_path.as_ref()) {
                             items.push((total_sort as usize + idx, item));
                         }
                     }
@@ -441,10 +442,11 @@ impl<T: SSS> Worker<T> {
             };
             let col0 = &self.columns[0];
             if let Some(snap) = snapshot_ref {
-                if total > total_sort {
-                    for (idx, item) in snapshot.matched_items(total_sort..total).enumerate() {
+                let scan_end = total.min(total_sort + 3000);
+                if scan_end > total_sort {
+                    for (idx, item) in snapshot.matched_items(total_sort..scan_end).enumerate() {
                         let raw_path = col0.raw(item.data);
-                        if snap.get_bonus(raw_path.as_ref()) > 0 {
+                        if snap.has_bonus_fast(raw_path.as_ref()) {
                             items.push((total_sort as usize + idx, item));
                         }
                     }

@@ -102,6 +102,25 @@ impl FrecencySnapshot {
 
         0
     }
+
+    /// Fast zero-allocation check if path or basename has any frecency bonus.
+    #[inline]
+    pub fn has_bonus_fast(&self, path: &str) -> bool {
+        if self.scores.is_empty() && self.basename_scores.is_empty() {
+            return false;
+        }
+        let trimmed = path.trim_end_matches('/').trim_end_matches('\\');
+        if self.scores.contains_key(trimmed) {
+            return true;
+        }
+        let bytes = trimmed.as_bytes();
+        let idx = bytes
+            .iter()
+            .rposition(|&b| b == b'/' || b == b'\\')
+            .map(|i| i + 1)
+            .unwrap_or(0);
+        self.basename_scores.contains_key(&trimmed[idx..])
+    }
 }
 
 /// Helper function to normalize path strings (expand tilde, convert relative paths to absolute, trim trailing slashes).
