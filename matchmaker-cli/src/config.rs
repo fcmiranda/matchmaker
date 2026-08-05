@@ -97,13 +97,15 @@ impl PathMatchPattern {
             }
 
             let exp_path = std::path::Path::new(&expanded);
-            if current_dir == exp_path || current_dir.starts_with(exp_path) {
+            if current_dir == exp_path {
                 return true;
             }
 
-            if let Ok(glob_pattern) = glob::Pattern::new(&expanded) {
-                if glob_pattern.matches(&cwd_str) {
-                    return true;
+            if expanded.contains('*') || expanded.contains('?') || expanded.contains('[') {
+                if let Ok(glob_pattern) = glob::Pattern::new(&expanded) {
+                    if glob_pattern.matches(&cwd_str) {
+                        return true;
+                    }
                 }
             }
             false
@@ -178,6 +180,7 @@ mod tests {
         assert_eq!(rules[0].preset, Some(std::path::PathBuf::from("jump")));
 
         let dev_subdir = home_dir.join("dev").join("github").join("project");
+        assert!(!rules[0].path.matches(&dev_subdir));
         assert!(rules[1].path.matches(&dev_subdir));
     }
 }
