@@ -338,6 +338,7 @@ impl Default for UiConfig {
             Actions::from([
                 Action::ChDir("{=}".to_string()),
                 Action::Reload("".to_string()),
+                Action::Pos(0),
             ]),
         );
         nav_binds.insert(
@@ -345,6 +346,7 @@ impl Default for UiConfig {
             Actions::from([
                 Action::ChDir("..".to_string()),
                 Action::Reload("".to_string()),
+                Action::Pos(0),
             ]),
         );
         nav_binds.insert("J".to_string(), Actions::from([Action::PreviewDown(1)]));
