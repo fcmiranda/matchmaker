@@ -597,6 +597,8 @@ pub async fn start(config: Config, no_read: bool, group_prefix: Option<String>) 
         rule: all_rules,
     } = config;
 
+    let raw_base_cmd = command.clone();
+
     if sort && !worker.sort_threshold.is_smart() {
         // Force nucleo to preserve insertion order (stable sort) so the alphabetically
         // sorted input is displayed in the same order when no query is typed.
@@ -884,7 +886,11 @@ pub async fn start(config: Config, no_read: bool, group_prefix: Option<String>) 
     let reload_formatter = cli_formatter.clone();
     let reload_render_tx = render_tx.clone();
     let reload_rules = all_rules.clone();
-    let default_base_cmd = command.clone();
+    let default_base_cmd = if !raw_base_cmd.is_empty() {
+        raw_base_cmd
+    } else {
+        command.clone()
+    };
 
     let mut cmd = command.clone();
     mm.register_interrupt_handler(Interrupt::Reload, move |state| {
