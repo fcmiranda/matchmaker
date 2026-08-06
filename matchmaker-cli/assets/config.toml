@@ -26,23 +26,7 @@ scroll_wrap = true
 media = true
 
 [[preview.layout]]
-command = '''
-if [ -d {1} ]; then
-    if command -v eza >/dev/null 2>&1; then
-        eza --color=always -T -L 2 {1}
-    else
-        find {1} -maxdepth 2 | sed 's|[^/]*/|  |g'
-    fi
-else
-    if command -v bat >/dev/null 2>&1; then
-        bat --binary no-printing --color=always {1}
-    elif command -v $PAGER >/dev/null 2>&1; then
-        $PAGER {1}
-    else
-        cat {1}
-    fi
-fi
-'''
+command = '''p={1}; p="${p/#\~/$HOME}"; if [ -d "$p" ]; then mm tree "$p" 2>/dev/null || eza --tree --level=2 --icons=always --git-ignore --color=always "$p" 2>/dev/null || ls -la "$p"; else mime=$(file -b --mime-type "$p" 2>/dev/null); if [[ "$mime" == image/* ]]; then if command -v chafa >/dev/null 2>&1; then chafa --size=80x35 "$p" 2>/dev/null; elif command -v img2txt >/dev/null 2>&1; then img2txt -W 70 "$p" 2>/dev/null; fi; echo ""; identify "$p" 2>/dev/null || file "$p"; else bat --style=numbers --color=always --line-range=:300 "$p" 2>/dev/null || cat "$p"; fi; fi'''
 
 side = "right"
 percentage = 40
