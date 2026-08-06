@@ -306,9 +306,10 @@ impl<T: SSS> Worker<T> {
                 };
                 let dir_priority = if self.dir_first {
                     let raw_str = raw_path.as_ref();
-                    let trimmed = raw_str.strip_prefix("./").unwrap_or(raw_str);
-                    let slash_count = trimmed.bytes().filter(|&b| b == b'/' || b == b'\\').count();
                     let is_dir = raw_str.ends_with('/') || std::path::Path::new(raw_str).is_dir();
+                    let trimmed = raw_str.strip_prefix("./").unwrap_or(raw_str);
+                    let trimmed_path = trimmed.trim_end_matches(|c| c == '/' || c == '\\');
+                    let slash_count = trimmed_path.bytes().filter(|&b| b == b'/' || b == b'\\').count();
                     if slash_count == 0 && is_dir {
                         2_000_000_000u64
                     } else if slash_count == 0 {
