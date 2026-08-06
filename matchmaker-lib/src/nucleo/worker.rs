@@ -22,6 +22,59 @@ use crate::{
     utils::text::{truncation_indicator, wrap_text, wrapping_indicator},
 };
 
+fn get_item_tier_and_clean_path<'a>(raw_str: &'a str, dir_first: bool) -> (u8, &'a str) {
+    if !dir_first {
+        return (2, raw_str);
+    }
+
+    let is_dir = raw_str.ends_with('/') || std::path::Path::new(raw_str).is_dir();
+    let trimmed = raw_str.strip_prefix("./").unwrap_or(raw_str);
+    let clean = trimmed.trim_end_matches(|c| c == '/' || c == '\\');
+    let slash_count = clean.bytes().filter(|&b| b == b'/' || b == b'\\').count();
+
+    if slash_count == 0 {
+        if is_dir {
+            (0, clean)
+        } else {
+            (1, clean)
+        }
+    } else {
+        (2, clean)
+    }
+}
+
+fn compute_item_score(
+    total: u32,
+    idx: usize,
+    raw_path: &str,
+    is_query_empty: bool,
+    snapshot_ref: Option<&crate::frecency::FrecencySnapshot>,
+    frec_weight: u32,
+    penalty: u32,
+) -> u64 {
+    let base_score = total.saturating_sub(idx as u32) as u64;
+    let frecency_bonus = if !is_query_empty {
+        snapshot_ref
+            .map(|snap| snap.get_bonus(raw_path) * frec_weight)
+            .unwrap_or(0) as u64
+    } else {
+        0
+    };
+    let depth = if penalty > 0 {
+        raw_path
+            .as_bytes()
+            .iter()
+            .filter(|&&b| b == b'/' || b == b'\\')
+            .count() as u64
+    } else {
+        0
+    };
+
+    base_score
+        .saturating_add(frecency_bonus)
+        .saturating_sub(depth * penalty as u64)
+}
+
 type ColumnFormatFn<T> = Box<dyn for<'a> Fn(&'a T) -> Text<'a> + Send + Sync>;
 type ColumnRawFn<T> = Box<dyn for<'a> Fn(&'a T) -> Cow<'a, str> + Send + Sync>;
 pub struct Column<T> {
@@ -285,47 +338,27 @@ impl<T: SSS> Worker<T> {
                     }
                 }
             }
-            items.sort_by_key(|(idx, item)| {
-                let raw_path = col0.raw(item.data);
-                let base_score = total.saturating_sub(*idx as u32);
-                let frecency_bonus = if !is_query_empty {
-                    snapshot_ref
-                        .map(|snap| snap.get_bonus(raw_path.as_ref()) * frec_weight)
-                        .unwrap_or(0)
-                } else {
-                    0
-                };
-                let depth = if penalty > 0 {
-                    raw_path
-                        .as_bytes()
-                        .iter()
-                        .filter(|&&b| b == b'/' || b == b'\\')
-                        .count() as u32
-                } else {
-                    0
-                };
-                let dir_priority = if self.dir_first {
-                    let raw_str = raw_path.as_ref();
-                    let is_dir = raw_str.ends_with('/') || std::path::Path::new(raw_str).is_dir();
-                    let trimmed = raw_str.strip_prefix("./").unwrap_or(raw_str);
-                    let trimmed_path = trimmed.trim_end_matches(|c| c == '/' || c == '\\');
-                    let slash_count = trimmed_path.bytes().filter(|&b| b == b'/' || b == b'\\').count();
-                    if slash_count == 0 && is_dir {
-                        2_000_000_000u64
-                    } else if slash_count == 0 {
-                        1_000_000_000u64
-                    } else {
-                        0u64
-                    }
-                } else {
-                    0u64
-                };
+            items.sort_by(|(idx_a, item_a), (idx_b, item_b)| {
+                let path_a = col0.raw(item_a.data);
+                let path_b = col0.raw(item_b.data);
 
-                let effective_score = (base_score as u64)
-                    .saturating_add(frecency_bonus as u64)
-                    .saturating_add(dir_priority)
-                    .saturating_sub((depth * penalty) as u64);
-                std::cmp::Reverse(effective_score)
+                let (tier_a, clean_a) = get_item_tier_and_clean_path(path_a.as_ref(), self.dir_first);
+                let (tier_b, clean_b) = get_item_tier_and_clean_path(path_b.as_ref(), self.dir_first);
+
+                if tier_a != tier_b {
+                    return tier_a.cmp(&tier_b);
+                }
+
+                if tier_a < 2 {
+                    let cmp = clean_a.to_lowercase().cmp(&clean_b.to_lowercase());
+                    if cmp != std::cmp::Ordering::Equal {
+                        return cmp;
+                    }
+                }
+
+                let score_a = compute_item_score(total, *idx_a, path_a.as_ref(), is_query_empty, snapshot_ref, frec_weight, penalty);
+                let score_b = compute_item_score(total, *idx_b, path_b.as_ref(), is_query_empty, snapshot_ref, frec_weight, penalty);
+                score_b.cmp(&score_a)
             });
             items.get(n as usize).map(|(_, item)| item.data)
         } else {
@@ -478,47 +511,27 @@ impl<T: SSS> Worker<T> {
                     }
                 }
             }
-            items.sort_by_key(|(idx, item)| {
-                let raw_path = col0.raw(item.data);
-                let base_score = total.saturating_sub(*idx as u32);
-                let frecency_bonus = if !is_query_empty {
-                    snapshot_ref
-                        .map(|snap| snap.get_bonus(raw_path.as_ref()) * frec_weight)
-                        .unwrap_or(0)
-                } else {
-                    0
-                };
-                let depth = if penalty > 0 {
-                    raw_path
-                        .as_bytes()
-                        .iter()
-                        .filter(|&&b| b == b'/' || b == b'\\')
-                        .count() as u32
-                } else {
-                    0
-                };
-                let dir_priority = if self.dir_first {
-                    let raw_str = raw_path.as_ref();
-                    let is_dir = raw_str.ends_with('/') || std::path::Path::new(raw_str).is_dir();
-                    let trimmed = raw_str.strip_prefix("./").unwrap_or(raw_str);
-                    let trimmed_path = trimmed.trim_end_matches(|c| c == '/' || c == '\\');
-                    let slash_count = trimmed_path.bytes().filter(|&b| b == b'/' || b == b'\\').count();
-                    if slash_count == 0 && is_dir {
-                        2_000_000_000u64
-                    } else if slash_count == 0 {
-                        1_000_000_000u64
-                    } else {
-                        0u64
-                    }
-                } else {
-                    0u64
-                };
+            items.sort_by(|(idx_a, item_a), (idx_b, item_b)| {
+                let path_a = col0.raw(item_a.data);
+                let path_b = col0.raw(item_b.data);
 
-                let effective_score = (base_score as u64)
-                    .saturating_add(frecency_bonus as u64)
-                    .saturating_add(dir_priority)
-                    .saturating_sub((depth * penalty) as u64);
-                std::cmp::Reverse(effective_score)
+                let (tier_a, clean_a) = get_item_tier_and_clean_path(path_a.as_ref(), self.dir_first);
+                let (tier_b, clean_b) = get_item_tier_and_clean_path(path_b.as_ref(), self.dir_first);
+
+                if tier_a != tier_b {
+                    return tier_a.cmp(&tier_b);
+                }
+
+                if tier_a < 2 {
+                    let cmp = clean_a.to_lowercase().cmp(&clean_b.to_lowercase());
+                    if cmp != std::cmp::Ordering::Equal {
+                        return cmp;
+                    }
+                }
+
+                let score_a = compute_item_score(total, *idx_a, path_a.as_ref(), is_query_empty, snapshot_ref, frec_weight, penalty);
+                let score_b = compute_item_score(total, *idx_b, path_b.as_ref(), is_query_empty, snapshot_ref, frec_weight, penalty);
+                score_b.cmp(&score_a)
             });
             let range_start = start.min(total) as usize;
             let range_end = end.min(total) as usize;
