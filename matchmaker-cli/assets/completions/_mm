@@ -20,8 +20,8 @@ _mm() {
 '*--override=[]:PATH:_files' \
 '--group-prefix=[Specify a prefix that indicates a line is a group header]:PREFIX:_default' \
 '--download=[Download presets from GitHub. Optionally specify a subfolder]::FOLDER:_default' \
-'-d+[Display documentation]:DOC:(options binds template other)' \
-'--doc=[Display documentation]:DOC:(options binds template other)' \
+'-d+[Display documentation]:DOC:(options binds template performance other)' \
+'--doc=[Display documentation]:DOC:(options binds template performance other)' \
 '*--media=[Enable native terminal media previews (images, videos, PDFs) using ratatui-image and set properties. Examples\: --media --media size\:s --media size\:256 type\:kitty --media size\:xl]::PROP:_default' \
 '*--color=[Colourise the UI with fzf-style key\:value pairs (comma-separated). Example\: --color border\:#cba6f7,hl-fg\:#a6e3a1,nav\:#89b4fa Keys\: fg, bg, hl-fg, hl-bg, border, label, preview-border, preview-label, list-border, list-label, input-border, input-label, header-border, header-label, nav, selected-fg, selected-bg, selected-prefix, unselected-prefix, spinner, yank, cut, symlink]:SPEC:_default' \
 '*--nav=[Enable navigation mode and set properties. Examples\: --nav --nav bar blink\:slow --nav bar\:plain action-bar color\:#a6e3a1 marker\:'\''>'\'' bold --nav action-bar\:double]::PROP:_default' \

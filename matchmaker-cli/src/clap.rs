@@ -101,6 +101,7 @@ pub enum Doc {
     Options,
     Binds,
     Template,
+    Performance,
     Other,
 }
 
