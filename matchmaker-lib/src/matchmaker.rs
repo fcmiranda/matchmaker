@@ -1174,14 +1174,23 @@ pub fn make_previewer<T: SSS, S: Selection + 'static>(
                 let mut msg = None;
 
                 if media {
-                    let item = use_formatter(&formatter, state, "{=1}", None);
-                    let item_trimmed = item.trim();
-                    let clean_path = if item_trimmed.starts_with("~/") || item_trimmed.starts_with("~\\") {
-                        dirs::home_dir().map(|h| h.join(&item_trimmed[2..]))
-                    } else if item_trimmed == "~" {
+                    let raw_item = use_formatter(&formatter, state, "{=1}", None);
+                    let mut trimmed = raw_item.trim();
+                    // Strip leading icon if present (e.g. nerd font / fontawesome icon prefix)
+                    if let Some(ch) = trimmed.chars().next() {
+                        if (ch as u32) > 127 {
+                            let mut chars = trimmed.chars();
+                            chars.next();
+                            trimmed = chars.as_str().trim();
+                        }
+                    }
+
+                    let clean_path = if trimmed.starts_with("~/") || trimmed.starts_with("~\\") {
+                        dirs::home_dir().map(|h| h.join(&trimmed[2..]))
+                    } else if trimmed == "~" {
                         dirs::home_dir()
                     } else {
-                        Some(std::path::PathBuf::from(item_trimmed))
+                        Some(std::path::PathBuf::from(trimmed))
                     };
 
                     if let Some(p) = clean_path && p.is_file() {
