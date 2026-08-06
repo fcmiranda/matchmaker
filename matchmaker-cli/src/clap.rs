@@ -102,6 +102,8 @@ pub enum Doc {
     Binds,
     Template,
     Performance,
+    Frecency,
+    Jump,
     Other,
 }
 

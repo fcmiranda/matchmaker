@@ -50,11 +50,11 @@ _mm() {
                     return 0
                     ;;
                 --doc)
-                    COMPREPLY=($(compgen -W "options binds template performance other" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "options binds template performance frecency jump other" -- "${cur}"))
                     return 0
                     ;;
                 -d)
-                    COMPREPLY=($(compgen -W "options binds template performance other" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "options binds template performance frecency jump other" -- "${cur}"))
                     return 0
                     ;;
                 --media)

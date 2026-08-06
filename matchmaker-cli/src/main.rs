@@ -123,6 +123,8 @@ fn display_doc(cli: &Cli) {
             Doc::Binds => md.push_str(include_str!("../assets/docs/binds.md")),
             Doc::Template => md.push_str(include_str!("../assets/docs/template.md")),
             Doc::Performance => md.push_str(include_str!("../assets/docs/performance.md")),
+            Doc::Frecency => md.push_str(include_str!("../assets/docs/frecency.md")),
+            Doc::Jump => md.push_str(include_str!("../assets/docs/jump.md")),
             Doc::Other => md.push_str(include_str!("../assets/docs/other.md")),
         }
     }

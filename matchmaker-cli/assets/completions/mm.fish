@@ -6,6 +6,8 @@ complete -c mm -s d -l doc -d 'Display documentation' -r -f -a "options\t''
 binds\t''
 template\t''
 performance\t''
+frecency\t''
+jump\t''
 other\t''"
 complete -c mm -l media -d 'Enable native terminal media previews (images, videos, PDFs) using ratatui-image and set properties. Examples: --media --media size:s --media size:256 type:kitty --media size:xl' -r
 complete -c mm -l color -d 'Colourise the UI with fzf-style key:value pairs (comma-separated). Example: --color border:#cba6f7,hl-fg:#a6e3a1,nav:#89b4fa Keys: fg, bg, hl-fg, hl-bg, border, label, preview-border, preview-label, list-border, list-label, input-border, input-label, header-border, header-label, nav, selected-fg, selected-bg, selected-prefix, unselected-prefix, spinner, yank, cut, symlink' -r
