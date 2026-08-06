@@ -365,7 +365,10 @@ impl<T: SSS> Worker<T> {
                 let score_b = compute_item_score(total, *idx_b, path_b.as_ref(), is_query_empty, snapshot_ref, frec_weight, penalty);
                 score_b.cmp(&score_a)
             });
-            items.get(n as usize).map(|(_, item)| item.data)
+            items
+                .get(n as usize)
+                .map(|(_, item)| item.data)
+                .or_else(|| snapshot.get_matched_item(n).map(|item| item.data))
         } else {
             snapshot.get_matched_item(n).map(|item| item.data)
         }
@@ -554,7 +557,9 @@ impl<T: SSS> Worker<T> {
                     .map(|(_, item)| item)
                     .collect()
             } else {
-                Vec::new()
+                snapshot
+                    .matched_items(start.min(status.matched_count)..end.min(status.matched_count))
+                    .collect()
             }
         } else {
             snapshot
