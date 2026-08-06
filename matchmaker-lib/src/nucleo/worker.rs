@@ -345,31 +345,67 @@ impl<T: SSS> Worker<T> {
                     }
                 }
             }
-            items.sort_by(|(idx_a, item_a), (idx_b, item_b)| {
-                let path_a = col0.raw(item_a.data);
-                let path_b = col0.raw(item_b.data);
+            struct DecoratedItem<'a, T> {
+                item: nucleo::Item<'a, T>,
+                tier: u8,
+                clean_path: std::borrow::Cow<'a, str>,
+                score: u64,
+            }
 
-                let (tier_a, clean_a) = get_item_tier_and_clean_path(path_a.as_ref(), self.dir_first);
-                let (tier_b, clean_b) = get_item_tier_and_clean_path(path_b.as_ref(), self.dir_first);
+            let mut decorated: Vec<DecoratedItem<'_, T>> = items
+                .into_iter()
+                .map(|(idx, item)| {
+                    let raw_path = col0.raw(item.data);
+                    let score = compute_item_score(
+                        total,
+                        idx,
+                        raw_path.as_ref(),
+                        is_query_empty,
+                        snapshot_ref,
+                        frec_weight,
+                        penalty,
+                    );
+                    let (tier, clean_path) = match raw_path {
+                        Cow::Borrowed(s) => {
+                            let (t, c) = get_item_tier_and_clean_path(s, self.dir_first);
+                            (t, Cow::Borrowed(c))
+                        }
+                        Cow::Owned(s) => {
+                            let (t, c) = get_item_tier_and_clean_path(&s, self.dir_first);
+                            (t, Cow::Owned(c.to_string()))
+                        }
+                    };
+                    DecoratedItem {
+                        item,
+                        tier,
+                        clean_path,
+                        score,
+                    }
+                })
+                .collect();
 
-                if tier_a != tier_b {
-                    return tier_a.cmp(&tier_b);
+            decorated.sort_by(|a, b| {
+                if a.tier != b.tier {
+                    return a.tier.cmp(&b.tier);
                 }
 
-                if tier_a < 2 {
-                    let cmp = clean_a.to_lowercase().cmp(&clean_b.to_lowercase());
+                if a.tier < 2 {
+                    let cmp = a
+                        .clean_path
+                        .bytes()
+                        .map(|b| b.to_ascii_lowercase())
+                        .cmp(b.clean_path.bytes().map(|b| b.to_ascii_lowercase()));
                     if cmp != std::cmp::Ordering::Equal {
                         return cmp;
                     }
                 }
 
-                let score_a = compute_item_score(total, *idx_a, path_a.as_ref(), is_query_empty, snapshot_ref, frec_weight, penalty);
-                let score_b = compute_item_score(total, *idx_b, path_b.as_ref(), is_query_empty, snapshot_ref, frec_weight, penalty);
-                score_b.cmp(&score_a)
+                b.score.cmp(&a.score)
             });
-            items
+
+            decorated
                 .get(n as usize)
-                .map(|(_, item)| item.data)
+                .map(|d| d.item.data)
                 .or_else(|| snapshot.get_matched_item(n).map(|item| item.data))
         } else {
             snapshot.get_matched_item(n).map(|item| item.data)
@@ -526,37 +562,73 @@ impl<T: SSS> Worker<T> {
                     }
                 }
             }
-            items.sort_by(|(idx_a, item_a), (idx_b, item_b)| {
-                let path_a = col0.raw(item_a.data);
-                let path_b = col0.raw(item_b.data);
+            struct DecoratedItem<'a, T> {
+                item: nucleo::Item<'a, T>,
+                tier: u8,
+                clean_path: std::borrow::Cow<'a, str>,
+                score: u64,
+            }
 
-                let (tier_a, clean_a) = get_item_tier_and_clean_path(path_a.as_ref(), self.dir_first);
-                let (tier_b, clean_b) = get_item_tier_and_clean_path(path_b.as_ref(), self.dir_first);
+            let mut decorated: Vec<DecoratedItem<'_, T>> = items
+                .into_iter()
+                .map(|(idx, item)| {
+                    let raw_path = col0.raw(item.data);
+                    let score = compute_item_score(
+                        total,
+                        idx,
+                        raw_path.as_ref(),
+                        is_query_empty,
+                        snapshot_ref,
+                        frec_weight,
+                        penalty,
+                    );
+                    let (tier, clean_path) = match raw_path {
+                        Cow::Borrowed(s) => {
+                            let (t, c) = get_item_tier_and_clean_path(s, self.dir_first);
+                            (t, Cow::Borrowed(c))
+                        }
+                        Cow::Owned(s) => {
+                            let (t, c) = get_item_tier_and_clean_path(&s, self.dir_first);
+                            (t, Cow::Owned(c.to_string()))
+                        }
+                    };
+                    DecoratedItem {
+                        item,
+                        tier,
+                        clean_path,
+                        score,
+                    }
+                })
+                .collect();
 
-                if tier_a != tier_b {
-                    return tier_a.cmp(&tier_b);
+            decorated.sort_by(|a, b| {
+                if a.tier != b.tier {
+                    return a.tier.cmp(&b.tier);
                 }
 
-                if tier_a < 2 {
-                    let cmp = clean_a.to_lowercase().cmp(&clean_b.to_lowercase());
+                if a.tier < 2 {
+                    let cmp = a
+                        .clean_path
+                        .bytes()
+                        .map(|b| b.to_ascii_lowercase())
+                        .cmp(b.clean_path.bytes().map(|b| b.to_ascii_lowercase()));
                     if cmp != std::cmp::Ordering::Equal {
                         return cmp;
                     }
                 }
 
-                let score_a = compute_item_score(total, *idx_a, path_a.as_ref(), is_query_empty, snapshot_ref, frec_weight, penalty);
-                let score_b = compute_item_score(total, *idx_b, path_b.as_ref(), is_query_empty, snapshot_ref, frec_weight, penalty);
-                score_b.cmp(&score_a)
+                b.score.cmp(&a.score)
             });
+
             let range_start = start.min(total) as usize;
             let range_end = end.min(total) as usize;
-            if range_start < items.len() {
+            if range_start < decorated.len() {
                 let take_count = range_end.saturating_sub(range_start);
-                items
+                decorated
                     .into_iter()
                     .skip(range_start)
                     .take(take_count)
-                    .map(|(_, item)| item)
+                    .map(|d| d.item)
                     .collect()
             } else {
                 snapshot

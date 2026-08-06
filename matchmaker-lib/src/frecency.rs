@@ -100,17 +100,31 @@ impl FrecencySnapshot {
             return score;
         }
 
+        let mut buf = [0u8; 1024];
         if (clean.starts_with("~/") || clean.starts_with("~\\")) && !self.home.is_empty() {
-            let full = format!("{}/{}", self.home, &clean[2..]);
-            let full_clean = clean_path(&full);
-            if let Some(&score) = self.scores.get(full_clean) {
-                return score;
+            let rest = &clean[2..];
+            let needed = self.home.len() + 1 + rest.len();
+            if needed <= buf.len() {
+                buf[..self.home.len()].copy_from_slice(self.home.as_bytes());
+                buf[self.home.len()] = b'/';
+                buf[self.home.len() + 1..needed].copy_from_slice(rest.as_bytes());
+                if let Ok(full_str) = std::str::from_utf8(&buf[..needed]) {
+                    if let Some(&score) = self.scores.get(clean_path(full_str)) {
+                        return score;
+                    }
+                }
             }
         } else if !clean.starts_with('/') && !clean.starts_with('\\') && !self.cwd.is_empty() {
-            let full = format!("{}/{}", self.cwd, clean);
-            let full_clean = clean_path(&full);
-            if let Some(&score) = self.scores.get(full_clean) {
-                return score;
+            let needed = self.cwd.len() + 1 + clean.len();
+            if needed <= buf.len() {
+                buf[..self.cwd.len()].copy_from_slice(self.cwd.as_bytes());
+                buf[self.cwd.len()] = b'/';
+                buf[self.cwd.len() + 1..needed].copy_from_slice(clean.as_bytes());
+                if let Ok(full_str) = std::str::from_utf8(&buf[..needed]) {
+                    if let Some(&score) = self.scores.get(clean_path(full_str)) {
+                        return score;
+                    }
+                }
             }
         }
 
