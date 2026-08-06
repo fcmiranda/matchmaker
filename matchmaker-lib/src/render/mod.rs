@@ -1186,9 +1186,7 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                     state.synced = [false; 2];
                     did_reload = true;
                 }
-                Interrupt::ChDir => {
-                    picker_ui.results.cursor_jump(0);
-                }
+                Interrupt::ChDir => {}
                 Interrupt::Become => {
                     tui.exit(None);
                 }
@@ -1208,6 +1206,10 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                 );
                 for h in dynamic_handlers.1.get_mut(interrupt) {
                     h(&mut dispatcher);
+                }
+
+                if matches!(interrupt, Interrupt::ChDir) {
+                    picker_ui.results.cursor_jump(0);
                 }
 
                 if matches!(interrupt, Interrupt::Become) {
