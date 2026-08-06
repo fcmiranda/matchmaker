@@ -43,6 +43,21 @@ percentage = 50
 "ctrl-z" = "@reloadnext"
 "ctrl-j" = "Down"
 "ctrl-k" = "Up"
+"@ancestor_jump" = '''Transform(
+    curr="$(pwd)"
+    parents=""
+    while [ "$curr" != "/" ] && [ -n "$curr" ]; do
+        curr="$(dirname "$curr")"
+        parents="$parents $curr"
+    done
+    if command -v mm >/dev/null 2>&1; then
+        target=$(echo "$parents" | tr ' ' '\n' | grep -v '^$' | mm --prompt="Parent > " || true)
+        if [ -n "$target" ]; then
+            echo "ChDir($target)"
+            echo "Reload"
+        fi
+    fi
+)'''
 
 [ui.nav_binds]
 "ctrl-z" = "@reloadnext"
@@ -76,19 +91,3 @@ else
     find .
 fi
 '''
-
-"@ancestor_jump" = '''Transform(
-    curr="$(pwd)"
-    parents=""
-    while [ "$curr" != "/" ] && [ -n "$curr" ]; do
-        curr="$(dirname "$curr")"
-        parents="$parents $curr"
-    done
-    if command -v mm >/dev/null 2>&1; then
-        target=$(echo "$parents" | tr ' ' '\n' | grep -v '^$' | mm --prompt="Parent > " || true)
-        if [ -n "$target" ]; then
-            echo "ChDir($target)"
-            echo "Reload"
-        fi
-    fi
-)'''
