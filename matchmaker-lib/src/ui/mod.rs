@@ -2,7 +2,7 @@ mod display;
 mod input;
 mod overlay;
 mod preview;
-mod results;
+pub mod results;
 pub use display::*;
 pub use input::*;
 pub use overlay::*;
