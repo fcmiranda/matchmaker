@@ -1781,8 +1781,13 @@ fn insert_icon_span(col: &mut ratatui::text::Text<'_>, name: &str, has_nav_bar: 
 /// Lookup order: directory → symlink → known basename → file extension →
 /// generic file fallback.
 fn icon_for_name(name: &str) -> (char, Color) {
+    let trimmed = name.trim();
+    if trimmed.ends_with('/') || trimmed.ends_with('\\') {
+        return ('\u{f115}', Color::Blue); // nf-fa-folder_open
+    }
+
     use std::path::Path;
-    let path = Path::new(name.trim());
+    let path = Path::new(trimmed);
 
     // Directory
     if std::fs::metadata(path).is_ok_and(|m| m.is_dir()) {
