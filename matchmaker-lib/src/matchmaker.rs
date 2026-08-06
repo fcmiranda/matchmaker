@@ -1175,14 +1175,22 @@ pub fn make_previewer<T: SSS, S: Selection + 'static>(
 
                 if media {
                     let item = use_formatter(&formatter, state, "{=1}", None);
-                    let path = std::path::Path::new(&item);
-                    if path.is_file() {
-                        if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                    let item_trimmed = item.trim();
+                    let clean_path = if item_trimmed.starts_with("~/") || item_trimmed.starts_with("~\\") {
+                        dirs::home_dir().map(|h| h.join(&item_trimmed[2..]))
+                    } else if item_trimmed == "~" {
+                        dirs::home_dir()
+                    } else {
+                        Some(std::path::PathBuf::from(item_trimmed))
+                    };
+
+                    if let Some(p) = clean_path && p.is_file() {
+                        if let Some(ext) = p.extension().and_then(|e| e.to_str()) {
                             if matches!(
                                 ext.to_lowercase().as_str(),
-                                "png" | "jpg" | "jpeg" | "gif" | "webp" | "bmp" | "ico" | "tiff" | "mp4" | "mkv" | "avi" | "mov" | "pdf"
+                                "png" | "jpg" | "jpeg" | "gif" | "webp" | "bmp" | "ico" | "tiff"
                             ) {
-                                msg = Some(PreviewMessage::Media(item.clone()));
+                                msg = Some(PreviewMessage::Media(p.to_string_lossy().to_string()));
                             }
                         }
                     }
