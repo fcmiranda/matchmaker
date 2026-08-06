@@ -6,6 +6,7 @@ use ratatui::text::{Line, Span, Text};
 use crate::ui::results::icon_for_name;
 
 /// Options for directory tree rendering matching `eza` flags.
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct TreeOptions {
     pub max_depth: usize,
@@ -26,6 +27,7 @@ impl Default for TreeOptions {
 }
 
 /// Render a directory tree as Ratatui `Text<'static>` in pure Rust with sub-millisecond execution time.
+#[allow(dead_code)]
 pub fn render_dir_tree(dir: &Path, opts: &TreeOptions) -> Text<'static> {
     let mut lines = Vec::new();
     let root_str = dir.to_string_lossy();
