@@ -327,14 +327,19 @@ impl<T: SSS> Worker<T> {
                 None
             };
             let col0 = &self.columns[0];
-            if let Some(snap) = snapshot_ref {
-                let scan_end = total.min(total_sort + 3000);
-                if scan_end > total_sort {
-                    for (idx, item) in snapshot.matched_items(total_sort..scan_end).enumerate() {
-                        let raw_path = col0.raw(item.data);
-                        if snap.has_bonus_fast(raw_path.as_ref()) {
-                            items.push((total_sort as usize + idx, item));
-                        }
+            let scan_end = total.min(total_sort + 5000);
+            if scan_end > total_sort {
+                for (idx, item) in snapshot.matched_items(total_sort..scan_end).enumerate() {
+                    let raw_path = col0.raw(item.data);
+                    let has_frecency = snapshot_ref.map_or(false, |snap| snap.has_bonus_fast(raw_path.as_ref()));
+                    let is_direct = if self.dir_first {
+                        let (tier, _) = get_item_tier_and_clean_path(raw_path.as_ref(), true);
+                        tier < 2
+                    } else {
+                        false
+                    };
+                    if has_frecency || is_direct {
+                        items.push((total_sort as usize + idx, item));
                     }
                 }
             }
@@ -500,14 +505,19 @@ impl<T: SSS> Worker<T> {
                 None
             };
             let col0 = &self.columns[0];
-            if let Some(snap) = snapshot_ref {
-                let scan_end = total.min(total_sort + 3000);
-                if scan_end > total_sort {
-                    for (idx, item) in snapshot.matched_items(total_sort..scan_end).enumerate() {
-                        let raw_path = col0.raw(item.data);
-                        if snap.has_bonus_fast(raw_path.as_ref()) {
-                            items.push((total_sort as usize + idx, item));
-                        }
+            let scan_end = total.min(total_sort + 5000);
+            if scan_end > total_sort {
+                for (idx, item) in snapshot.matched_items(total_sort..scan_end).enumerate() {
+                    let raw_path = col0.raw(item.data);
+                    let has_frecency = snapshot_ref.map_or(false, |snap| snap.has_bonus_fast(raw_path.as_ref()));
+                    let is_direct = if self.dir_first {
+                        let (tier, _) = get_item_tier_and_clean_path(raw_path.as_ref(), true);
+                        tier < 2
+                    } else {
+                        false
+                    };
+                    if has_frecency || is_direct {
+                        items.push((total_sort as usize + idx, item));
                     }
                 }
             }
