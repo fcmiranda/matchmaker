@@ -905,6 +905,24 @@ pub async fn start(config: Config, no_read: bool, group_prefix: Option<String>) 
         let mut active_cmd = default_base_cmd.clone();
         for rule in &reload_rules {
             if rule.path.matches(&current_dir) {
+                if let Some(ref p) = rule.preset {
+                    let mut preset_path = p.clone();
+                    if preset_path.is_relative() && preset_path.extension().is_none() {
+                        let main_p = presets_path().join(&preset_path).join("main.toml");
+                        preset_path = if !main_p.exists() {
+                            presets_path().join(preset_path.with_extension("toml"))
+                        } else {
+                            main_p
+                        };
+                    }
+                    if let Ok(preset_config) = load_type::<PartialConfig, _>(&preset_path, |s| toml::from_str(s)) {
+                        if let Some(ref cmd_setting) = preset_config.start.command.as_ref() {
+                            if !cmd_setting.command.is_empty() {
+                                active_cmd = cmd_setting.command.clone();
+                            }
+                        }
+                    }
+                }
                 if let Some(ref cmd_setting) = rule.override_config.start.command {
                     if !cmd_setting.command.is_empty() {
                         active_cmd = cmd_setting.command.clone();
@@ -936,14 +954,16 @@ pub async fn start(config: Config, no_read: bool, group_prefix: Option<String>) 
             );
 
             let vars = state.make_env_vars();
-            debug!("Reloading: {cmd}");
+            debug!("Reloading: {cmd} in {current_dir:?}");
             state.picker_ui.selector.clear();
 
             let separator = separator.or(input_separator).unwrap_or('\n');
             let reload_render_tx = reload_render_tx.clone();
             let cmd = cmd.clone();
+            let current_dir = current_dir.clone();
             tokio::task::spawn_blocking(move || {
                 if let Some(out) = Command::from_script(&cmd)
+                    .current_dir(&current_dir)
                     .envs(vars)
                     .stdin(Stdio::null())
                     .args(&*COMMAND_ARGS.lock().unwrap())
