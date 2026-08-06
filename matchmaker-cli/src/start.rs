@@ -815,14 +815,30 @@ pub async fn start(config: Config, no_read: bool, group_prefix: Option<String>) 
         if template.is_empty() {
             return;
         }
-        let path = use_formatter(&chdir_formatter, state, &template, None);
+        let mut path = use_formatter(&chdir_formatter, state, &template, None);
         if path.is_empty() {
             return;
         }
 
-        let path_obj = Path::new(&path);
+        if path.starts_with("~/") || path == "~" {
+            if let Ok(home) = std::env::var("HOME") {
+                if path == "~" {
+                    path = home;
+                } else {
+                    path = format!("{home}/{}", &path[2..]);
+                }
+            }
+        }
+
+        let target_path = Path::new(&path);
+        let target_dir = if target_path.is_file() {
+            target_path.parent().unwrap_or(target_path)
+        } else {
+            target_path
+        };
+
         let mut target_to_select = None;
-        if path_obj == Path::new("..") {
+        if target_dir == Path::new("..") {
             if let Ok(cwd) = std::env::current_dir() {
                 if let Some(name) = cwd.file_name() {
                     target_to_select = Some(name.to_string_lossy().to_string());
@@ -838,9 +854,9 @@ pub async fn start(config: Config, no_read: bool, group_prefix: Option<String>) 
             }
         }
 
-        log::debug!("ChDir: {path}");
-        if let Err(e) = std::env::set_current_dir(&path) {
-            log::warn!("ChDir({path}) failed: {e}");
+        log::debug!("ChDir: {}", target_dir.display());
+        if let Err(e) = std::env::set_current_dir(target_dir) {
+            log::warn!("ChDir({}) failed: {e}", target_dir.display());
         } else {
             if let Some(t) = target_to_select {
                 unsafe {
