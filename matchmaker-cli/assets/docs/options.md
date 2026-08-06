@@ -310,13 +310,15 @@ See `mm --doc binds`.
 - `frecency_weight`: (number) Multiplier for frecency bonus score (default: 1).
 - `depth_penalty` / `dp`: (number) Score penalty per path depth level ('/' or '\'). 0 disables.
 - `typo_tolerance` / `tt`: (bool) Allow character substitutions/typo matching for queries >= 3 chars.
+- `dir_first` / `df`: (bool) Prioritize direct child directories over files and deeper paths (Tier 0: direct dirs, Tier 1: direct files, Tier 2: deeper items).
+- `sort_cap` / `sc`: (number) Maximum number of matched items to re-sort (default: 1000, 0 for unlimited).
 
 
 ### Frecency Subcommands
 
 - `mm add <path>`: Record an access event for a file or directory path.
 - `mm rank <path>`: Query current frecency score and access statistics for a path.
-- `mm list [keyword1 keyword2 ...]` / `mm query`: List tracked paths sorted by frecency score descending, filtered to paths matching ALL keywords (e.g. `mm list dotfiles main`).
+- `mm list [-d / --dirs / --dirs-only] [keyword1 keyword2 ...]` / `mm query`: List tracked paths sorted by frecency score descending, filtered to paths matching ALL keywords (e.g. `mm list --dirs dotfiles main`). Pass `-d` / `--dirs` to output directories only.
 - `mm init <shell> [--cmd <alias>]`: Generate shell integration code (`zsh`, `bash`, `fish`, `nushell`, `powershell`) with optional custom command alias (e.g. `mm init zsh --cmd j`).
 - `mm import zoxide`: Import historical directory records and scores from `zoxide`.
 - `mm clean` / `mm prune`: Purge stale/deleted paths from the frecency database.

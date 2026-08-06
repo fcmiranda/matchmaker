@@ -1,7 +1,7 @@
 ### Components
 
 - Nucleo
-  - worker
+  - worker (supports frecency, depth penalty, sort_cap, and native `dir_first` 3-tiered sorting: Tier 0 direct dirs, Tier 1 direct files, Tier 2 deeper items)
   - matcher
 - Selector (&Input -> (u32, Output))
 - Configs (see config.toml/config.rs)
