@@ -76,6 +76,8 @@ impl FrecencyRecord {
 pub struct FrecencySnapshot {
     pub scores: FxHashMap<String, u32>,
     pub basename_scores: FxHashMap<String, u32>,
+    pub cwd: String,
+    pub home: String,
 }
 
 impl FrecencySnapshot {
@@ -86,18 +88,30 @@ impl FrecencySnapshot {
             return score;
         }
 
-        let filename = Path::new(clean)
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or(clean);
+        let bytes = clean.as_bytes();
+        let idx = bytes
+            .iter()
+            .rposition(|&b| b == b'/' || b == b'\\')
+            .map(|i| i + 1)
+            .unwrap_or(0);
+        let filename = &clean[idx..];
 
         if let Some(&score) = self.basename_scores.get(filename) {
             return score;
         }
 
-        let normalized = normalize_path(path);
-        if let Some(&score) = self.scores.get(normalized.as_str()) {
-            return score;
+        if (clean.starts_with("~/") || clean.starts_with("~\\")) && !self.home.is_empty() {
+            let full = format!("{}/{}", self.home, &clean[2..]);
+            let full_clean = clean_path(&full);
+            if let Some(&score) = self.scores.get(full_clean) {
+                return score;
+            }
+        } else if !clean.starts_with('/') && !clean.starts_with('\\') && !self.cwd.is_empty() {
+            let full = format!("{}/{}", self.cwd, clean);
+            let full_clean = clean_path(&full);
+            if let Some(&score) = self.scores.get(full_clean) {
+                return score;
+            }
         }
 
         0
@@ -333,7 +347,12 @@ impl FrecencyStore {
 
     /// Load all tracked entries into an in-memory snapshot for sub-millisecond lookup.
     pub fn get_snapshot(&self) -> FrecencySnapshot {
-        let mut snapshot = FrecencySnapshot::default();
+        let mut snapshot = FrecencySnapshot {
+            scores: FxHashMap::default(),
+            basename_scores: FxHashMap::default(),
+            cwd: std::env::current_dir().map(|p| p.to_string_lossy().to_string()).unwrap_or_default(),
+            home: dirs::home_dir().map(|p| p.to_string_lossy().to_string()).unwrap_or_default(),
+        };
         let Some(db) = self.db.as_ref() else {
             return snapshot;
         };
