@@ -27,12 +27,14 @@ fn get_item_tier_and_clean_path<'a>(raw_str: &'a str, dir_first: bool) -> (u8, &
         return (2, raw_str);
     }
 
-    let is_dir = raw_str.ends_with('/') || raw_str.ends_with('\\');
     let trimmed = raw_str.strip_prefix("./").unwrap_or(raw_str);
     let clean = trimmed.trim_end_matches(|c| c == '/' || c == '\\');
     let slash_count = clean.bytes().filter(|&b| b == b'/' || b == b'\\').count();
 
     if slash_count == 0 {
+        let is_dir = raw_str.ends_with('/')
+            || raw_str.ends_with('\\')
+            || std::path::Path::new(clean).is_dir();
         if is_dir {
             (0, clean)
         } else {
