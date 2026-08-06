@@ -1,0 +1,94 @@
+# Matchmaker Jump Mode Preset (`mm -o jump`)
+# Interactive directory navigation, frecency ranking, and TUI traversal.
+
+[ui]
+nav_mode = true
+nav_bar = "Plain"
+nav_color = "Black"
+
+[matcher]
+sort = "smart"
+sort_cap = 2000
+depth_penalty = 15
+frecency = true
+frecency_weight = 2
+typo_tolerance = true
+dir_first = true
+
+[results]
+reverse = false
+icons = true
+symlink_target = true
+symlink_target_style.fg = "cyan"
+
+[previewer]
+debounce_ms = 20
+delay_clear = true
+
+[preview]
+media = true
+
+[preview.border]
+title_fg = "cyan"
+color = "blue"
+type = "Rounded"
+
+[[preview.layout]]
+command = '''p={1}; p="${p/#\~/$HOME}"; if [ -d "$p" ]; then eza --tree --level=2 --icons=always --git-ignore --color=always "$p" 2>/dev/null || ls -la "$p"; else bat --style=numbers --color=always --line-range=:300 "$p" 2>/dev/null || cat "$p"; fi'''
+side = "right"
+percentage = 50
+
+[binds]
+"@reloadnext" = "ReloadNext"
+"ctrl-z" = "@reloadnext"
+"ctrl-j" = "Down"
+"ctrl-k" = "Up"
+
+[ui.nav_binds]
+"ctrl-z" = "@reloadnext"
+"z" = "@reloadnext"
+"l" = ["ChDir({=})", "@reload_local"]
+"h" = ["ChDir(..)", "@reload_local"]
+"alt-u" = "@ancestor_jump"
+
+[breadcrumb]
+show = true
+separator = " / "
+style.fg = "Cyan"
+style.modifier = "BOLD"
+separator_style.fg = "Blue"
+
+[start]
+additional_commands = [
+    "",
+    "fd -H -E.git -Enode_modules -E.cache -Etarget -Edist -Ebuild --strip-cwd-prefix . 2>/dev/null",
+    "mm list --dirs 2>/dev/null"
+]
+
+[start.command]
+command = '''
+IGNORE="-E.git -Enode_modules -E.cache -Etarget -Edist -Ebuild -E__pycache__ -E.venv -Evenv -Eenv -Evendor -E.next"
+
+if command -v fd >/dev/null 2>&1; then
+    fd -H $IGNORE --strip-cwd-prefix --min-depth 1 --max-depth 1 . 2>/dev/null
+    fd -H $IGNORE --strip-cwd-prefix --min-depth 2 . 2>/dev/null
+else
+    find .
+fi
+'''
+
+"@ancestor_jump" = '''Transform(
+    curr="$(pwd)"
+    parents=""
+    while [ "$curr" != "/" ] && [ -n "$curr" ]; do
+        curr="$(dirname "$curr")"
+        parents="$parents $curr"
+    done
+    if command -v mm >/dev/null 2>&1; then
+        target=$(echo "$parents" | tr ' ' '\n' | grep -v '^$' | mm --prompt="Parent > " || true)
+        if [ -n "$target" ]; then
+            echo "ChDir($target)"
+            echo "Reload"
+        fi
+    fi
+)'''
