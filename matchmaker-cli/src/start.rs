@@ -123,6 +123,10 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
         );
     }
 
+    if config.start.command.base_command.is_none() {
+        config.start.command.base_command = Some(config.start.command.command.clone());
+    }
+
     // Apply matching directory / path rules (from config.toml and loaded presets)
     let current_dir = std::env::current_dir().unwrap_or_default();
     let rules = config.rule.clone();
@@ -579,7 +583,12 @@ pub async fn start(config: Config, no_read: bool, group_prefix: Option<String>) 
         start:
             StartConfig {
                 input_separator,
-                command: CommandSetting { separator, command },
+                command:
+                    CommandSetting {
+                        separator,
+                        command,
+                        base_command,
+                    },
                 directory,
                 sync,
                 output_separator,
@@ -597,7 +606,9 @@ pub async fn start(config: Config, no_read: bool, group_prefix: Option<String>) 
         rule: all_rules,
     } = config;
 
-    let raw_base_cmd = command.clone();
+    let default_base_cmd = base_command
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| command.clone());
 
     if sort && !worker.sort_threshold.is_smart() {
         // Force nucleo to preserve insertion order (stable sort) so the alphabetically
@@ -886,11 +897,7 @@ pub async fn start(config: Config, no_read: bool, group_prefix: Option<String>) 
     let reload_formatter = cli_formatter.clone();
     let reload_render_tx = render_tx.clone();
     let reload_rules = all_rules.clone();
-    let default_base_cmd = if !raw_base_cmd.is_empty() {
-        raw_base_cmd
-    } else {
-        command.clone()
-    };
+    let default_base_cmd = default_base_cmd;
 
     let mut cmd = command.clone();
     mm.register_interrupt_handler(Interrupt::Reload, move |state| {

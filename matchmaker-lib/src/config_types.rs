@@ -520,6 +520,9 @@ pub struct CommandSetting {
 
     #[serde(alias = "cmd")]
     pub command: String,
+
+    #[serde(skip)]
+    pub base_command: Option<String>,
 }
 
 impl<'de> Deserialize<'de> for CommandSetting {
@@ -552,11 +555,13 @@ impl<'de> Deserialize<'de> for CommandSetting {
             CommandSettingDe::String(command) => Ok(CommandSetting {
                 separator: None,
                 command,
+                base_command: None,
             }),
 
             CommandSettingDe::Full(obj) => Ok(CommandSetting {
                 separator: obj.separator,
                 command: obj.command,
+                base_command: None,
             }),
         }
     }
