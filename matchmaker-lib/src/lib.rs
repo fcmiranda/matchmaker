@@ -25,7 +25,7 @@ pub mod tui;
 // misc
 mod aliases;
 pub mod errors;
-mod utils;
+pub mod utils;
 pub use aliases::*;
 pub use errors::*;
 

@@ -142,6 +142,14 @@ fn handle_frecency_cli(args: &[String]) -> bool {
         return false;
     }
     match args[0].as_str() {
+        "tree" | "preview-tree" => {
+            let path_str = args.get(1).map(|s| s.as_str()).unwrap_or(".");
+            let path = std::path::Path::new(path_str);
+            let opts = matchmaker::utils::tree::TreeOptions::default();
+            let ansi_output = matchmaker::utils::tree::render_dir_tree_ansi(path, &opts);
+            print!("{ansi_output}");
+            true
+        }
         "add" => {
             let path = args.get(1).cloned().unwrap_or_else(|| {
                 std::env::current_dir()
