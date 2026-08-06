@@ -158,6 +158,7 @@ impl ConfigMatchmaker {
         worker.frecency_weight = worker_config.frecency_weight;
         worker.sort_cap = worker_config.sort_cap;
         worker.typo_tolerance = worker_config.typo_tolerance;
+        worker.dir_first = worker_config.dir_first;
         if worker_config.frecency {
             let store = crate::frecency::FrecencyStore::open();
             worker.frecency_snapshot = Some(store.get_snapshot());

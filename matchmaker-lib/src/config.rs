@@ -68,6 +68,9 @@ pub struct WorkerConfig {
     /// Enable typo tolerance for search queries >= 3 characters.
     #[partial(alias = "tt")]
     pub typo_tolerance: bool,
+    /// Prioritize direct child directories over files and deeper paths.
+    #[partial(alias = "df")]
+    pub dir_first: bool,
     /// TODO: Enable raw mode where non-matching items are also displayed in a dimmed color.
     #[partial(alias = "r")]
     pub raw: bool,
@@ -86,6 +89,7 @@ impl Default for WorkerConfig {
             frecency_weight: 1,
             sort_cap: 1000,
             typo_tolerance: false,
+            dir_first: false,
             raw: false,
             track: false,
             reverse: false,

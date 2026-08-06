@@ -104,6 +104,7 @@ where
     pub sort_cap: usize,
     pub frecency_snapshot: Option<crate::frecency::FrecencySnapshot>,
     pub typo_tolerance: bool,
+    pub dir_first: bool,
 
     // Background tasks which push to the injector check their version matches this or exit
     pub(super) version: Arc<AtomicU32>,
@@ -153,6 +154,7 @@ impl<T: SSS> Worker<T> {
             sort_cap: 1000,
             frecency_snapshot: None,
             typo_tolerance: false,
+            dir_first: false,
             version: Arc::new(AtomicU32::new(0)),
         }
     }
@@ -250,8 +252,9 @@ impl<T: SSS> Worker<T> {
             .unwrap_or_default()
             .is_empty();
 
-        let should_sort = !is_query_empty
-            && ((self.frecency && self.frecency_snapshot.is_some()) || self.depth_penalty > 0);
+        let should_sort = (!is_query_empty
+            && ((self.frecency && self.frecency_snapshot.is_some()) || self.depth_penalty > 0))
+            || self.dir_first;
 
         if should_sort {
             let total_sort = if self.sort_cap > 0 {
@@ -285,9 +288,13 @@ impl<T: SSS> Worker<T> {
             items.sort_by_key(|(idx, item)| {
                 let raw_path = col0.raw(item.data);
                 let base_score = total.saturating_sub(*idx as u32);
-                let frecency_bonus = snapshot_ref
-                    .map(|snap| snap.get_bonus(raw_path.as_ref()) * frec_weight)
-                    .unwrap_or(0);
+                let frecency_bonus = if !is_query_empty {
+                    snapshot_ref
+                        .map(|snap| snap.get_bonus(raw_path.as_ref()) * frec_weight)
+                        .unwrap_or(0)
+                } else {
+                    0
+                };
                 let depth = if penalty > 0 {
                     raw_path
                         .as_bytes()
@@ -297,9 +304,26 @@ impl<T: SSS> Worker<T> {
                 } else {
                     0
                 };
-                let effective_score = base_score
-                    .saturating_add(frecency_bonus)
-                    .saturating_sub(depth * penalty);
+                let dir_priority = if self.dir_first {
+                    let raw_str = raw_path.as_ref();
+                    let trimmed = raw_str.strip_prefix("./").unwrap_or(raw_str);
+                    let slash_count = trimmed.bytes().filter(|&b| b == b'/' || b == b'\\').count();
+                    let is_dir = raw_str.ends_with('/') || std::path::Path::new(raw_str).is_dir();
+                    if slash_count == 0 && is_dir {
+                        2_000_000_000u64
+                    } else if slash_count == 0 {
+                        1_000_000_000u64
+                    } else {
+                        0u64
+                    }
+                } else {
+                    0u64
+                };
+
+                let effective_score = (base_score as u64)
+                    .saturating_add(frecency_bonus as u64)
+                    .saturating_add(dir_priority)
+                    .saturating_sub((depth * penalty) as u64);
                 std::cmp::Reverse(effective_score)
             });
             items.get(n as usize).map(|(_, item)| item.data)
