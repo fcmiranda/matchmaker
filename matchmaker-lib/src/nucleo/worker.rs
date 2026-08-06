@@ -50,6 +50,7 @@ fn compute_item_score(
     idx: usize,
     raw_path: &str,
     is_query_empty: bool,
+    query_len: usize,
     snapshot_ref: Option<&crate::frecency::FrecencySnapshot>,
     frec_weight: u32,
     penalty: u32,
@@ -62,7 +63,12 @@ fn compute_item_score(
     } else {
         0
     };
-    let depth = if penalty > 0 {
+    let effective_penalty = if penalty > 0 && query_len > 0 && query_len <= 2 {
+        penalty.saturating_mul(2)
+    } else {
+        penalty
+    };
+    let depth = if effective_penalty > 0 {
         raw_path
             .as_bytes()
             .iter()
@@ -74,7 +80,7 @@ fn compute_item_score(
 
     base_score
         .saturating_add(frecency_bonus)
-        .saturating_sub(depth * penalty as u64)
+        .saturating_sub(depth * effective_penalty as u64)
 }
 
 type ColumnFormatFn<T> = Box<dyn for<'a> Fn(&'a T) -> Text<'a> + Send + Sync>;
@@ -301,11 +307,9 @@ impl<T: SSS> Worker<T> {
             return None;
         }
 
-        let is_query_empty = self
-            .query
-            .primary_column_query()
-            .unwrap_or_default()
-            .is_empty();
+        let query_str = self.query.primary_column_query().unwrap_or_default();
+        let is_query_empty = query_str.is_empty();
+        let query_len = query_str.len();
 
         let should_sort = (!is_query_empty
             && ((self.frecency && self.frecency_snapshot.is_some()) || self.depth_penalty > 0))
@@ -361,6 +365,7 @@ impl<T: SSS> Worker<T> {
                         idx,
                         raw_path.as_ref(),
                         is_query_empty,
+                        query_len,
                         snapshot_ref,
                         frec_weight,
                         penalty,
@@ -517,11 +522,9 @@ impl<T: SSS> Worker<T> {
         let mut raw_widths = vec![vec![]; self.columns.len()];
         let total_width_limit: u16 = width_limits.iter().sum();
         let last_nonzero_idx = width_limits.iter().rposition(|&w| w != 0);
-        let is_query_empty = self
-            .query
-            .primary_column_query()
-            .unwrap_or_default()
-            .is_empty();
+        let query_str = self.query.primary_column_query().unwrap_or_default();
+        let is_query_empty = query_str.is_empty();
+        let query_len = query_str.len();
 
         let should_sort = (!is_query_empty
             && ((self.frecency && self.frecency_snapshot.is_some()) || self.depth_penalty > 0))
@@ -578,6 +581,7 @@ impl<T: SSS> Worker<T> {
                         idx,
                         raw_path.as_ref(),
                         is_query_empty,
+                        query_len,
                         snapshot_ref,
                         frec_weight,
                         penalty,
