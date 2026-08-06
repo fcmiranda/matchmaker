@@ -195,25 +195,57 @@ fn handle_frecency_cli(args: &[String]) -> bool {
             true
         }
         "list" | "query" => {
+            let dirs_only = args
+                .iter()
+                .any(|a| a == "-d" || a == "--dirs" || a == "--dirs-only");
             let keywords: Vec<String> = args
                 .iter()
                 .skip(1)
-                .filter(|a| *a != "-l" && *a != "--list" && !a.starts_with('-'))
+                .filter(|a| {
+                    *a != "-l"
+                        && *a != "--list"
+                        && *a != "-d"
+                        && *a != "--dirs"
+                        && *a != "--dirs-only"
+                        && !a.starts_with('-')
+                })
                 .map(|a| a.to_lowercase())
                 .collect();
 
+            let full_query = keywords.join(" ");
             let store = matchmaker::frecency::FrecencyStore::open();
             let snapshot = store.get_snapshot();
-            let mut entries: Vec<_> = snapshot.scores.into_iter().collect();
-            // Sort by score descending
-            entries.sort_by(|a, b| b.1.cmp(&a.1));
+            let mut matches: Vec<(String, u32, usize, bool)> = Vec::new();
 
-            for (path, _score) in entries {
+            for (path, score) in snapshot.scores {
+                let path_obj = std::path::Path::new(&path);
+                if dirs_only && !path_obj.is_dir() {
+                    continue;
+                }
+
                 let lower_path = path.to_lowercase();
                 let matches_all = keywords.iter().all(|kw| lower_path.contains(kw));
                 if matches_all {
-                    println!("{path}");
+                    let ends_with_query = !full_query.is_empty()
+                        && (lower_path.ends_with(&full_query)
+                            || keywords.last().map_or(false, |lk| lower_path.ends_with(lk)));
+                    let path_depth = path_obj.components().count();
+                    matches.push((path, score, path_depth, ends_with_query));
                 }
+            }
+
+            // Sort:
+            // 1. Exact/tail match bonus (ends_with_query = true first)
+            // 2. Frecency score descending
+            // 3. Shorter path depth
+            matches.sort_by(|a, b| {
+                b.3.cmp(&a.3)
+                    .then_with(|| b.1.cmp(&a.1))
+                    .then_with(|| a.2.cmp(&b.2))
+            });
+
+            for (path, _, _, _) in matches {
+                println!("{path}");
             }
             true
         }
