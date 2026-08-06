@@ -12,8 +12,11 @@ function z {
     } elseif (Test-Path -Path $Path -PathType Container) {
         Set-Location $Path
     } else {
-        $target = (mm list $Path | Select-Object -First 1)
+        $target = (mm list --dirs $Path | Select-Object -First 1)
         if ($target) {
+            if (Test-Path -Path $target -PathType Leaf) {
+                $target = Split-Path -Path $target -Parent
+            }
             Set-Location $target
         }
     }

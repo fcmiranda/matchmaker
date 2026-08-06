@@ -9,8 +9,11 @@ function z
     else if test (count $argv) -eq 1 -a -d "$argv[1]"
         cd "$argv[1]"
     else
-        set -l target (mm list $argv | head -n 1)
+        set -l target (mm list --dirs $argv | head -n 1)
         if test -n "$target"
+            if test -f "$target"
+                set target (dirname "$target")
+            end
             cd "$target"
         else
             echo "mm: no matching directory found" >&2

@@ -17,9 +17,10 @@ def --env z [...rest: string] {
     } else if ($rest | length) == 1 and ($rest.0 | path exists) {
         cd $rest.0
     } else {
-        let target = (mm list ($rest | str join " ") | lines | first)
+        let target = (mm list --dirs ($rest | str join " ") | lines | first)
         if ($target | is-not-empty) {
-            cd $target
+            let final_target = if ($target | path type) == "file" { $target | path dirname } else { $target }
+            cd $final_target
         }
     }
 }

@@ -13,16 +13,22 @@ z() {
         cd "$1" || return
     else
         local dir
-        dir="$(mm list "$@" | head -n 1)"
+        dir="$(mm list --dirs "$@" | head -n 1)"
         if [ -n "$dir" ]; then
             dir="${dir/#\~/$HOME}"
             dir="$(realpath "$dir" 2>/dev/null || readlink -f "$dir" 2>/dev/null || echo "$dir")"
+            if [ -f "$dir" ]; then
+                dir="$(dirname "$dir")"
+            fi
             cd "$dir" || return
         else
             dir="$(mm -o jump "$@")"
             if [ -n "$dir" ]; then
                 dir="${dir/#\~/$HOME}"
                 dir="$(realpath "$dir" 2>/dev/null || readlink -f "$dir" 2>/dev/null || echo "$dir")"
+                if [ -f "$dir" ]; then
+                    dir="$(dirname "$dir")"
+                fi
                 cd "$dir" || return
             fi
         fi
