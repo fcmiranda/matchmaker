@@ -40,6 +40,7 @@ fn action_from_null<A: ActionExt>(action: Action<NullActionExt>) -> Option<Actio
         Action::ToggleWrap => Action::ToggleWrap,
         Action::ToggleActionBox => Action::ToggleActionBox,
         Action::ToggleFocus => Action::ToggleFocus,
+        Action::ToggleParentPeek => Action::ToggleParentPeek,
         Action::Up(x) => Action::Up(x),
         Action::Down(x) => Action::Down(x),
         Action::Pos(x) => Action::Pos(x),
@@ -693,6 +694,9 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                                 picker_ui.action_visible,
                                 std::sync::atomic::Ordering::Relaxed,
                             );
+                        }
+                        Action::ToggleParentPeek => {
+                            ui.config.parent_peek = !ui.config.parent_peek;
                         }
                         Action::Up(x) | Action::Down(x) => {
                             let next = matches!(action, Action::Down(_)) ^ results.reverse();
@@ -2073,6 +2077,7 @@ fn render_nav_hints(frame: &mut Frame, area: Rect, is_basic: bool) {
             ("[y]", "Yank", Color::Green),
             ("[x]", "Cut", Color::Red),
             ("[p]", "Paste", Color::Magenta),
+            ("[P]", "Pane", Color::Cyan),
             ("[z/Z]", "Zip/Unzip", Color::Blue),
         ]
     };
