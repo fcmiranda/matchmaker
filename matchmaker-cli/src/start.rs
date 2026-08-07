@@ -944,18 +944,18 @@ pub async fn start(
         }
     });
 
-    // reload handler
-    let reload_formatter = cli_formatter.clone();
-    let reload_render_tx = render_tx.clone();
-    let reload_rules = all_rules.clone();
-    let default_base_cmd = default_base_cmd;
+    // Speculative directory cache & background scanning
+    let speculative_cache: Arc<Mutex<HashMap<std::path::PathBuf, Vec<String>>>> =
+        Arc::new(Mutex::new(HashMap::new()));
+    let spec_cache_cursor = speculative_cache.clone();
+    let spec_cache_reload = speculative_cache.clone();
 
-    let mut cmd = command.clone();
-    mm.register_interrupt_handler(Interrupt::Reload, move |state| {
-        let current_dir = std::env::current_dir().unwrap_or_default();
-        let mut active_cmd = default_base_cmd.clone();
-        for rule in &reload_rules {
-            if rule.path.matches(&current_dir) {
+    let reload_rules_spec = all_rules.clone();
+    let default_base_cmd_spec = default_base_cmd;
+    let get_active_cmd = move |dir: &std::path::Path| -> String {
+        let mut active_cmd = default_base_cmd_spec.to_string();
+        for rule in &reload_rules_spec {
+            if rule.path.matches(dir) {
                 if let Some(ref p) = rule.preset {
                     let mut preset_path = p.clone();
                     if preset_path.is_relative() && preset_path.extension().is_none() {
@@ -983,6 +983,99 @@ pub async fn start(
                 }
             }
         }
+        active_cmd
+    };
+
+    let cursor_formatter = cli_formatter.clone();
+    let spec_get_cmd = get_active_cmd.clone();
+    let spec_sep = separator.or(input_separator).unwrap_or('\n');
+    mm.register_event_handler(Event::CursorChange, move |state, _| {
+        let val = use_formatter(&cursor_formatter, state, "{=}", None);
+        if val.is_empty() {
+            return;
+        }
+        let current_dir = std::env::current_dir().unwrap_or_default();
+        let target_path = current_dir.join(val.trim_end_matches('/'));
+        if target_path.is_dir() {
+            let is_cached = spec_cache_cursor
+                .lock()
+                .map(|c| c.contains_key(&target_path))
+                .unwrap_or(false);
+            if !is_cached {
+                let cache_ref = spec_cache_cursor.clone();
+                let cmd_to_run = spec_get_cmd(&target_path);
+                let target_dir = target_path.clone();
+                let env_vars = state.make_env_vars();
+                tokio::task::spawn_blocking(move || {
+                    if let Some(out) = Command::from_script(&cmd_to_run)
+                        .current_dir(&target_dir)
+                        .envs(env_vars)
+                        .stdin(Stdio::null())
+                        .args(&*COMMAND_ARGS.lock().unwrap())
+                        .output()
+                        ._elog()
+                    {
+                        let text = String::from_utf8_lossy(&out.stdout);
+                        let mut lines: Vec<String> = text
+                            .split(spec_sep)
+                            .map(|s| s.to_string())
+                            .collect();
+                        if lines.last().map_or(false, |l| l.is_empty()) {
+                            lines.pop();
+                        }
+                        if let Ok(mut c) = cache_ref.lock() {
+                            if c.len() >= 64 {
+                                c.clear();
+                            }
+                            c.insert(target_dir, lines);
+                        }
+                    }
+                });
+            }
+        }
+    });
+
+    // reload handler
+    let reload_formatter = cli_formatter.clone();
+    let reload_render_tx = render_tx.clone();
+
+    let mut cmd = command.clone();
+    mm.register_interrupt_handler(Interrupt::Reload, move |state| {
+        let current_dir = std::env::current_dir().unwrap_or_default();
+
+        if let Ok(mut cache) = spec_cache_reload.lock() {
+            if let Some(lines) = cache.remove(&current_dir) {
+                debug!("Speculative Cache HIT for {current_dir:?}");
+                state.picker_ui.worker.restart(false);
+                state.reloading = true;
+
+                let injector = state.injector();
+                let injector = IndexedInjector::new_globally_indexed(injector);
+                let injector = SegmentedInjector::new(injector, splitter.clone());
+                let injector = AnsiInjector::new(injector, preprocess.clone());
+
+                let mut push_fn = inject_line(
+                    state.picker_ui.header.config.header_lines,
+                    reload_render_tx.clone(),
+                    injector,
+                    group_prefix.clone(),
+                );
+
+                state.picker_ui.selector.clear();
+                for line in lines {
+                    let _ = push_fn(line);
+                }
+
+                let _ = reload_render_tx.send(matchmaker::message::RenderCommand::Action(
+                    matchmaker::action::Action::Custom(crate::action::MMAction::ReloadReady(
+                        vec![],
+                    )),
+                ));
+                return;
+            }
+        }
+
+        let active_cmd = get_active_cmd(&current_dir);
 
         if !state.payload().is_empty() {
             cmd = use_formatter(&reload_formatter, state, state.payload(), None);
