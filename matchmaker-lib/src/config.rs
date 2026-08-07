@@ -1397,6 +1397,9 @@ pub struct PreviewLayout {
     /// drawn.  Defaults to `5`.
     #[partial(alias = "gco")]
     pub gap_counter_offset: u16,
+    /// Optional maximum height (in rows) for the preview pane when side is Right or Left.
+    #[partial(alias = "mh")]
+    pub max_height: Option<u16>,
 }
 
 impl Default for PreviewLayout {
@@ -1408,6 +1411,7 @@ impl Default for PreviewLayout {
             max: i16::MAX,
             gap: 1,
             gap_counter_offset: 0,
+            max_height: None,
         }
     }
 }

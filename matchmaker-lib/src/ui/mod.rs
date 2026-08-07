@@ -353,7 +353,7 @@ impl PreviewLayout {
                 .split(area)
         };
 
-        if gap > 0 {
+        let mut ret = if gap > 0 {
             if side_first {
                 // chunks: [preview, gap, picker]
                 [chunks[0], chunks[2], chunks[1]]
@@ -368,6 +368,16 @@ impl PreviewLayout {
             } else {
                 [chunks[1], chunks[0], Rect::default()]
             }
+        };
+
+        if matches!(self.side, Side::Left | Side::Right) {
+            if let Some(mh) = self.max_height {
+                if mh > 0 && mh < ret[0].height {
+                    ret[0].height = mh;
+                }
+            }
         }
+
+        ret
     }
 }
