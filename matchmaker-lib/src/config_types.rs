@@ -737,11 +737,7 @@ impl SortThreshold {
 
     pub fn get_effective_threshold(&self, query: &str) -> u32 {
         if self.is_smart() {
-            if query.trim().is_empty() {
-                u32::MAX
-            } else {
-                0
-            }
+            if query.trim().is_empty() { u32::MAX } else { 0 }
         } else {
             self.0
         }
@@ -759,7 +755,10 @@ impl<'de> Deserialize<'de> for SortThreshold {
             type Value = SortThreshold;
 
             fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                write!(f, "a u32, boolean, or string ('smart', 'auto', 'true', 'false')")
+                write!(
+                    f,
+                    "a u32, boolean, or string ('smart', 'auto', 'true', 'false')"
+                )
             }
 
             fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
@@ -784,7 +783,11 @@ impl<'de> Deserialize<'de> for SortThreshold {
             where
                 E: serde::de::Error,
             {
-                Ok(if v { SortThreshold::ALWAYS } else { SortThreshold::NEVER })
+                Ok(if v {
+                    SortThreshold::ALWAYS
+                } else {
+                    SortThreshold::NEVER
+                })
             }
 
             fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>

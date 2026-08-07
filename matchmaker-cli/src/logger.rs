@@ -41,18 +41,20 @@ pub fn init_logger([q, v]: [u8; 2], log_path: &Path) {
 
     log_path.parent().map(cba::bs::create_dir);
 
-    if let Some(log_file) = OpenOptions::new()
-        .truncate(true)
-        .write(true)
-        .create(true)
-        .open(log_path)
-        .prefix(format!(
-            "Failed to open log file @ {}.",
-            log_path.to_string_lossy()
-        ))
-        ._wbog()
-    {
-        builder.target(env_logger::Target::Pipe(Box::new(log_file)));
+    if std::env::var("MM_LOG_STDERR").is_err() {
+        if let Some(log_file) = OpenOptions::new()
+            .truncate(true)
+            .write(true)
+            .create(true)
+            .open(log_path)
+            .prefix(format!(
+                "Failed to open log file @ {}.",
+                log_path.to_string_lossy()
+            ))
+            ._wbog()
+        {
+            builder.target(env_logger::Target::Pipe(Box::new(log_file)));
+        }
     }
 
     builder.init();

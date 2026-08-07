@@ -103,7 +103,6 @@ fn get_partial(config_args: Vec<String>) -> anyhow::Result<PartialConfig> {
             parts
         };
 
-
         partial
             .set(path.as_slice(), &parts)
             .prefix(format!("Invalid value for {}", path.join(".")))?;
@@ -280,7 +279,9 @@ fn handle_frecency_cli(args: &[String]) -> bool {
                 "nushell" | "nu" => include_str!("shell/nu.nu"),
                 "powershell" | "pwsh" => include_str!("shell/pwsh.ps1"),
                 _ => {
-                    eprintln!("Unsupported shell '{shell}'. Supported shells: zsh, bash, fish, nushell, powershell");
+                    eprintln!(
+                        "Unsupported shell '{shell}'. Supported shells: zsh, bash, fish, nushell, powershell"
+                    );
                     exit(1);
                 }
             };
@@ -298,7 +299,9 @@ fn handle_frecency_cli(args: &[String]) -> bool {
             };
 
             if cmd_name != "z" {
-                script.push_str(&format!("\nalias z={cmd_name} 2>/dev/null\nalias zi={cmd_name}i 2>/dev/null\n"));
+                script.push_str(&format!(
+                    "\nalias z={cmd_name} 2>/dev/null\nalias zi={cmd_name}i 2>/dev/null\n"
+                ));
             }
 
             println!("{script}");
@@ -329,10 +332,17 @@ fn handle_frecency_cli(args: &[String]) -> bool {
         }
         "cache" => {
             let start = std::time::Instant::now();
-            let root = args.get(1).map(std::path::PathBuf::from).unwrap_or_else(|| std::path::PathBuf::from("."));
+            let root = args
+                .get(1)
+                .map(std::path::PathBuf::from)
+                .unwrap_or_else(|| std::path::PathBuf::from("."));
             let (count, cache_file) = cache_index(&root);
             let elapsed = start.elapsed();
-            println!("Cached {count} entries into {} in {:.2?}", cache_file.display(), elapsed);
+            println!(
+                "Cached {count} entries into {} in {:.2?}",
+                cache_file.display(),
+                elapsed
+            );
             true
         }
         _ => false,
@@ -355,7 +365,11 @@ fn cache_index(root: &std::path::Path) -> (usize, std::path::PathBuf) {
                     let path_str = path.display().to_string();
                     let _ = writeln!(file, "{path_str}");
                     count += 1;
-                    if path.is_dir() && !path_str.contains("/.") && !path_str.contains("node_modules") && !path_str.contains("/target/") {
+                    if path.is_dir()
+                        && !path_str.contains("/.")
+                        && !path_str.contains("node_modules")
+                        && !path_str.contains("/target/")
+                    {
                         stack.push(path);
                     }
                 }
@@ -416,7 +430,9 @@ fn import_zoxide() {
     }
 
     if imported_count > 0 {
-        println!("Successfully imported {imported_count} entries from zoxide into matchmaker frecency database.");
+        println!(
+            "Successfully imported {imported_count} entries from zoxide into matchmaker frecency database."
+        );
     } else {
         println!("No zoxide entries found to import.");
     }

@@ -1209,7 +1209,6 @@ pub fn make_previewer<T: SSS, S: Selection + 'static>(
                 if cmd.is_empty() && msg.is_none() {
                     return;
                 }
-                
                 let msg = msg.unwrap_or_else(|| {
                     let mut envs = state.make_env_vars();
                     let extra = env_vars!(

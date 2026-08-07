@@ -14,7 +14,7 @@ pub const FRECENCY_TABLE: TableDefinition<&str, &str> = TableDefinition::new("fr
 pub struct FrecencyRecord {
     pub path: String,
     pub count: u64,
-    pub last_accessed: u64, // Unix timestamp in seconds
+    pub last_accessed: u64,   // Unix timestamp in seconds
     pub timestamps: Vec<u64>, // Recent access timestamps
 }
 
@@ -188,7 +188,9 @@ pub fn normalize_path(path: &str) -> String {
 pub fn clean_path(path: &str) -> &str {
     let p = path.trim();
     if p.len() > 1 {
-        p.strip_suffix('/').or_else(|| p.strip_suffix('\\')).unwrap_or(p)
+        p.strip_suffix('/')
+            .or_else(|| p.strip_suffix('\\'))
+            .unwrap_or(p)
     } else {
         p
     }
@@ -251,7 +253,8 @@ impl FrecencyStore {
             Err(err) => {
                 log::error!("redb error opening {path:?}: {err}. Attempting recovery...");
                 // If database corrupt, attempt backup and recreate clean
-                let backup_path = path.with_extension(format!("corrupt.{}.bak", current_unix_secs()));
+                let backup_path =
+                    path.with_extension(format!("corrupt.{}.bak", current_unix_secs()));
                 let _ = fs::rename(path, &backup_path);
                 Database::create(path).ok()
             }
@@ -364,8 +367,12 @@ impl FrecencyStore {
         let mut snapshot = FrecencySnapshot {
             scores: FxHashMap::default(),
             basename_scores: FxHashMap::default(),
-            cwd: std::env::current_dir().map(|p| p.to_string_lossy().to_string()).unwrap_or_default(),
-            home: dirs::home_dir().map(|p| p.to_string_lossy().to_string()).unwrap_or_default(),
+            cwd: std::env::current_dir()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_default(),
+            home: dirs::home_dir()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_default(),
         };
         let Some(db) = self.db.as_ref() else {
             return snapshot;
@@ -382,8 +389,12 @@ impl FrecencyStore {
                             let score = record.calculate_score(now);
                             if score > 0 {
                                 snapshot.scores.insert(key.to_string(), score);
-                                if let Some(name) = Path::new(key).file_name().and_then(|n| n.to_str()) {
-                                    snapshot.basename_scores.entry(name.to_string())
+                                if let Some(name) =
+                                    Path::new(key).file_name().and_then(|n| n.to_str())
+                                {
+                                    snapshot
+                                        .basename_scores
+                                        .entry(name.to_string())
                                         .and_modify(|s| *s = (*s).max(score))
                                         .or_insert(score);
                                 }
@@ -408,7 +419,8 @@ impl FrecencyStore {
             if let Ok(table) = read_txn.open_table(FRECENCY_TABLE) {
                 if let Ok(iter) = table.iter() {
                     for entry in iter.flatten() {
-                        if let Ok(record) = serde_json::from_str::<FrecencyRecord>(entry.1.value()) {
+                        if let Ok(record) = serde_json::from_str::<FrecencyRecord>(entry.1.value())
+                        {
                             records.push(record);
                         }
                     }

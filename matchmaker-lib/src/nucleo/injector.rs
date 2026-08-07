@@ -232,7 +232,9 @@ mod ansi {
         trim: bool,
     }
 
-    impl<I: Injector<InputItem = (Option<std::sync::Arc<str>>, Either<Box<str>, Text<'static>>)>> Injector for AnsiInjector<I> {
+    impl<I: Injector<InputItem = (Option<std::sync::Arc<str>>, Either<Box<str>, Text<'static>>)>>
+        Injector for AnsiInjector<I>
+    {
         type InputItem = (Option<std::sync::Arc<str>>, String);
         type Inner = I;
         type Context = PreprocessOptions;

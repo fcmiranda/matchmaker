@@ -194,7 +194,10 @@ pub fn action_handler(
                     u32::MAX => 0,
                     _ => u32::MAX,
                 };
-                state.picker_ui.worker.set_stability(threshold);
+                state
+                    .picker_ui
+                    .worker
+                    .set_stability(matchmaker::config::SortThreshold(threshold));
             }
         }
         MMAction::Filtering(s) => {

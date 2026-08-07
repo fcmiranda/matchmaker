@@ -667,7 +667,8 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                             if picker_ui.action_visible {
                                 picker_ui.action_visible = false;
                                 picker_ui.action.cancel();
-                                crate::ACTION_BOX_ACTIVE.store(false, std::sync::atomic::Ordering::Relaxed);
+                                crate::ACTION_BOX_ACTIVE
+                                    .store(false, std::sync::atomic::Ordering::Relaxed);
                             } else if !picker_ui.selector.is_empty() {
                                 // First Esc: clear multi-selections.
                                 picker_ui.selector.clear();
@@ -1089,7 +1090,8 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                             if *action_visible {
                                 *action_visible = false;
                                 action_input.cancel();
-                                crate::ACTION_BOX_ACTIVE.store(false, std::sync::atomic::Ordering::Relaxed);
+                                crate::ACTION_BOX_ACTIVE
+                                    .store(false, std::sync::atomic::Ordering::Relaxed);
                             } else {
                                 query.cancel()
                             }
@@ -1244,7 +1246,6 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
             log::trace!("cursor wrapped"); // todo: event handler?
         }
 
-
         // process exit conditions
         if exit_config.select_1
             && picker_ui.results.status.matched_count == 1
@@ -1308,7 +1309,8 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                             }
                         }
 
-                        if picker_ui.breadcrumb_config.current_folder_only && !components.is_empty() {
+                        if picker_ui.breadcrumb_config.current_folder_only && !components.is_empty()
+                        {
                             let last = components.pop().unwrap();
                             components.clear();
                             components.push(last);
@@ -1328,14 +1330,18 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                             breadcrumb_width += text.chars().count() as u16;
                             breadcrumb_spans.push(ratatui::text::Span::styled(
                                 text,
-                                ratatui::style::Style::from(picker_ui.breadcrumb_config.style.clone()),
+                                ratatui::style::Style::from(
+                                    picker_ui.breadcrumb_config.style.clone(),
+                                ),
                             ));
                             if i < num_components - 1 {
                                 let sep = picker_ui.breadcrumb_config.separator.clone();
                                 breadcrumb_width += sep.chars().count() as u16;
                                 breadcrumb_spans.push(ratatui::text::Span::styled(
                                     sep,
-                                    ratatui::style::Style::from(picker_ui.breadcrumb_config.separator_style.clone()),
+                                    ratatui::style::Style::from(
+                                        picker_ui.breadcrumb_config.separator_style.clone(),
+                                    ),
                                 ));
                             }
                         }
@@ -1373,18 +1379,18 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                 //   - if only one group: horizontal, width = " N " of that group
                 //   - if multiple groups: vertical (one row each), width = widest " N "
                 let _counter_gap_width: u16 = {
-                    let sel_raw  = picker_ui.selector.len();
+                    let sel_raw = picker_ui.selector.len();
                     let yank_raw = picker_ui.results.yank_paths.len();
-                    let cut_raw  = picker_ui.results.cut_paths.len();
+                    let cut_raw = picker_ui.results.cut_paths.len();
 
-                    let show_cut  = cut_raw  > 0;
+                    let show_cut = cut_raw > 0;
                     let show_yank = yank_raw > 0 && yank_raw != cut_raw;
-                    let show_sel  = sel_raw  > 0 && sel_raw  != yank_raw && sel_raw != cut_raw;
+                    let show_sel = sel_raw > 0 && sel_raw != yank_raw && sel_raw != cut_raw;
 
                     let widths: Vec<usize> = [
-                        show_cut .then(|| cut_raw .to_string().len() + 2),
+                        show_cut.then(|| cut_raw.to_string().len() + 2),
                         show_yank.then(|| yank_raw.to_string().len() + 2),
-                        show_sel .then(|| sel_raw .to_string().len() + 2),
+                        show_sel.then(|| sel_raw.to_string().len() + 2),
                     ]
                     .into_iter()
                     .flatten()
@@ -1398,10 +1404,7 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                     && preview_ui.visible()
                 {
                     // Temporarily widen the gap so the counter fits horizontally.
-                    let original_gap = preview_ui
-                        .setting()
-                        .map(|s| s.layout.gap)
-                        .unwrap_or(0);
+                    let original_gap = preview_ui.setting().map(|s| s.layout.gap).unwrap_or(0);
                     let effective_gap = original_gap.max(if _counter_gap_width > 0 {
                         _counter_gap_width + 2
                     } else {
@@ -1437,7 +1440,8 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                 if is_global_breadcrumb {
                     picker_ui.breadcrumb_config.show = false;
                 }
-                let [breadcrumb, action, input, status, header, results] = picker_ui.layout(picker_area);
+                let [breadcrumb, action, input, status, header, results] =
+                    picker_ui.layout(picker_area);
                 if is_global_breadcrumb {
                     picker_ui.breadcrumb_config.show = original_breadcrumb_show;
                 }
@@ -1537,42 +1541,46 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                         frame.render_widget(cfg.border.as_static_block(), action_full_rect);
                     }
 
-                let mut current_y = action_full_rect.y;
+                    let mut current_y = action_full_rect.y;
 
-                let action_input_rect = Rect {
-                    x: action_full_rect.x,
-                    y: current_y,
-                    width: action_w,
-                    height: action_full_rect.height.min(1),
-                };
-                render_input(frame, action_input_rect, &mut picker_ui.action, None, None);
-                current_y += 1;
-
-                // Render preview area below if preview_height > 0.
-                if cfg.preview_height > 0 && action_full_rect.height > current_y - action_full_rect.y {
-                    let preview_rect = Rect {
+                    let action_input_rect = Rect {
                         x: action_full_rect.x,
                         y: current_y,
                         width: action_w,
-                        height: cfg.preview_height,
+                        height: action_full_rect.height.min(1),
                     };
-                    let block = ratatui::widgets::Block::bordered();
-                    frame.render_widget(block, preview_rect);
-                }
-            }
+                    render_input(frame, action_input_rect, &mut picker_ui.action, None, None);
+                    current_y += 1;
 
-            if picker_ui.breadcrumb_config.show && !breadcrumb_spans.is_empty() {
-                let target_rect = if is_global_breadcrumb {
-                    global_breadcrumb_rect
-                } else {
-                    breadcrumb
-                };
-
-                if target_rect.height > 0 {
-                    let p = ratatui::widgets::Paragraph::new(ratatui::text::Line::from(breadcrumb_spans));
-                    frame.render_widget(p, target_rect);
+                    // Render preview area below if preview_height > 0.
+                    if cfg.preview_height > 0
+                        && action_full_rect.height > current_y - action_full_rect.y
+                    {
+                        let preview_rect = Rect {
+                            x: action_full_rect.x,
+                            y: current_y,
+                            width: action_w,
+                            height: cfg.preview_height,
+                        };
+                        let block = ratatui::widgets::Block::bordered();
+                        frame.render_widget(block, preview_rect);
+                    }
                 }
-            }
+
+                if picker_ui.breadcrumb_config.show && !breadcrumb_spans.is_empty() {
+                    let target_rect = if is_global_breadcrumb {
+                        global_breadcrumb_rect
+                    } else {
+                        breadcrumb
+                    };
+
+                    if target_rect.height > 0 {
+                        let p = ratatui::widgets::Paragraph::new(ratatui::text::Line::from(
+                            breadcrumb_spans,
+                        ));
+                        frame.render_widget(p, target_rect);
+                    }
+                }
                 if picker_ui.query.config.show {
                     cursor_y_offset = render_input(
                         frame,
@@ -1615,8 +1623,8 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                             let is_hovered = mouse_hover.is_some_and(|p| gap_area.contains(p));
                             let is_dragging = state.dragging.is_some();
                             if is_hovered || is_dragging {
-                                let gap_block = Block::default()
-                                    .style(Style::default().bg(Color::DarkGray));
+                                let gap_block =
+                                    Block::default().style(Style::default().bg(Color::DarkGray));
                                 frame.render_widget(gap_block, gap_area);
                             }
 
@@ -1626,20 +1634,29 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                             // - single group → one horizontal row
                             // - multiple groups → stacked vertically, one row per group
                             // - positioned 5 rows from the bottom of the gap
-                            let sel_raw  = picker_ui.selector.len();
+                            let sel_raw = picker_ui.selector.len();
                             let yank_raw = picker_ui.results.yank_paths.len();
-                            let cut_raw  = picker_ui.results.cut_paths.len();
+                            let cut_raw = picker_ui.results.cut_paths.len();
 
-                            let show_cut  = cut_raw  > 0;
+                            let show_cut = cut_raw > 0;
                             let show_yank = yank_raw > 0 && yank_raw != cut_raw;
-                            let show_sel  = sel_raw  > 0 && sel_raw  != yank_raw && sel_raw != cut_raw;
+                            let show_sel = sel_raw > 0 && sel_raw != yank_raw && sel_raw != cut_raw;
 
                             // Collect the groups to render (cut first = highest priority).
                             let rcfg = &picker_ui.results.config;
                             let groups: Vec<(usize, Color)> = [
-                                show_cut .then(|| (cut_raw,  rcfg.cut_prefix_style.fg.unwrap_or(Color::Red))),
-                                show_yank.then(|| (yank_raw, rcfg.yank_prefix_style.fg.unwrap_or(Color::Yellow))),
-                                show_sel .then(|| (sel_raw,  rcfg.selected_prefix_style.fg.unwrap_or(Color::Cyan))),
+                                show_cut.then(|| {
+                                    (cut_raw, rcfg.cut_prefix_style.fg.unwrap_or(Color::Red))
+                                }),
+                                show_yank.then(|| {
+                                    (yank_raw, rcfg.yank_prefix_style.fg.unwrap_or(Color::Yellow))
+                                }),
+                                show_sel.then(|| {
+                                    (
+                                        sel_raw,
+                                        rcfg.selected_prefix_style.fg.unwrap_or(Color::Cyan),
+                                    )
+                                }),
                             ]
                             .into_iter()
                             .flatten()
@@ -1836,8 +1853,15 @@ fn render_preview(frame: &mut Frame, area: Rect, ui: &mut PreviewUI) {
             frame.render_widget(b, area);
         }
 
+        let media_fit_str = ui.config.media_fit.as_deref().unwrap_or("crop");
+        let resize_mode = match media_fit_str.to_lowercase().as_str() {
+            "fit" | "contain" => ratatui_image::Resize::Fit(None),
+            "scale" | "stretch" => ratatui_image::Resize::Scale(None),
+            "crop" | "cover" | _ => ratatui_image::Resize::Crop(None),
+        };
+
         if let Some(state) = ui.get_image_state() {
-            let image_widget = ratatui_image::StatefulImage::new();
+            let image_widget = ratatui_image::StatefulImage::new().resize(resize_mode);
             frame.render_stateful_widget(image_widget, inner_area, state);
         }
     } else {

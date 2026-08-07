@@ -1,7 +1,7 @@
-use std::fs;
-use std::path::Path;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span, Text};
+use std::fs;
+use std::path::Path;
 
 use crate::ui::results::icon_for_name;
 
@@ -34,11 +34,16 @@ pub fn render_dir_tree(dir: &Path, opts: &TreeOptions) -> Text<'static> {
 
     let mut root_spans = vec![];
     if opts.show_icons {
-        root_spans.push(Span::styled(format!("{icon} "), Style::default().fg(icon_color)));
+        root_spans.push(Span::styled(
+            format!("{icon} "),
+            Style::default().fg(icon_color),
+        ));
     }
     root_spans.push(Span::styled(
         root_str.to_string(),
-        Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+        Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::BOLD),
     ));
     lines.push(Line::from(root_spans));
 
@@ -105,13 +110,15 @@ fn build_tree(
             let name = e.file_name();
             let name_str = name.to_string_lossy();
 
-            if !opts.show_hidden && name_str.starts_with('.') && name_str != "." && name_str != ".." {
+            if !opts.show_hidden && name_str.starts_with('.') && name_str != "." && name_str != ".."
+            {
                 return false;
             }
 
             if opts.git_ignore {
                 match name_str.as_ref() {
-                    ".git" | "node_modules" | "target" | ".cache" | "dist" | "build" | "__pycache__" | ".venv" | "venv" | ".cargo" => {
+                    ".git" | "node_modules" | "target" | ".cache" | "dist" | "build"
+                    | "__pycache__" | ".venv" | "venv" | ".cargo" => {
                         return false;
                     }
                     _ => {}
@@ -121,7 +128,12 @@ fn build_tree(
         })
         .collect();
 
-    valid_entries.sort_by_key(|e| (e.file_type().map(|t| !t.is_dir()).unwrap_or(true), e.file_name()));
+    valid_entries.sort_by_key(|e| {
+        (
+            e.file_type().map(|t| !t.is_dir()).unwrap_or(true),
+            e.file_name(),
+        )
+    });
 
     let total = valid_entries.len();
     for (i, entry) in valid_entries.into_iter().enumerate() {
@@ -135,19 +147,29 @@ fn build_tree(
         let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
         let is_symlink = entry.file_type().map(|t| t.is_symlink()).unwrap_or(false);
 
-        let mut spans = vec![
-            Span::styled(format!("{prefix}{connector}"), Style::default().fg(Color::DarkGray)),
-        ];
+        let mut spans = vec![Span::styled(
+            format!("{prefix}{connector}"),
+            Style::default().fg(Color::DarkGray),
+        )];
 
-        let name_for_icon = if is_dir { format!("{name_str}/") } else { name_str.to_string() };
+        let name_for_icon = if is_dir {
+            format!("{name_str}/")
+        } else {
+            name_str.to_string()
+        };
         let (icon, icon_color) = icon_for_name(&name_for_icon);
 
         if opts.show_icons {
-            spans.push(Span::styled(format!("{icon} "), Style::default().fg(icon_color)));
+            spans.push(Span::styled(
+                format!("{icon} "),
+                Style::default().fg(icon_color),
+            ));
         }
 
         let name_style = if is_dir {
-            Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD)
+            Style::default()
+                .fg(Color::Blue)
+                .add_modifier(Modifier::BOLD)
         } else if is_symlink {
             Style::default().fg(Color::Cyan)
         } else {

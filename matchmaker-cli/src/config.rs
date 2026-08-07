@@ -171,7 +171,8 @@ mod tests {
             matcher.frecency = true
         "#;
 
-        let partial: PartialConfig = toml::from_str(toml_str).expect("failed to parse path rules TOML");
+        let partial: PartialConfig =
+            toml::from_str(toml_str).expect("failed to parse path rules TOML");
         let rules = partial.rule.expect("rules should be present");
         assert_eq!(rules.len(), 2);
 

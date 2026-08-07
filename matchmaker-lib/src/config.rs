@@ -682,6 +682,7 @@ pub struct ResultsConfig {
     /// Maximum row height.
     /// VScroll/Preview can still be used to view the whole result.
     pub max_height: usize,
+    pub max_rows: Option<u16>,
     pub show_skipped: bool,
     /// Always false if max_height is set
     pub vscroll_current_only: bool,
@@ -774,6 +775,7 @@ impl Default for ResultsConfig {
             wrap: false,
             min_width: 2,
             max_height: 0,
+            max_rows: None,
 
             autoscroll: Default::default(),
 
@@ -978,6 +980,12 @@ pub struct PreviewConfig {
     pub media: bool,
     /// Overriding graphics protocol for media previews (e.g. "kitty", "sixel", "halfblocks", "iterm2")
     pub media_protocol: Option<String>,
+    /// Pixel resolution for media previews (ffmpegthumbnailer -s). Default: 512. 0 = original
+    pub media_size: Option<u32>,
+    /// Initial zoom level for image previews. Default: 1.0
+    pub zoom: Option<f32>,
+    /// Resize/fit mode for media previews: "crop", "fit", or "scale" (default: "crop")
+    pub media_fit: Option<String>,
 }
 
 impl PreviewConfig {
@@ -1004,6 +1012,9 @@ impl Default for PreviewConfig {
             drag_width: None,
             media: false,
             media_protocol: None,
+            media_size: None,
+            zoom: None,
+            media_fit: None,
         }
     }
 }

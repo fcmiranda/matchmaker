@@ -457,7 +457,10 @@ impl ResultsUI {
         let end = self.bottom + self.height as u32;
         let as_cols = !self.config.stacked_columns;
 
-        let get_border_char = |is_first: bool, is_last: bool, border_type: ratatui::widgets::BorderType| -> &'static str {
+        let get_border_char = |is_first: bool,
+                               is_last: bool,
+                               border_type: ratatui::widgets::BorderType|
+         -> &'static str {
             match border_type {
                 ratatui::widgets::BorderType::Plain | ratatui::widgets::BorderType::Rounded => {
                     if is_first && is_last {
@@ -469,9 +472,10 @@ impl ResultsUI {
                     } else {
                         "│"
                     }
-                },
+                }
                 ratatui::widgets::BorderType::Double => "║",
-                ratatui::widgets::BorderType::Thick | ratatui::widgets::BorderType::QuadrantOutside => {
+                ratatui::widgets::BorderType::Thick
+                | ratatui::widgets::BorderType::QuadrantOutside => {
                     if is_first && is_last {
                         "▌"
                     } else if is_first {
@@ -481,7 +485,7 @@ impl ResultsUI {
                     } else {
                         "▌"
                     }
-                },
+                }
                 ratatui::widgets::BorderType::QuadrantInside => {
                     if is_first && is_last {
                         "▐"
@@ -492,18 +496,19 @@ impl ResultsUI {
                     } else {
                         "▐"
                     }
-                },
+                }
                 _ => "│",
             }
         };
 
         let nav_bar_style_clone = nav_bar_style.clone();
-        let get_nav_bar_span = move |is_first: bool, is_last: bool| -> Option<ratatui::text::Span<'static>> {
-            nav_bar_style_clone.clone().map(|(border_type, style)| {
-                let border_char = get_border_char(is_first, is_last, border_type);
-                ratatui::text::Span::styled(border_char, style)
-            })
-        };
+        let get_nav_bar_span =
+            move |is_first: bool, is_last: bool| -> Option<ratatui::text::Span<'static>> {
+                nav_bar_style_clone.clone().map(|(border_type, style)| {
+                    let border_char = get_border_char(is_first, is_last, border_type);
+                    ratatui::text::Span::styled(border_char, style)
+                })
+            };
 
         let nav_bar_style_clone2 = nav_bar_style.clone();
         let multi_prefix = self.config.multi_prefix.clone();
@@ -520,7 +525,6 @@ impl ResultsUI {
                 multi_prefix.clone()
             }
         };
-
 
         macro_rules! get_prefix {
             ($row:expr, $is_selected:expr, $idx:expr, $item:expr, $columns:expr, $is_first:expr, $is_last:expr) => {{
@@ -548,8 +552,8 @@ impl ResultsUI {
 
                 if is_spinner {
                     if self.config.spinner_inline {
-                        let frame =
-                            crate::spinner::Spinner::from_name(&self.config.spinner).current_frame();
+                        let frame = crate::spinner::Spinner::from_name(&self.config.spinner)
+                            .current_frame();
                         crate::utils::text::replace_string_in_text(
                             &mut $row[spinner_col_idx],
                             &self.config.spinner_prefix,
@@ -569,7 +573,8 @@ impl ResultsUI {
                     } else {
                         cwd.join(path)
                     };
-                    self.yank_paths.contains(&abs_path.to_string_lossy().to_string())
+                    self.yank_paths
+                        .contains(&abs_path.to_string_lossy().to_string())
                 } else {
                     false
                 };
@@ -581,7 +586,8 @@ impl ResultsUI {
                     } else {
                         cwd.join(path)
                     };
-                    self.cut_paths.contains(&abs_path.to_string_lossy().to_string())
+                    self.cut_paths
+                        .contains(&abs_path.to_string_lossy().to_string())
                 } else {
                     false
                 };
@@ -596,7 +602,14 @@ impl ResultsUI {
                 } else {
                     self.default_prefix($idx)
                 };
-                (prefix, icon_name, is_spinner, spinner_col_idx, is_yanked, is_cut)
+                (
+                    prefix,
+                    icon_name,
+                    is_spinner,
+                    spinner_col_idx,
+                    is_yanked,
+                    is_cut,
+                )
             }};
         }
 
@@ -779,9 +792,11 @@ impl ResultsUI {
                     let mut remaining_height = h - trunc_height;
                     let is_selected = selector.contains(item);
                     let is_first = rows.is_empty();
-                    let is_last = (self.height <= total_height + remaining_height) || (start_index as usize >= results_len);
+                    let is_last = (self.height <= total_height + remaining_height)
+                        || (start_index as usize >= results_len);
                     let nav_bar_span = get_nav_bar_span(is_first, is_last);
-                    let (prefix, icon_name, is_spinner, spinner_col_idx, is_yanked, is_cut) = get_prefix!(row, is_selected, 0, item, columns, is_first, is_last);
+                    let (prefix, icon_name, is_spinner, spinner_col_idx, is_yanked, is_cut) =
+                        get_prefix!(row, is_selected, 0, item, columns, is_first, is_last);
 
                     total_height += remaining_height;
 
@@ -835,7 +850,10 @@ impl ResultsUI {
                                         insert_icon_span(
                                             &mut t,
                                             &icon_name,
-                                            !is_selected && !is_yanked && !is_cut && nav_bar_span.is_some(),
+                                            !is_selected
+                                                && !is_yanked
+                                                && !is_cut
+                                                && nav_bar_span.is_some(),
                                         );
                                     }
                                     if self.config.symlink_target {
@@ -941,9 +959,11 @@ impl ResultsUI {
             let (_, row, item) = &mut results[0];
             let is_selected = selector.contains(item);
             let is_first = rows.is_empty();
-            let is_last = (self.height <= total_height + remaining_height) || (start_index as usize >= results_len);
+            let is_last = (self.height <= total_height + remaining_height)
+                || (start_index as usize >= results_len);
             let nav_bar_span = get_nav_bar_span(is_first, is_last);
-            let (prefix, icon_name, is_spinner, spinner_col_idx, is_yanked, is_cut) = get_prefix!(row, is_selected, 0, item, columns, is_first, is_last);
+            let (prefix, icon_name, is_spinner, spinner_col_idx, is_yanked, is_cut) =
+                get_prefix!(row, is_selected, 0, item, columns, is_first, is_last);
 
             total_height += remaining_height;
 
@@ -1044,7 +1064,11 @@ impl ResultsUI {
                         },
                     );
                     if self.config.icons && col_idx == 0 {
-                        insert_icon_span(&mut col, &icon_name, !is_selected && !is_yanked && !is_cut && nav_bar_span.is_some());
+                        insert_icon_span(
+                            &mut col,
+                            &icon_name,
+                            !is_selected && !is_yanked && !is_cut && nav_bar_span.is_some(),
+                        );
                     }
                     if self.config.symlink_target && col_idx == 0 {
                         maybe_append_symlink_target(
@@ -1146,13 +1170,17 @@ impl ResultsUI {
             let is_first = rows.is_empty();
             let is_last_in_results = drain_iter.peek().is_none();
             let h = if as_cols {
-                row.iter().map(|t| t.height() as u16).max().unwrap_or_default()
+                row.iter()
+                    .map(|t| t.height() as u16)
+                    .max()
+                    .unwrap_or_default()
             } else {
                 row.iter().map(|t| t.height() as u16).sum::<u16>()
             };
             let is_last = is_last_in_results || (remaining_height <= h);
             let nav_bar_span = get_nav_bar_span(is_first, is_last);
-            let (prefix, icon_name_hz, is_spinner, spinner_col_idx, is_yanked, is_cut) = get_prefix!(row, is_selected, i, item, columns, is_first, is_last);
+            let (prefix, icon_name_hz, is_spinner, spinner_col_idx, is_yanked, is_cut) =
+                get_prefix!(row, is_selected, i, item, columns, is_first, is_last);
 
             if as_cols {
                 // scroll down

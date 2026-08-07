@@ -274,7 +274,10 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
             "ctrl-r",
             matchmaker::acs![Action::Semantic("fm_redo".into())],
         );
-        nb("D", matchmaker::acs![Action::Semantic("fm_dragdrop".into())]);
+        nb(
+            "D",
+            matchmaker::acs![Action::Semantic("fm_dragdrop".into())],
+        );
     }
 
     if cli.dump_config {
@@ -295,7 +298,10 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
         );
         config.binds.insert(
             "shift-enter".parse().expect("shift-enter should parse"),
-            matchmaker::acs![matchmaker::Action::Print("{=}".to_string()), matchmaker::Action::Quit(2)],
+            matchmaker::acs![
+                matchmaker::Action::Print("{=}".to_string()),
+                matchmaker::Action::Quit(2)
+            ],
         );
     }
     config.binds.check_cycles().map_err(anyhow::Error::msg)?;
@@ -410,7 +416,9 @@ fn apply_nav_props(props: &[String], config: &mut Config) {
                     config.render.ui.nav_blink_rate = parse_blink_rate(s);
                 }
                 Some(("focus-on-start", s)) => match s.trim().to_ascii_lowercase().as_str() {
-                    "picker" => config.render.ui.nav_focus_on_start = matchmaker::config::NavFocus::Picker,
+                    "picker" => {
+                        config.render.ui.nav_focus_on_start = matchmaker::config::NavFocus::Picker
+                    }
                     _ => config.render.ui.nav_focus_on_start = matchmaker::config::NavFocus::Filter,
                 },
                 Some(("marker", s)) => config.render.ui.nav_marker = s.to_string(),
@@ -566,7 +574,11 @@ pub fn process_envs(mut envs: HashMap<String, EnvValue>) -> HashMap<String, Stri
     processed_envs
 }
 
-pub async fn start(config: Config, no_read: bool, group_prefix: Option<String>) -> Result<(), MatchError> {
+pub async fn start(
+    config: Config,
+    no_read: bool,
+    group_prefix: Option<String>,
+) -> Result<(), MatchError> {
     let nav_mode = config.render.ui.nav_mode;
     let nav_notify = config.render.ui.nav_notify;
 
@@ -775,7 +787,12 @@ pub async fn start(config: Config, no_read: bool, group_prefix: Option<String>) 
         });
 
     let render_tx = options.render_tx();
-    let push_fn = inject_line(header_lines, render_tx.clone(), injector, group_prefix.clone());
+    let push_fn = inject_line(
+        header_lines,
+        render_tx.clone(),
+        injector,
+        group_prefix.clone(),
+    );
 
     if let Some(interval) = reload_interval {
         let render_tx = render_tx.clone();
@@ -784,7 +801,12 @@ pub async fn start(config: Config, no_read: bool, group_prefix: Option<String>) 
             ticker.tick().await; // skip first immediate tick
             loop {
                 ticker.tick().await;
-                if render_tx.send(matchmaker::message::RenderCommand::Action(matchmaker::action::Action::Reload("".to_string()))).is_err() {
+                if render_tx
+                    .send(matchmaker::message::RenderCommand::Action(
+                        matchmaker::action::Action::Reload("".to_string()),
+                    ))
+                    .is_err()
+                {
                     break;
                 }
             }
@@ -809,7 +831,8 @@ pub async fn start(config: Config, no_read: bool, group_prefix: Option<String>) 
     );
     mm._register_become_handler(cli_formatter.clone());
     let chdir_formatter = cli_formatter.clone();
-    let mut history: std::collections::HashMap<std::path::PathBuf, String> = std::collections::HashMap::new();
+    let mut history: std::collections::HashMap<std::path::PathBuf, String> =
+        std::collections::HashMap::new();
     mm.register_interrupt_handler(Interrupt::ChDir, move |state| {
         let template = state.payload().clone();
         if template.is_empty() {
@@ -870,7 +893,9 @@ pub async fn start(config: Config, no_read: bool, group_prefix: Option<String>) 
 
             if state.ui.config.nav_mode {
                 if let Ok(new_cwd) = std::env::current_dir() {
-                    let is_parent = old_cwd.as_ref().map_or(false, |old| old.starts_with(&new_cwd) && old != &new_cwd);
+                    let is_parent = old_cwd
+                        .as_ref()
+                        .map_or(false, |old| old.starts_with(&new_cwd) && old != &new_cwd);
                     if is_parent {
                         if let Some(saved) = history.remove(&new_cwd) {
                             state.picker_ui.query.set(Some(saved), 0);
@@ -931,7 +956,9 @@ pub async fn start(config: Config, no_read: bool, group_prefix: Option<String>) 
                             main_p
                         };
                     }
-                    if let Ok(preset_config) = load_type::<PartialConfig, _>(&preset_path, |s| toml::from_str(s)) {
+                    if let Ok(preset_config) =
+                        load_type::<PartialConfig, _>(&preset_path, |s| toml::from_str(s))
+                    {
                         if let Some(ref cmd_setting) = preset_config.start.command.as_ref() {
                             if !cmd_setting.command.is_empty() {
                                 active_cmd = cmd_setting.command.clone();
@@ -996,9 +1023,11 @@ pub async fn start(config: Config, no_read: bool, group_prefix: Option<String>) 
                         let _ = push_fn(line.to_string());
                     }
                 }
-                
+
                 let _ = reload_render_tx.send(matchmaker::message::RenderCommand::Action(
-                    matchmaker::action::Action::Custom(crate::action::MMAction::ReloadReady(vec![]))
+                    matchmaker::action::Action::Custom(crate::action::MMAction::ReloadReady(
+                        vec![],
+                    )),
                 ));
             });
         }

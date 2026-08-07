@@ -35,11 +35,7 @@ fn get_item_tier_and_clean_path<'a>(raw_str: &'a str, dir_first: bool) -> (u8, &
         let is_dir = raw_str.ends_with('/')
             || raw_str.ends_with('\\')
             || std::path::Path::new(clean).is_dir();
-        if is_dir {
-            (0, clean)
-        } else {
-            (1, clean)
-        }
+        if is_dir { (0, clean) } else { (1, clean) }
     } else {
         (2, clean)
     }
@@ -188,7 +184,6 @@ bitflags! {
 }
 
 impl<T: SSS> Worker<T> {
-
     /// Column names must be distinct!
     pub fn new(columns: impl IntoIterator<Item = Column<T>>, default_column: usize) -> Self {
         let columns: Arc<[_]> = columns.into_iter().collect();
@@ -321,10 +316,7 @@ impl<T: SSS> Worker<T> {
             } else {
                 total
             };
-            let mut items: Vec<_> = snapshot
-                .matched_items(0..total_sort)
-                .enumerate()
-                .collect();
+            let mut items: Vec<_> = snapshot.matched_items(0..total_sort).enumerate().collect();
             let penalty = self.depth_penalty;
             let frec_weight = self.frecency_weight;
             let snapshot_ref = if self.frecency {
@@ -337,7 +329,8 @@ impl<T: SSS> Worker<T> {
             if scan_end > total_sort {
                 for (idx, item) in snapshot.matched_items(total_sort..scan_end).enumerate() {
                     let raw_path = col0.raw(item.data);
-                    let has_frecency = snapshot_ref.map_or(false, |snap| snap.has_bonus_fast(raw_path.as_ref()));
+                    let has_frecency =
+                        snapshot_ref.map_or(false, |snap| snap.has_bonus_fast(raw_path.as_ref()));
                     let is_direct = if self.dir_first {
                         let (tier, _) = get_item_tier_and_clean_path(raw_path.as_ref(), true);
                         tier < 2
@@ -444,11 +437,8 @@ impl<T: SSS> Worker<T> {
 
     pub fn set_stability(&mut self, threshold: crate::config::SortThreshold) {
         self.sort_threshold = threshold;
-        let effective = threshold.get_effective_threshold(
-            self.query
-                .primary_column_query()
-                .unwrap_or_default(),
-        );
+        let effective = threshold
+            .get_effective_threshold(self.query.primary_column_query().unwrap_or_default());
         self.nucleo.set_stability(effective);
     }
 
@@ -537,10 +527,7 @@ impl<T: SSS> Worker<T> {
             } else {
                 total
             };
-            let mut items: Vec<_> = snapshot
-                .matched_items(0..total_sort)
-                .enumerate()
-                .collect();
+            let mut items: Vec<_> = snapshot.matched_items(0..total_sort).enumerate().collect();
             let penalty = self.depth_penalty;
             let frec_weight = self.frecency_weight;
             let snapshot_ref = if self.frecency {
@@ -553,7 +540,8 @@ impl<T: SSS> Worker<T> {
             if scan_end > total_sort {
                 for (idx, item) in snapshot.matched_items(total_sort..scan_end).enumerate() {
                     let raw_path = col0.raw(item.data);
-                    let has_frecency = snapshot_ref.map_or(false, |snap| snap.has_bonus_fast(raw_path.as_ref()));
+                    let has_frecency =
+                        snapshot_ref.map_or(false, |snap| snap.has_bonus_fast(raw_path.as_ref()));
                     let is_direct = if self.dir_first {
                         let (tier, _) = get_item_tier_and_clean_path(raw_path.as_ref(), true);
                         tier < 2
@@ -703,8 +691,7 @@ impl<T: SSS> Worker<T> {
                     let column = &self.columns[col_idx];
 
                     let effective_limit = if Some(col_idx) == last_nonzero_idx {
-                        total_width_limit
-                            .saturating_sub(width_limits.iter().take(col_idx).sum())
+                        total_width_limit.saturating_sub(width_limits.iter().take(col_idx).sum())
                     } else {
                         width_limit
                     };
@@ -995,7 +982,10 @@ fn render_cell<T: SSS>(
             i -= autoscroll.initial_preserved;
 
             current_width += current_spans.iter().map(|x| x.width()).sum::<usize>();
-            current_spans.push(Span::styled(autoscroll.indicator.clone(), Style::from(autoscroll.indicator_style)));
+            current_spans.push(Span::styled(
+                autoscroll.indicator.clone(),
+                Style::from(autoscroll.indicator_style),
+            ));
             current_width += autoscroll.indicator.as_str().width();
 
             current_span = String::new();

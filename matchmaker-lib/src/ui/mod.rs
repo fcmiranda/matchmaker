@@ -199,14 +199,22 @@ impl<'a, T: SSS, S: Selection> PickerUI<'a, T, S> {
         let mut constraints = [
             Constraint::Length(if breadcrumb_config.show { 1 } else { 0 }), // breadcrumb
             Constraint::Length(action_height), // action (input + preview)
-            Constraint::Length(if query.config.show { 1 + query.config.border.height() } else { 0 }), // filter input
+            Constraint::Length(if query.config.show {
+                1 + query.config.border.height()
+            } else {
+                0
+            }), // filter input
             Constraint::Length(if query.config.status_inline {
                 0
             } else {
                 results.status_config.show as u16
             }), // status
             Constraint::Length(header.height()), // header
-            Constraint::Fill(1),               // results
+            if let Some(max_rows) = results.config.max_rows {
+                Constraint::Length(max_rows)
+            } else {
+                Constraint::Fill(1)
+            }, // results
         ];
 
         if self.reverse() {
