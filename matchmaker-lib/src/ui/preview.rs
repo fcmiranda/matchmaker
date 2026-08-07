@@ -559,51 +559,6 @@ impl PreviewUI {
                             display_img = img.crop_imm(x, y, crop_w, crop_h);
                         }
 
-                        let media_fit = self.config.media_fit.as_deref().unwrap_or("crop");
-                        let media_size = self.config.media_size.unwrap_or(1024);
-
-                        if self.area.width > 0 && self.area.height > 0 {
-                            let font_w = if picker.font_size().width > 0 { picker.font_size().width } else { 10 };
-                            let font_h = if picker.font_size().height > 0 { picker.font_size().height } else { 20 };
-                            let mut target_w = (self.area.width * font_w) as u32;
-                            let mut target_h = (self.area.height * font_h) as u32;
-
-                            if media_size > 0 {
-                                target_w = target_w.max(media_size);
-                                target_h = target_h.max(media_size);
-                            }
-
-                            if target_w > 0 && target_h > 0 {
-                                match media_fit.to_lowercase().as_str() {
-                                    "crop" | "cover" => {
-                                        display_img = display_img.resize_to_fill(target_w, target_h, image::imageops::FilterType::Triangle);
-                                    }
-                                    "stretch" => {
-                                        display_img = display_img.resize_exact(target_w, target_h, image::imageops::FilterType::Triangle);
-                                    }
-                                    "scale" | "fit" | "contain" | _ => {
-                                        display_img = display_img.resize(target_w, target_h, image::imageops::FilterType::Triangle);
-                                    }
-                                }
-                            }
-                            log::info!(
-                                "[MM Preview Debug] Area: {}cols x {}lines | Real Img: {}x{}px (Aspect: {:.3}) | Target: {}x{}px | Resized Img: {}x{}px | Protocol: {:?} | Fit: {} | MediaSize: {} | Zoom: {}",
-                                self.area.width,
-                                self.area.height,
-                                img.width(),
-                                img.height(),
-                                if img.height() > 0 { img.width() as f64 / img.height() as f64 } else { 0.0 },
-                                target_w,
-                                target_h,
-                                display_img.width(),
-                                display_img.height(),
-                                picker.protocol_type(),
-                                media_fit,
-                                media_size,
-                                self.zoom
-                            );
-                        }
-
                         new_state = Some(picker.new_resize_protocol(display_img));
                     }
                 }
