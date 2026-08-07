@@ -1378,8 +1378,10 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                     0
                 };
 
+                let is_full_footer = full_width_footer || show_nav_hints;
+
                 let mut footer =
-                    if full_width_footer || preview_ui.as_ref().is_none_or(|p| !p.visible()) {
+                    if is_full_footer || preview_ui.as_ref().is_none_or(|p| !p.visible()) {
                         split(&mut _area, effective_footer_height, picker_ui.reverse())
                     } else {
                         Rect::default()
@@ -1438,7 +1440,7 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
 
                         [Rect::default(), _area, footer, Rect::default()]
                     } else {
-                        if !full_width_footer {
+                        if !is_full_footer {
                             footer =
                                 split(&mut picker_area, effective_footer_height, picker_ui.reverse());
                         }
@@ -2028,38 +2030,49 @@ fn render_nav_hints(frame: &mut Frame, area: Rect, is_basic: bool) {
     use ratatui::text::{Line, Span};
     use ratatui::widgets::Paragraph;
 
-    let hint_spans = if is_basic {
-        vec![
-            Span::styled(" [Tab]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-            Span::styled(" Filter ", Style::default().fg(Color::DarkGray)),
-            Span::styled(" [j/k]", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-            Span::styled(" Move ", Style::default().fg(Color::DarkGray)),
-            Span::styled(" [h/l]", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-            Span::styled(" Up/Dir ", Style::default().fg(Color::DarkGray)),
-            Span::styled(" [J/K]", Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD)),
-            Span::styled(" Scroll Preview", Style::default().fg(Color::DarkGray)),
+    let hints: &[(&str, &str, Color)] = if is_basic {
+        &[
+            ("[Tab]", "Filter", Color::Cyan),
+            ("[j/k]", "Move", Color::Yellow),
+            ("[h/l]", "Up/Dir", Color::Yellow),
+            ("[J/K]", "Scroll Preview", Color::Blue),
         ]
     } else {
-        vec![
-            Span::styled(" [Tab]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-            Span::styled(" Filter ", Style::default().fg(Color::DarkGray)),
-            Span::styled(" [a]", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-            Span::styled(" Add ", Style::default().fg(Color::DarkGray)),
-            Span::styled(" [r]", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-            Span::styled(" Rename ", Style::default().fg(Color::DarkGray)),
-            Span::styled(" [d]", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
-            Span::styled(" Trash ", Style::default().fg(Color::DarkGray)),
-            Span::styled(" [y]", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
-            Span::styled(" Yank ", Style::default().fg(Color::DarkGray)),
-            Span::styled(" [x]", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
-            Span::styled(" Cut ", Style::default().fg(Color::DarkGray)),
-            Span::styled(" [p]", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
-            Span::styled(" Paste ", Style::default().fg(Color::DarkGray)),
-            Span::styled(" [z/Z]", Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD)),
-            Span::styled(" Zip/Unzip", Style::default().fg(Color::DarkGray)),
+        &[
+            ("[Tab]", "Filter", Color::Cyan),
+            ("[a]", "Add", Color::Yellow),
+            ("[r]", "Rename", Color::Yellow),
+            ("[d]", "Trash", Color::Red),
+            ("[y]", "Yank", Color::Green),
+            ("[x]", "Cut", Color::Red),
+            ("[p]", "Paste", Color::Magenta),
+            ("[z/Z]", "Zip/Unzip", Color::Blue),
         ]
     };
-    frame.render_widget(Paragraph::new(Line::from(hint_spans)), area);
+
+    let mut spans = Vec::new();
+    let mut total_w = 0;
+    let max_w = area.width as usize;
+
+    for (key, label, color) in hints {
+        let key_span = Span::styled(
+            format!(" {key}"),
+            Style::default().fg(*color).add_modifier(Modifier::BOLD),
+        );
+        let label_span = Span::styled(
+            format!(" {label} "),
+            Style::default().fg(Color::DarkGray),
+        );
+        let pair_w = key_span.width() + label_span.width();
+        if total_w + pair_w > max_w {
+            break;
+        }
+        total_w += pair_w;
+        spans.push(key_span);
+        spans.push(label_span);
+    }
+
+    frame.render_widget(Paragraph::new(Line::from(spans)), area);
 }
 
 // a bit weird, do we want mutable, do we want &mut ui, whatever this is simplest
