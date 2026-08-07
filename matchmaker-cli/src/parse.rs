@@ -32,6 +32,7 @@ static ALIASES: &[(&str, &str)] = &[
     ("parent-peek", "ui.parent_peek"),
     ("parent-peek-pct", "ui.parent_peek_pct"),
     ("parent-peek-border", "ui.parent_peek_border"),
+    ("status-inline", "query.status_inline"),
     ("fm", "ui.nav_mode"),
     ("ui-fm-color", "ui.nav_color"),
 ];

@@ -102,6 +102,10 @@ pub struct Cli {
     /// Show a 3rd pane on the left displaying parent directory contents.
     #[arg(long)]
     pub parent_peek: bool,
+
+    /// Display match status counter inline on the right side of the filter input bar.
+    #[arg(long)]
+    pub status_inline: bool,
 }
 
 #[derive(Debug, Clone, clap::ValueEnum, PartialEq)]
@@ -219,6 +223,7 @@ impl Cli {
                 "--icons",
                 "--symlink-target",
                 "--parent-peek",
+                "--status-inline",
                 "--nav",
                 "--nav-hints",
                 "--help",

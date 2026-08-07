@@ -225,6 +225,10 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
         config.render.ui.parent_peek = true;
     }
 
+    if cli.status_inline {
+        config.render.query.status_inline = true;
+    }
+
     for nb in &cli.nav_bind {
         if let Some(colon) = nb.find(':') {
             let key = nb[..colon].to_string();
@@ -378,6 +382,7 @@ fn apply_nav_props(props: &[String], config: &mut Config) {
     config.render.ui.nav_mode = true;
     config.render.ui.nav_bar = None;
     config.render.action.border.sides = Some(ratatui::widgets::Borders::NONE);
+    config.render.query.status_inline = true;
 
     for raw in props {
         for prop in raw.split(',').filter(|s| !s.is_empty()) {
@@ -413,6 +418,8 @@ fn apply_nav_props(props: &[String], config: &mut Config) {
                     "hints" => config.render.ui.nav_hints = true,
                     "no-hints" => config.render.ui.nav_hints = false,
                     "parent-peek" | "parent_peek" => config.render.ui.parent_peek = true,
+                    "status-inline" => config.render.query.status_inline = true,
+                    "no-status-inline" => config.render.query.status_inline = false,
                     _ => eprintln!("warning: unknown --nav property '{}'", prop),
                 },
                 Some(("bar", s)) => {
