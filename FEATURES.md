@@ -587,3 +587,25 @@ High-performance optimizations implemented to ensure 120FPS+ smooth TUI renderin
 - **Global Top Breadcrumb Bar**: Enforces full-width top breadcrumb placement (`y = 0`) when a side preview is active, preventing breadcrumb height collapse on `Tab` focus switching.
 - **Direct Min/Max Height Constraints**: Standardized `min` and `max` fields on `PreviewLayout` to control row height bounds when `side = "right"` or `"left"`.
 
+---
+
+## 17. Terminal & Modal UX Enhancements
+
+UX enhancements designed for zero-friction navigation, responsive keybinding hints, and visual layout stability.
+
+### A. Dynamic Navigation Keybinding Hints (`--nav-hints`) (`matchmaker-lib/src/render/mod.rs`)
+- **Focus-Driven Toggle**: Automatically displays active keybinding hints (`[Tab] Filter`, `[a] Add`, `[r] Rename`, `[d] Trash`, `[y] Yank`, `[x] Cut`, `[p] Paste`, `[z/Z] Zip/Unzip`) in the footer when the results pane is focused (`Focus::Results`), and hides them when typing in the filter input (`Focus::Input`).
+- **Responsive Hint Truncation**: Dynamically computes terminal character width (`area.width`) to prevent keybinding pairs from wrapping onto multiple lines on narrow screens.
+- **Config & Flag Support**: Configurable via `[ui] nav_hints = true/false` in TOML, or CLI flags `--nav-hints`, `--nav hints`, `--nav no-hints`, and `--nav basic`.
+
+### B. Table Line Wrapping & Symlink Width Protection (`matchmaker-lib/src/ui/results.rs`)
+- **Row Height Capping**: Capped Ratatui `Row::height` to `text_h.min(remaining_height)` to prevent table cells from wrapping single-line file names or symlink targets into multiple vertical lines.
+- **Glyph Safety Margin**: Added width safety margins for Nerd Font icons and unicode symlink arrow glyphs to prevent emulator-dependent line wraps.
+
+### C. Sticky Footer Alignment (`matchmaker-lib/src/render/mod.rs`)
+- **Zero-Gap Layout**: Dynamically anchors the footer directly beneath short picker and preview elements (`y = content_bottom`), eliminating large blank empty spaces when `max_rows` or `max` limits are configured.
+
+### D. Global Top Breadcrumb Persistence (`matchmaker-lib/src/render/mod.rs`)
+- **Persistent Full-Width Bar**: Forces full-width top breadcrumb placement (`y = 0`) across the entire screen whenever side-by-side preview is active (`has_preview`). Prevents the breadcrumb path from collapsing to height 0 or disappearing when switching focus with `Tab`.
+
+
