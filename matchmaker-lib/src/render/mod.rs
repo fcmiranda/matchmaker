@@ -1417,12 +1417,17 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
 
                 let mut parent_peek_rect = Rect::default();
                 if ui.config.parent_peek.enabled && _area.width >= 50 {
+                    let top_offset = if !picker_ui.reverse() && picker_ui.query.config.show {
+                        1 + picker_ui.query.config.border.height()
+                    } else {
+                        0
+                    };
                     let pw = ui.config.parent_peek.pct.compute_clamped(_area.width, 10, 30);
                     parent_peek_rect = Rect {
                         x: _area.x,
-                        y: _area.y,
+                        y: _area.y + top_offset,
                         width: pw,
-                        height: _area.height,
+                        height: _area.height.saturating_sub(top_offset),
                     };
                     _area.x += pw;
                     _area.width -= pw;
