@@ -6,6 +6,9 @@ nav_mode = true
 nav_bar = "Plain"
 nav_color = "Black"
 
+[query]
+status_inline = true
+
 [matcher]
 sort = "smart"
 sort_cap = 2000
