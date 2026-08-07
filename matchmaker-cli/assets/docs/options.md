@@ -235,6 +235,8 @@ All colors and modifiers come from ratatui:
     - `min`, `max`: Pixel constraints for the preview size. Setting `max` to 0 disables a preview layout.
     - `max_height`: (number) Maximum height (in rows) for the preview pane when side is `right` or `left`.
       - Absolute alias: `mh`.
+    - `min_height`: (number) Minimum height (in rows) for the preview pane when side is `right` or `left`.
+      - Absolute alias: `min_h`.
     - `scroll` *(flattened)*: Initial scroll settings for this layout. See [Initial](#initial) for available fields.
 - `border`: [Border Settings](#border-settings).
 - `initial`: Control the initial scroll offset of the preview window.

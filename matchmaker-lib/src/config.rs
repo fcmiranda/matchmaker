@@ -1400,6 +1400,9 @@ pub struct PreviewLayout {
     /// Optional maximum height (in rows) for the preview pane when side is Right or Left.
     #[partial(alias = "mh")]
     pub max_height: Option<u16>,
+    /// Optional minimum height (in rows) for the preview pane.
+    #[partial(alias = "min_h")]
+    pub min_height: Option<u16>,
 }
 
 impl Default for PreviewLayout {
@@ -1412,6 +1415,7 @@ impl Default for PreviewLayout {
             gap: 1,
             gap_counter_offset: 0,
             max_height: None,
+            min_height: None,
         }
     }
 }

@@ -376,6 +376,11 @@ impl PreviewLayout {
                     ret[0].height = mh;
                 }
             }
+            if let Some(min_h) = self.min_height {
+                if min_h > 0 && min_h > ret[0].height {
+                    ret[0].height = min_h.min(area.height);
+                }
+            }
         }
 
         ret
