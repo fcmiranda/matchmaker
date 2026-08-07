@@ -24,4 +24,5 @@ complete -c mm -l sort -d 'Sort input lines alphabetically before injecting into
 complete -c mm -l frecency -d 'Enable frecency tracking and re-ranking for search results'
 complete -c mm -l icons -d 'Prepend a Nerd Font file-type icon before each result row'
 complete -c mm -l symlink-target -d 'Append symlink target path after the first column when the entry is a symlink'
+complete -c mm -l nav-hints -d 'Show keybinding hints in footer/status when Results pane is focused in navigation mode'
 complete -c mm -s h -l help -d 'Print help'

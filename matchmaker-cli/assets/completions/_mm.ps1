@@ -43,6 +43,7 @@ Register-ArgumentCompleter -Native -CommandName 'mm' -ScriptBlock {
             [CompletionResult]::new('--frecency', '--frecency', [CompletionResultType]::ParameterName, 'Enable frecency tracking and re-ranking for search results')
             [CompletionResult]::new('--icons', '--icons', [CompletionResultType]::ParameterName, 'Prepend a Nerd Font file-type icon before each result row')
             [CompletionResult]::new('--symlink-target', '--symlink-target', [CompletionResultType]::ParameterName, 'Append symlink target path after the first column when the entry is a symlink')
+            [CompletionResult]::new('--nav-hints', '--nav-hints', [CompletionResultType]::ParameterName, 'Show keybinding hints in footer/status when Results pane is focused in navigation mode')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
             break
