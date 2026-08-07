@@ -232,11 +232,7 @@ All colors and modifiers come from ratatui:
   - `layout` *(flattened)*:
     - `side`: `top`, `bottom`, `left`, `right`.
     - `percentage`: Percentage of the screen to occupy.
-    - `min`, `max`: Pixel constraints for the preview size. Setting `max` to 0 disables a preview layout.
-    - `max_height`: (number) Maximum height (in rows) for the preview pane when side is `right` or `left`.
-      - Absolute alias: `mh`.
-    - `min_height`: (number) Minimum height (in rows) for the preview pane when side is `right` or `left`.
-      - Absolute alias: `min_h`.
+    - `min`, `max`: Pixel/row constraints for the preview size. On `left` or `right`, `min`/`max` restrict the preview row height. Setting `max` to 0 disables a preview layout.
     - `scroll` *(flattened)*: Initial scroll settings for this layout. See [Initial](#initial) for available fields.
 - `border`: [Border Settings](#border-settings).
 - `initial`: Control the initial scroll offset of the preview window.

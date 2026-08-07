@@ -371,14 +371,16 @@ impl PreviewLayout {
         };
 
         if matches!(self.side, Side::Left | Side::Right) {
-            if let Some(mh) = self.max_height {
-                if mh > 0 && mh < ret[0].height {
-                    ret[0].height = mh;
+            if self.max > 0 && self.max != i16::MAX {
+                let max_u = self.max as u16;
+                if max_u < ret[0].height {
+                    ret[0].height = max_u;
                 }
             }
-            if let Some(min_h) = self.min_height {
-                if min_h > 0 && min_h > ret[0].height {
-                    ret[0].height = min_h.min(area.height);
+            if self.min > 0 {
+                let min_u = self.min as u16;
+                if min_u > ret[0].height {
+                    ret[0].height = min_u.min(area.height);
                 }
             }
         }
