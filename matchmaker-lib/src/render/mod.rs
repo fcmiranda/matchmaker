@@ -1461,6 +1461,20 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                     picker_ui.breadcrumb_config.show = original_breadcrumb_show;
                 }
 
+                let mut footer = footer;
+                if !picker_ui.reverse() && footer.height > 0 {
+                    let picker_bottom = results.y + results.height;
+                    let preview_bottom = if preview.height > 0 {
+                        preview.y + preview.height
+                    } else {
+                        0
+                    };
+                    let content_bottom = picker_bottom.max(preview_bottom);
+                    if content_bottom < footer.y {
+                        footer.y = content_bottom;
+                    }
+                }
+
                 // save dimensions and check if dimensions changed
                 did_resize = state.update_layout(Layout {
                     preview,
