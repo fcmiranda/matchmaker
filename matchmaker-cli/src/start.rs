@@ -217,6 +217,10 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
         apply_nav_props(nav, &mut config);
     }
 
+    if cli.nav_hints {
+        config.render.ui.nav_hints = true;
+    }
+
     for nb in &cli.nav_bind {
         if let Some(colon) = nb.find(':') {
             let key = nb[..colon].to_string();
@@ -402,6 +406,8 @@ fn apply_nav_props(props: &[String], config: &mut Config) {
                                 .insert(key.to_string(), empty.clone());
                         }
                     }
+                    "hints" => config.render.ui.nav_hints = true,
+                    "no-hints" => config.render.ui.nav_hints = false,
                     _ => eprintln!("warning: unknown --nav property '{}'", prop),
                 },
                 Some(("bar", s)) => {
@@ -415,6 +421,10 @@ fn apply_nav_props(props: &[String], config: &mut Config) {
                     config.render.ui.nav_blink = true;
                     config.render.ui.nav_blink_rate = parse_blink_rate(s);
                 }
+                Some(("hints", s)) => match s.trim().to_ascii_lowercase().as_str() {
+                    "false" | "off" | "no" | "0" => config.render.ui.nav_hints = false,
+                    _ => config.render.ui.nav_hints = true,
+                },
                 Some(("focus-on-start", s)) => match s.trim().to_ascii_lowercase().as_str() {
                     "picker" => {
                         config.render.ui.nav_focus_on_start = matchmaker::config::NavFocus::Picker

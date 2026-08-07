@@ -94,6 +94,10 @@ pub struct Cli {
     /// Example: --nav-bind 'h:ChDir(..)' --nav-bind 'l:ChDir({=});Reload'
     #[arg(long = "nav-bind", value_name = "BIND")]
     pub nav_bind: Vec<String>,
+
+    /// Show keybinding hints in footer/status when Results pane is focused in navigation mode.
+    #[arg(long)]
+    pub nav_hints: bool,
 }
 
 #[derive(Debug, Clone, clap::ValueEnum, PartialEq)]
@@ -210,6 +214,7 @@ impl Cli {
                 "--icons",
                 "--symlink-target",
                 "--nav",
+                "--nav-hints",
                 "--help",
                 "-F",
             ]
