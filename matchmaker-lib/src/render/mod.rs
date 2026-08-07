@@ -1654,7 +1654,7 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                     render_nav_hints(frame, footer, ui.config.nav_basic);
                 }
                 if parent_peek_rect.width > 0 {
-                    render_parent_peek(frame, parent_peek_rect);
+                    render_parent_peek(frame, parent_peek_rect, ui.config.parent_peek_border);
                 }
                 if let Some(preview_ui) = preview_ui.as_mut() {
                     state.update_preview_visible(preview_ui);
@@ -2107,7 +2107,7 @@ fn render_nav_hints(frame: &mut Frame, area: Rect, is_basic: bool) {
     frame.render_widget(Paragraph::new(Line::from(spans)), area);
 }
 
-fn render_parent_peek(frame: &mut Frame, area: Rect) {
+fn render_parent_peek(frame: &mut Frame, area: Rect, show_border: bool) {
     if area.height <= 2 || area.width <= 2 {
         return;
     }
@@ -2122,16 +2122,21 @@ fn render_parent_peek(frame: &mut Frame, area: Rect) {
 
     let current_name = cwd.file_name().map(|n| n.to_string_lossy());
 
-    let block = Block::default()
-        .borders(Borders::RIGHT)
-        .border_style(Style::default().fg(Color::DarkGray))
-        .title(Span::styled(
-            format!(" {} ", parent_name),
-            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
-        ));
+    let inner = if show_border {
+        let block = Block::default()
+            .borders(Borders::RIGHT)
+            .border_style(Style::default().fg(Color::DarkGray))
+            .title(Span::styled(
+                format!(" {} ", parent_name),
+                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+            ));
 
-    let inner = block.inner(area);
-    frame.render_widget(block, area);
+        let inner_area = block.inner(area);
+        frame.render_widget(block, area);
+        inner_area
+    } else {
+        area
+    };
 
     if inner.height == 0 || inner.width == 0 {
         return;

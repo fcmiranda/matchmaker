@@ -31,6 +31,7 @@ static ALIASES: &[(&str, &str)] = &[
     ("nav-hints", "ui.nav_hints"),
     ("parent-peek", "ui.parent_peek"),
     ("parent-peek-pct", "ui.parent_peek_pct"),
+    ("parent-peek-border", "ui.parent_peek_border"),
     ("fm", "ui.nav_mode"),
     ("ui-fm-color", "ui.nav_color"),
 ];

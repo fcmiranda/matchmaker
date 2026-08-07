@@ -439,6 +439,10 @@ fn apply_nav_props(props: &[String], config: &mut Config) {
                         config.render.ui.parent_peek_pct = matchmaker::config::Percentage::new(pct);
                     }
                 }
+                Some(("parent-peek-border" | "parent_peek_border", s)) => match s.trim().to_ascii_lowercase().as_str() {
+                    "false" | "off" | "no" | "0" | "none" => config.render.ui.parent_peek_border = false,
+                    _ => config.render.ui.parent_peek_border = true,
+                }
                 Some(("focus-on-start", s)) => match s.trim().to_ascii_lowercase().as_str() {
                     "picker" => {
                         config.render.ui.nav_focus_on_start = matchmaker::config::NavFocus::Picker

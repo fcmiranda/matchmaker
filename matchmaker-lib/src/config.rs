@@ -342,6 +342,10 @@ pub struct UiConfig {
 
     /// Width percentage of the parent peek pane (default: 15%).
     pub parent_peek_pct: Percentage,
+
+    /// Whether to show right border line for parent_peek (default: true).
+    #[serde(alias = "parent_peek_border")]
+    pub parent_peek_border: bool,
 }
 
 impl Default for UiConfig {
@@ -385,6 +389,7 @@ impl Default for UiConfig {
             nav_hints: true,
             parent_peek: false,
             parent_peek_pct: Percentage::new(15),
+            parent_peek_border: true,
         }
     }
 }
