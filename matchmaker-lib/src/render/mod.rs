@@ -1347,18 +1347,15 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                         }
 
                         // Determine if we need global breadcrumb
-                        let picker_w = if let Some(p) = preview_ui.as_ref() {
-                            if p.visible() {
-                                let [_, p_area, _] = p.split(_area);
-                                p_area.width
-                            } else {
-                                _area.width
-                            }
+                        let has_preview = preview_ui.as_ref().is_some_and(|p| p.visible());
+                        let picker_w = if has_preview {
+                            let [_, p_area, _] = preview_ui.as_ref().unwrap().split(_area);
+                            p_area.width
                         } else {
                             _area.width
                         };
 
-                        if breadcrumb_width > picker_w {
+                        if has_preview || breadcrumb_width > picker_w {
                             is_global_breadcrumb = true;
                             global_breadcrumb_rect = split(&mut _area, 1, !picker_ui.reverse());
                         }
