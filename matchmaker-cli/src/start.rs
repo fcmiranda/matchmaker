@@ -222,7 +222,7 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
     }
 
     if cli.parent_peek {
-        config.render.ui.parent_peek = true;
+        config.render.ui.parent_peek.enabled = true;
     }
 
     if cli.status_inline {
@@ -417,7 +417,8 @@ fn apply_nav_props(props: &[String], config: &mut Config) {
                     }
                     "hints" => config.render.ui.nav_hints = true,
                     "no-hints" => config.render.ui.nav_hints = false,
-                    "parent-peek" | "parent_peek" => config.render.ui.parent_peek = true,
+                    "parent-peek" | "parent_peek" => config.render.ui.parent_peek.enabled = true,
+                    "no-parent-peek" | "no_parent_peek" => config.render.ui.parent_peek.enabled = false,
                     "status-inline" => config.render.query.status_inline = true,
                     "no-status-inline" => config.render.query.status_inline = false,
                     _ => eprintln!("warning: unknown --nav property '{}'", prop),
@@ -438,17 +439,39 @@ fn apply_nav_props(props: &[String], config: &mut Config) {
                     _ => config.render.ui.nav_hints = true,
                 },
                 Some(("parent-peek" | "parent_peek", s)) => match s.trim().to_ascii_lowercase().as_str() {
-                    "false" | "off" | "no" | "0" => config.render.ui.parent_peek = false,
-                    _ => config.render.ui.parent_peek = true,
+                    "false" | "off" | "no" | "0" => config.render.ui.parent_peek.enabled = false,
+                    _ => config.render.ui.parent_peek.enabled = true,
                 },
                 Some(("parent-peek-pct" | "parent_peek_pct", s)) => {
                     if let Ok(pct) = s.parse::<u16>() {
-                        config.render.ui.parent_peek_pct = matchmaker::config::Percentage::new(pct);
+                        config.render.ui.parent_peek.pct = matchmaker::config::Percentage::new(pct);
+                    }
+                }
+                Some(("parent-peek-color" | "parent_peek_color", s)) => {
+                    if let Ok(color) = s.trim().parse::<ratatui::style::Color>() {
+                        config.render.ui.parent_peek.parent_color = Some(color);
+                    }
+                }
+                Some(("parent-peek-highlight" | "parent_peek_highlight", s)) => match s.trim().to_ascii_lowercase().as_str() {
+                    "false" | "off" | "no" | "0" => config.render.ui.parent_peek.highlight = false,
+                    _ => config.render.ui.parent_peek.highlight = true,
+                },
+                Some(("parent-peek-highlight-color" | "parent_peek_highlight_color", s)) => {
+                    if let Ok(color) = s.trim().parse::<ratatui::style::Color>() {
+                        config.render.ui.parent_peek.highlight_color = Some(color);
                     }
                 }
                 Some(("parent-peek-border" | "parent_peek_border", s)) => match s.trim().to_ascii_lowercase().as_str() {
-                    "false" | "off" | "no" | "0" | "none" => config.render.ui.parent_peek_border = false,
-                    _ => config.render.ui.parent_peek_border = true,
+                    "false" | "off" | "no" | "0" | "none" => config.render.ui.parent_peek.border.show = false,
+                    _ => config.render.ui.parent_peek.border.show = true,
+                },
+                Some(("parent-peek-border-color" | "parent_peek_border_color", s)) => {
+                    if let Ok(color) = s.trim().parse::<ratatui::style::Color>() {
+                        config.render.ui.parent_peek.border.color = Some(color);
+                    }
+                }
+                Some(("parent-peek-border-type" | "parent_peek_border_type", s)) => {
+                    config.render.ui.parent_peek.border.r#type = Some(parse_border_type(s));
                 }
                 Some(("focus-on-start", s)) => match s.trim().to_ascii_lowercase().as_str() {
                     "picker" => {

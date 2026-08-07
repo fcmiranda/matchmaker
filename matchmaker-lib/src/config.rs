@@ -336,16 +336,10 @@ pub struct UiConfig {
     #[serde(alias = "fm_hints")]
     pub nav_hints: bool,
 
-    /// Show a 3rd pane on the left displaying parent directory contents.
-    #[serde(alias = "parent_peek")]
-    pub parent_peek: bool,
-
-    /// Width percentage of the parent peek pane (default: 15%).
-    pub parent_peek_pct: Percentage,
-
-    /// Whether to show right border line for parent_peek (default: true).
-    #[serde(alias = "parent_peek_border")]
-    pub parent_peek_border: bool,
+    /// Configuration for the 3-pane Parent Peek left directory pane.
+    #[partial(recurse)]
+    #[serde(deserialize_with = "deserialize_parent_peek", default)]
+    pub parent_peek: ParentPeekConfig,
 }
 
 impl Default for UiConfig {
@@ -387,9 +381,7 @@ impl Default for UiConfig {
             nav_basic: false,
             nav_focus_on_start: NavFocus::Filter,
             nav_hints: true,
-            parent_peek: false,
-            parent_peek_pct: Percentage::new(15),
-            parent_peek_border: true,
+            parent_peek: ParentPeekConfig::default(),
         }
     }
 }
@@ -521,6 +513,109 @@ impl Default for BreadcrumbConfig {
             truncate_length: 0,
             current_folder_only: false,
         }
+    }
+}
+
+/// Border configuration for the Parent Peek left pane.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+#[partial(path, derive(Debug, Clone, PartialEq, Deserialize, Serialize))]
+pub struct ParentPeekBorderConfig {
+    /// Show or hide the right border line (default: true).
+    pub show: bool,
+    /// Border color (default: DarkGray).
+    #[serde(deserialize_with = "camelcase_normalized_option", default)]
+    pub color: Option<Color>,
+    /// Border style type (Plain, Rounded, Double, Thick).
+    #[serde(deserialize_with = "camelcase_normalized_option", default)]
+    pub r#type: Option<BorderType>,
+}
+
+impl Default for ParentPeekBorderConfig {
+    fn default() -> Self {
+        Self {
+            show: true,
+            color: Some(Color::DarkGray),
+            r#type: Some(BorderType::Plain),
+        }
+    }
+}
+
+/// Configuration for the 3-pane Parent Peek left directory pane.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+#[partial(path, derive(Debug, Clone, PartialEq, Deserialize, Serialize))]
+pub struct ParentPeekConfig {
+    /// Enable 3-pane Parent Peek layout (default: false).
+    pub enabled: bool,
+    /// Width percentage of the parent peek pane (default: 15%).
+    pub pct: Percentage,
+    /// Parent folder title color (default: Cyan).
+    #[serde(deserialize_with = "camelcase_normalized_option", default)]
+    pub parent_color: Option<Color>,
+    /// Whether to highlight the current directory in the parent list (default: true).
+    pub highlight: bool,
+    /// Highlight color for the current directory (default: Yellow).
+    #[serde(deserialize_with = "camelcase_normalized_option", default)]
+    pub highlight_color: Option<Color>,
+    /// Border settings for the parent peek pane.
+    #[partial(recurse)]
+    pub border: ParentPeekBorderConfig,
+}
+
+impl Default for ParentPeekConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            pct: Percentage::new(15),
+            parent_color: Some(Color::Cyan),
+            highlight: true,
+            highlight_color: Some(Color::Yellow),
+            border: ParentPeekBorderConfig::default(),
+        }
+    }
+}
+
+pub fn deserialize_parent_peek<'de, D>(deserializer: D) -> Result<ParentPeekConfig, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum ParentPeekHelper {
+        Bool(bool),
+        Config(ParentPeekConfig),
+    }
+
+    match ParentPeekHelper::deserialize(deserializer)? {
+        ParentPeekHelper::Bool(b) => Ok(ParentPeekConfig {
+            enabled: b,
+            ..ParentPeekConfig::default()
+        }),
+        ParentPeekHelper::Config(c) => Ok(c),
+    }
+}
+
+pub fn deserialize_optional_parent_peek<'de, D>(
+    deserializer: D,
+) -> Result<Option<PartialParentPeekConfig>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum Helper {
+        Bool(bool),
+        Config(PartialParentPeekConfig),
+    }
+
+    match Option::<Helper>::deserialize(deserializer)? {
+        Some(Helper::Bool(b)) => Ok(Some(PartialParentPeekConfig {
+            enabled: Some(b),
+            ..Default::default()
+        })),
+        Some(Helper::Config(c)) => Ok(Some(c)),
+        None => Ok(None),
     }
 }
 

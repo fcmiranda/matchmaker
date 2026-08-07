@@ -696,7 +696,7 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                             );
                         }
                         Action::ToggleParentPeek => {
-                            ui.config.parent_peek = !ui.config.parent_peek;
+                            ui.config.parent_peek.enabled = !ui.config.parent_peek.enabled;
                         }
                         Action::Up(x) | Action::Down(x) => {
                             let next = matches!(action, Action::Down(_)) ^ results.reverse();
@@ -1416,8 +1416,8 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                 };
 
                 let mut parent_peek_rect = Rect::default();
-                if ui.config.parent_peek && _area.width >= 50 {
-                    let pw = ui.config.parent_peek_pct.compute_clamped(_area.width, 10, 30);
+                if ui.config.parent_peek.enabled && _area.width >= 50 {
+                    let pw = ui.config.parent_peek.pct.compute_clamped(_area.width, 10, 30);
                     parent_peek_rect = Rect {
                         x: _area.x,
                         y: _area.y,
@@ -1654,7 +1654,7 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                     render_nav_hints(frame, footer, ui.config.nav_basic);
                 }
                 if parent_peek_rect.width > 0 {
-                    render_parent_peek(frame, parent_peek_rect, ui.config.parent_peek_border);
+                    render_parent_peek(frame, parent_peek_rect, &ui.config.parent_peek);
                 }
                 if let Some(preview_ui) = preview_ui.as_mut() {
                     state.update_preview_visible(preview_ui);
@@ -2107,7 +2107,7 @@ fn render_nav_hints(frame: &mut Frame, area: Rect, is_basic: bool) {
     frame.render_widget(Paragraph::new(Line::from(spans)), area);
 }
 
-fn render_parent_peek(frame: &mut Frame, area: Rect, show_border: bool) {
+fn render_parent_peek(frame: &mut Frame, area: Rect, cfg: &crate::config::ParentPeekConfig) {
     if area.height <= 2 || area.width <= 2 {
         return;
     }
@@ -2122,13 +2122,19 @@ fn render_parent_peek(frame: &mut Frame, area: Rect, show_border: bool) {
 
     let current_name = cwd.file_name().map(|n| n.to_string_lossy());
 
-    let inner = if show_border {
+    let parent_color = cfg.parent_color.unwrap_or(Color::Cyan);
+
+    let inner = if cfg.border.show {
+        let border_color = cfg.border.color.unwrap_or(Color::DarkGray);
+        let border_type = cfg.border.r#type.unwrap_or(ratatui::widgets::BorderType::Plain);
+
         let block = Block::default()
             .borders(Borders::RIGHT)
-            .border_style(Style::default().fg(Color::DarkGray))
+            .border_type(border_type)
+            .border_style(Style::default().fg(border_color))
             .title(Span::styled(
                 format!(" {} ", parent_name),
-                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                Style::default().fg(parent_color).add_modifier(Modifier::BOLD),
             ));
 
         let inner_area = block.inner(area);
@@ -2165,16 +2171,18 @@ fn render_parent_peek(frame: &mut Frame, area: Rect, show_border: bool) {
     let start_idx = selected_idx.saturating_sub(half_visible);
     let end_idx = (start_idx + visible_rows).min(entries.len());
 
+    let highlight_color = cfg.highlight_color.unwrap_or(Color::Yellow);
+
     let mut lines = Vec::new();
     for (idx, (name, is_dir)) in entries[start_idx..end_idx].iter().enumerate() {
         let actual_idx = start_idx + idx;
-        let is_selected = actual_idx == selected_idx;
+        let is_selected = (actual_idx == selected_idx) && cfg.highlight;
 
         let icon = if *is_dir { " " } else { " " };
         let text = format!("{}{}", icon, name);
 
         let style = if is_selected {
-            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+            Style::default().fg(highlight_color).add_modifier(Modifier::BOLD)
         } else if *is_dir {
             Style::default().fg(Color::Blue)
         } else {
