@@ -6,6 +6,12 @@ nav_mode = true
 nav_bar = "Plain"
 nav_color = "Black"
 
+[ui.parent_peek]
+enabled = true
+
+[ui.parent_peek.border]
+show = false
+
 [query]
 status_inline = true
 
