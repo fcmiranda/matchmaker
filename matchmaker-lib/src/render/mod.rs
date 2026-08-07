@@ -1411,6 +1411,19 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                     widths.iter().copied().max().unwrap_or(0) as u16
                 };
 
+                let mut parent_peek_rect = Rect::default();
+                if ui.config.parent_peek && _area.width >= 50 {
+                    let pw = ui.config.parent_peek_pct.compute_clamped(_area.width, 10, 30);
+                    parent_peek_rect = Rect {
+                        x: _area.x,
+                        y: _area.y,
+                        width: pw,
+                        height: _area.height,
+                    };
+                    _area.x += pw;
+                    _area.width -= pw;
+                }
+
                 let [preview, picker_area, footer, gap_area] = if let Some(preview_ui) =
                     preview_ui.as_mut()
                     && preview_ui.visible()
@@ -1635,6 +1648,9 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                 render_display(frame, footer, &mut footer_ui, &picker_ui.results);
                 if show_nav_hints && footer.height > 0 {
                     render_nav_hints(frame, footer, ui.config.nav_basic);
+                }
+                if parent_peek_rect.width > 0 {
+                    render_parent_peek(frame, parent_peek_rect);
                 }
                 if let Some(preview_ui) = preview_ui.as_mut() {
                     state.update_preview_visible(preview_ui);
@@ -2084,6 +2100,82 @@ fn render_nav_hints(frame: &mut Frame, area: Rect, is_basic: bool) {
     }
 
     frame.render_widget(Paragraph::new(Line::from(spans)), area);
+}
+
+fn render_parent_peek(frame: &mut Frame, area: Rect) {
+    if area.height <= 2 || area.width <= 2 {
+        return;
+    }
+
+    let Ok(cwd) = std::env::current_dir() else { return };
+    let Some(parent) = cwd.parent() else { return };
+
+    let parent_name = parent
+        .file_name()
+        .map(|n| n.to_string_lossy())
+        .unwrap_or_else(|| "/".into());
+
+    let current_name = cwd.file_name().map(|n| n.to_string_lossy());
+
+    let block = Block::default()
+        .borders(Borders::RIGHT)
+        .border_style(Style::default().fg(Color::DarkGray))
+        .title(Span::styled(
+            format!(" {} ", parent_name),
+            Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+        ));
+
+    let inner = block.inner(area);
+    frame.render_widget(block, area);
+
+    if inner.height == 0 || inner.width == 0 {
+        return;
+    }
+
+    let mut entries = Vec::new();
+    if let Ok(dir_entries) = std::fs::read_dir(parent) {
+        for entry in dir_entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            let is_dir = entry.file_type().map_or(false, |t| t.is_dir());
+            entries.push((name, is_dir));
+        }
+    }
+
+    entries.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+
+    let mut selected_idx = 0;
+    if let Some(ref cur) = current_name {
+        if let Some(pos) = entries.iter().position(|e| e.0 == *cur) {
+            selected_idx = pos;
+        }
+    }
+
+    let visible_rows = inner.height as usize;
+    let half_visible = visible_rows / 2;
+    let start_idx = selected_idx.saturating_sub(half_visible);
+    let end_idx = (start_idx + visible_rows).min(entries.len());
+
+    let mut lines = Vec::new();
+    for (idx, (name, is_dir)) in entries[start_idx..end_idx].iter().enumerate() {
+        let actual_idx = start_idx + idx;
+        let is_selected = actual_idx == selected_idx;
+
+        let icon = if *is_dir { " " } else { " " };
+        let text = format!("{}{}", icon, name);
+
+        let style = if is_selected {
+            Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+        } else if *is_dir {
+            Style::default().fg(Color::Blue)
+        } else {
+            Style::default().fg(Color::DarkGray)
+        };
+
+        lines.push(Line::from(Span::styled(text, style)));
+    }
+
+    let paragraph = Paragraph::new(lines);
+    frame.render_widget(paragraph, inner);
 }
 
 // a bit weird, do we want mutable, do we want &mut ui, whatever this is simplest

@@ -335,6 +335,13 @@ pub struct UiConfig {
     #[serde(alias = "focus_hints")]
     #[serde(alias = "fm_hints")]
     pub nav_hints: bool,
+
+    /// Show a 3rd pane on the left displaying parent directory contents.
+    #[serde(alias = "parent_peek")]
+    pub parent_peek: bool,
+
+    /// Width percentage of the parent peek pane (default: 15%).
+    pub parent_peek_pct: Percentage,
 }
 
 impl Default for UiConfig {
@@ -350,14 +357,7 @@ impl Default for UiConfig {
                 Action::Pos(0),
             ]),
         );
-        nav_binds.insert(
-            "h".to_string(),
-            Actions::from([
-                Action::ChDir("..".to_string()),
-                Action::Reload("".to_string()),
-                Action::Pos(0),
-            ]),
-        );
+        nav_binds.insert("h".to_string(), Actions::from([Action::ChDir("..".to_string()), Action::Reload("".to_string()), Action::Pos(0)]));
         nav_binds.insert("J".to_string(), Actions::from([Action::PreviewDown(1)]));
         nav_binds.insert("K".to_string(), Actions::from([Action::PreviewUp(1)]));
         nav_binds.insert("gg".to_string(), Actions::from([Action::PreviewUp(0)]));
@@ -366,7 +366,7 @@ impl Default for UiConfig {
         nav_binds.insert("gt".to_string(), Actions::from([Action::Pos(0)]));
 
         Self {
-            border: Default::default(),
+            border: BorderSetting::default(),
             tick_rate: 60,
             nav_mode: false,
             nav_color: Color::Yellow,
@@ -374,14 +374,16 @@ impl Default for UiConfig {
             nav_blink_rate: BlinkRate::Normal,
             nav_bold: false,
             nav_bar: None,
-            nav_marker: String::new(),
-            nav_prompt: String::new(),
+            nav_marker: "".to_string(),
+            nav_prompt: "".to_string(),
             nav_binds,
             nav_notify: false,
             nav_passthrough: false,
             nav_basic: false,
             nav_focus_on_start: NavFocus::Filter,
             nav_hints: true,
+            parent_peek: false,
+            parent_peek_pct: Percentage::new(15),
         }
     }
 }

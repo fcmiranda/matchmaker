@@ -98,6 +98,10 @@ pub struct Cli {
     /// Show keybinding hints in footer/status when Results pane is focused in navigation mode.
     #[arg(long)]
     pub nav_hints: bool,
+
+    /// Show a 3rd pane on the left displaying parent directory contents.
+    #[arg(long)]
+    pub parent_peek: bool,
 }
 
 #[derive(Debug, Clone, clap::ValueEnum, PartialEq)]
@@ -202,6 +206,7 @@ impl Cli {
             try_parse!("color", "--");
             try_parse!("nav-bind", "--");
             try_parse!("group-prefix", "--");
+            try_parse!("parent-peek-pct", "--");
 
             // Flags
             if [
@@ -213,6 +218,7 @@ impl Cli {
                 "--frecency",
                 "--icons",
                 "--symlink-target",
+                "--parent-peek",
                 "--nav",
                 "--nav-hints",
                 "--help",

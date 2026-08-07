@@ -221,6 +221,10 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
         config.render.ui.nav_hints = true;
     }
 
+    if cli.parent_peek {
+        config.render.ui.parent_peek = true;
+    }
+
     for nb in &cli.nav_bind {
         if let Some(colon) = nb.find(':') {
             let key = nb[..colon].to_string();
@@ -408,6 +412,7 @@ fn apply_nav_props(props: &[String], config: &mut Config) {
                     }
                     "hints" => config.render.ui.nav_hints = true,
                     "no-hints" => config.render.ui.nav_hints = false,
+                    "parent-peek" | "parent_peek" => config.render.ui.parent_peek = true,
                     _ => eprintln!("warning: unknown --nav property '{}'", prop),
                 },
                 Some(("bar", s)) => {
@@ -425,6 +430,15 @@ fn apply_nav_props(props: &[String], config: &mut Config) {
                     "false" | "off" | "no" | "0" => config.render.ui.nav_hints = false,
                     _ => config.render.ui.nav_hints = true,
                 },
+                Some(("parent-peek" | "parent_peek", s)) => match s.trim().to_ascii_lowercase().as_str() {
+                    "false" | "off" | "no" | "0" => config.render.ui.parent_peek = false,
+                    _ => config.render.ui.parent_peek = true,
+                },
+                Some(("parent-peek-pct" | "parent_peek_pct", s)) => {
+                    if let Ok(pct) = s.parse::<u16>() {
+                        config.render.ui.parent_peek_pct = matchmaker::config::Percentage::new(pct);
+                    }
+                }
                 Some(("focus-on-start", s)) => match s.trim().to_ascii_lowercase().as_str() {
                     "picker" => {
                         config.render.ui.nav_focus_on_start = matchmaker::config::NavFocus::Picker
