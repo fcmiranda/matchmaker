@@ -906,7 +906,8 @@ impl ResultsUI {
                             row_texts.last_mut().unwrap().alignment = Some(Alignment::Right)
                         }
 
-                        let row = Row::new(row_texts).height(remaining_height);
+                        let text_h = row_texts.iter().map(|t| t.lines.len() as u16).max().unwrap_or(1);
+                        let row = Row::new(row_texts).height(text_h.min(remaining_height));
                         let row = if is_selected {
                             row.style(Style::from(self.config.selected_style))
                         } else {
@@ -1062,7 +1063,8 @@ impl ResultsUI {
                     row_texts.last_mut().unwrap().alignment = Some(Alignment::Right)
                 }
 
-                let row = Row::new(row_texts).height(remaining_height);
+                let text_h = row_texts.iter().map(|t| t.lines.len() as u16).max().unwrap_or(1);
+                let row = Row::new(row_texts).height(text_h.min(remaining_height));
                 let row = if is_selected && !is_current_row {
                     row.style(Style::from(self.config.selected_style))
                 } else {
@@ -1776,12 +1778,12 @@ fn maybe_append_symlink_target(
 
         let remaining = (max_width as usize).saturating_sub(used);
 
-        // Need at least space for the arrow + 1 char to show anything useful.
-        if remaining < arrow_width + 1 {
+        // Need at least space for the arrow + 2 chars to show anything useful safely.
+        if remaining < arrow_width + 2 {
             return;
         }
 
-        let budget = remaining - arrow_width;
+        let budget = remaining.saturating_sub(arrow_width + 1);
         let annotation = if target_str.width() <= budget {
             format!("{arrow}{target_str}")
         } else {
