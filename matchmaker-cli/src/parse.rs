@@ -28,6 +28,7 @@ static ALIASES: &[(&str, &str)] = &[
     ("nav-bar", "ui.nav_bar"),
     ("nav-marker", "ui.nav_marker"),
     ("nav-prompt", "ui.nav_prompt"),
+    ("nav-hints", "ui.nav_hints"),
     ("fm", "ui.nav_mode"),
     ("ui-fm-color", "ui.nav_color"),
 ];

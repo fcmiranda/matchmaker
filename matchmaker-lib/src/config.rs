@@ -330,6 +330,11 @@ pub struct UiConfig {
     #[serde(alias = "focus_on_start")]
     #[serde(default)]
     pub nav_focus_on_start: NavFocus,
+
+    /// Show keybinding hints in footer/status when Results pane is focused in navigation mode.
+    #[serde(alias = "focus_hints")]
+    #[serde(alias = "fm_hints")]
+    pub nav_hints: bool,
 }
 
 impl Default for UiConfig {
@@ -376,6 +381,7 @@ impl Default for UiConfig {
             nav_passthrough: false,
             nav_basic: false,
             nav_focus_on_start: NavFocus::Filter,
+            nav_hints: true,
         }
     }
 }

@@ -1,0 +1,110 @@
+# Análise de Alto Desempenho & TUI UX: Matchmaker (`--nav` & `nav_bar`) vs Ecossistema CLI
+
+> **Autor:** Especialista em Sistemas de Alto Desempenho, Rust Async & Terminal User Interfaces (Ratatui, Crossterm, Kitty/Sixel).
+> **Data:** Agosto de 2026
+> **Escopo:** Análise arquitetural e de UX do repositório `matchmaker` (`matchmaker-cli`, `matchmaker-lib`, `matchmaker-partial`, `matchmaker-partial-macros`) com foco no modo de navegação modal (`--nav`), indicador visual (`nav_bar`), e comparação comparativa com ferramentas modernas de navegação rápida de diretórios/arquivos.
+
+---
+
+## 1. Contexto Arquitetural do Repositório Matchmaker
+
+O `matchmaker` é um monorepo Rust composto por quatro crates principais:
+- **`matchmaker-cli`**: Parseamento de argumentos (Clap), overrides de CLI, sistema de presets (`jump.toml`, `rg.toml`, `git`), overlays de gerenciamento de arquivos (`fm.rs`) e handlers de ações de terminal.
+- **`matchmaker-lib`**: Motor central do picker, engine de correspondência fuzzy `nucleo` (com suporte a frecência, penalidade de profundidade e ordenação de 3 níveis `dir_first`), loop de eventos, renderizador Ratatui/Crossterm e sistema de *preview* concorrente (`Previewer` + `ratatui_image`).
+- **`matchmaker-partial` & `matchmaker-partial-macros`**: Sistema de mesclagem parcial de configurações (*partial-struct merge*) que permite combinar configurações TOML, presets e overrides da linha de comando de forma declarativa e fortemente tipada.
+
+### O Workflow Modal (`--nav`) e a `nav_bar`
+
+No `matchmaker`, a flag `--nav` (antigo `--ui-fm`) transforma o filtro fuzzy tradicional em uma **interface de navegação modal de zero fricção**:
+- **Divisão Modal (Modal Split)**: A tecla `Tab` alterna a entrada do teclado entre a barra de busca/filtro (`Input Focus`) e a lista de resultados (`Results Focus`).
+- **Indicador Visual (`nav_bar`)**: Na borda esquerda da lista de resultados, a `nav_bar` fornece um indicador visual customizável (`Thick`, `Rounded`, `Double`, `QuadrantOutside`) com controle de brilho/piscagem (`blink_rate`), negrito (`bold`), marcação ativa (`>`) e alteração no prompt do filtro (`[NAV]`).
+- **Overlays Integrados (`fm.rs`)**: Operações rápidas de arquivos ativadas via navegação direta por teclas de caractere único:
+  - `a`: Criar arquivo/diretório
+  - `r`: Renomear
+  - `d`: Deletar (com envio para a Lixeira do sistema e pilha de Undo/Redo)
+  - `y` / `x` / `p`: Copiar / Recortar / Colar
+  - `z` / `Z`: Compactar / Descompactar arquivos (Zip, Tar.gz, Tar.bz2, Tar.xz)
+  - `l` / `h`: Entrar no diretório selecionado (`ChDir("{=}") + Reload`) / Subir diretório (`ChDir("..") + Reload`)
+
+---
+
+## 2. Matriz Comparativa: Matchmaker vs Ferramentas Modernas de Navegação
+
+| Característica | **Matchmaker (`--nav`)** | **Yazi** | **Superfiles** | **fff** | **fzf / Skim** | **Broot** |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Linguagem / Runtime** | Rust (Ratatui/Tokio) | Rust (Ratatui/Tokio) | Go (Bubbletea) | Bash Shell | Go / Rust | Rust |
+| **Arquitetura de Layout** | 2 Panes (Picker + Preview) + Overlay Modal | 3 Colunas (Pai - Atual - Preview) | Multi-painel responsivo | Painel único minimalista | 1 Coluna + Preview opcional | Visão em Árvore (Tree) |
+| **Motor de Busca / Filtering** | Multi-threaded **Nucleo** (Frecência + Depth Penalty) | Busca em Regex / Glob + Ripgrep | Filtro básico de strings | N/A (Manual nav) | N/A (Fzf engine) | Fzf-like tree filter |
+| **Navegação de Zero Fricção** | Modal Split (`Tab` switch), `h`/`l` traversal, Presets (`jump.toml`) | VIM keys (`h`/`j`/`k`/`l`), Zoxide integrado | Teclas de seta + VIM keys | Teclas VIM puras | Pipelined query search | Direct tree typing |
+| **Protocolos Gráficos (Imagens)** | Kitty, Sixel, Iterm2, Halfblocks (`ratatui_image`) | Kitty, Sixel, Uberzugpp, Chafa | Limites de caracteres ASII/Halfblocks | Nenhum | Kitty/Sixel (via ueberzug/chafa previewer) | Limites de texto |
+| **Desempenho / Latência** | Microsegundos (Nucleo Crate) | Baixíssima (Async I/O Lua event loop) | Média (Go GC runtime overhead) | Depende do Shell execution | Extremamente rápido | Rápido |
+| **Extensibilidade** | Dynamic Handlers + Proc Macro Configs + Presets | Plugins em Lua + Async jobs | Configuração YAML simples | Shell scripts | Shell functions & `--bind` | Custom verbs / commands |
+| **Saída / Shell `cd` Integration** | Suporta via `Become` / `ChDir` & Presets | Integrado via wrapper script | Integrado | Nativo (`cd` ao sair) | Requer wrapper shell (`fe`, `z`) | Nativo `br` function |
+
+---
+
+## 3. Análise Detalhada de UX & Desempenho: O que pode ser melhorado?
+
+### A. Melhorias de UX & Zero-Friction (Navegação Terminal)
+
+1. **Visão Tripla Contextual (Parent - Current - Child Preview)**:
+   - *Situação Atual*: O `matchmaker` exibe a lista de resultados e o painel de pré-visualização à direita (ou topo/baixo).
+   - *Oportunidade*: Adicionar um mini-painel à esquerda mostrando o diretório pai (Parent Directory Breadcrumb Peek). Isso evita a perda de contexto espacial ao navegar profundamente em subdiretórios com `l` e `h`.
+
+2. **Integração Nativa de Transição de Diretório ao Sair (`cd` on Exit)**:
+   - *Situação Atual*: A troca de diretório ocorre via `ChDir` dentro do processo do `matchmaker`. Ao sair, o shell pai permanece no diretório original a menos que o output seja capturado por um alias externo.
+   - *Oportunidade*: Disponibilizar um comando/wrapper oficial (`mmcd` ou `--cwd-file /tmp/mm-cwd`) gerado via CLI, permitindo que a navegação no TUI persista instantaneamente no shell ao encerrar com `Enter` ou tecla dedicada.
+
+3. **Inclusão Nativa de Frecência / Zoxide no Nível 0 do Nucleo**:
+   - *Situação Atual*: A navegação rápida entre diretórios frequentes é alcançada via preset (`jump.toml`).
+   - *Oportunidade*: Incorporar a pontuação de frecência diretamente no ordenador de 3 camadas (`dir_first` Tier 0) no motor Nucleo quando em modo `--nav`, permitindo saltar para pastas mais acessadas sem precisar acionar um preset separado.
+
+4. **Feedback Visual Aprimorado na `nav_bar`**:
+   - *Situação Atual*: A `nav_bar` alterna entre borda ativa e estado de piscagem (`blink_rate`).
+   - *Oportunidade*:
+     - Adicionar transição sutil de cor no fundo do item selecionado ao alternar entre `Input Focus` e `Results Focus` (ex: azul esmaecido em Input vs cyan vibrante em Results).
+     - Exibir atalhos de ações disponíveis no footer dinamicamente quando a `nav_bar` estiver focada (ex: `[a] Add  [r] Rename  [d] Trash  [y] Yank  [p] Paste`).
+
+5. **Iconografia Avançada e Colorização por Extensão (Estilo `eza` / `lsd`)**:
+   - *Situação Atual*: Suporte a ícones em linha e formatação customizada via tabelas Ratatui.
+   - *Oportunidade*: Mapeamento direto de ícones Nerdfonts integrados com suporte a esquema de cores respeitando `LS_COLORS` para tipos de arquivos (executáveis, mídias, código fonte, symlinks quebrados).
+
+---
+
+### B. Melhorias Arquiteturais & Engenharia de Sistemas (Rust Alto Desempenho)
+
+1. **Eliminação de Alocações Temporárias no Loop Hot-Path do Renderer (`results.rs`)**:
+   - *Análise de Código*: No método `make_table` em `matchmaker-lib/src/ui/results.rs`, são construídas instâncias de `String` a cada frame renderizado para desenhar a borda da `nav_bar` (`format!("{}{}", border_char, rest)`).
+   - *Refatoração Recomendada*: Substituir concatenações dinâmicas de `String` por fatias reutilizáveis (`&'static str`) ou `Span` compostos em Ratatui. Isso elimina pressões desnecessárias sobre o alocador de memória em terminais de alta taxa de atualização (120Hz/240Hz).
+
+2. **Scanning Assíncrono e Especulativo de Subdiretórios (Speculative Directory Scanning)**:
+   - *Análise de Código*: A navegação para subpastas (`l` / `ChDir`) dispara um `Reload("")` síncrono ou atualiza o worker do Nucleo.
+   - *Refatoração Recomendada*: Implementar leitura especulativa em background (usando Tokio tasks com baixa prioridade) para pré-carregar o conteúdo do diretório destacado no cursor. Quando o usuário pressiona `l`, a visualização abre instantaneamente com 0 milissegundos de I/O latency.
+
+3. **Otimização de Carregamento de Imagens com Decodificação Assíncrona Off-thread**:
+   - *Análise de Código*: A integração com `ratatui_image` redimensiona imagens no `PreviewUI::get_image_state`.
+   - *Refatoração Recomendada*: Mover completamente a decodificação da imagem (`image::DynamicImage`) e o redimensionamento do protocolo da GPU/Terminal para uma thread de worker em background (`tokio::task::spawn_blocking`), enviando apenas a mensagem de render pronto para a UI thread.
+
+4. **Macros Procedurais de Mesclagem Parcial (`matchmaker-partial-macros`)**:
+   - *Análise de Código*: A proc-macro deriva structs parciais para sobreposição de configurações TOML.
+   - *Refatoração Recomendada*: Garantir que os tipos gerados implementem `Copy` onde aplicável e evitem duplicar metadados de atributos em tempo de compilação, encurtando o tempo de build do workspace Rust.
+
+---
+
+## 4. Plano de Ação Recomendado para o Repositório
+
+1. **Fase 1 (Otimizações Imediatas no Render Loop)**:
+   - Eliminar alocações em `results.rs` na construção das spans da `nav_bar`.
+   - Implementar dicas visuais de teclas ativas no footer quando o modo `--nav` estiver focado na lista.
+
+2. **Fase 2 (Navegação & Zero Fricção)**:
+   - Desenvolver o wrapper shell `mmcd` para persistência de diretório no terminal.
+   - Adicionar o layout de 3 painéis (Painel de navegação pai em formato minimizado).
+
+3. **Fase 3 (Concorrência & Performance Async)**:
+   - Implementar pré-carregamento especulativo em background para o diretório no cursor.
+   - Migrar o redimensionamento do `ratatui_image` para um worker assíncrono isolado.
+
+---
+
+*Documento gerado automaticamente para o repositório Matchmaker.*

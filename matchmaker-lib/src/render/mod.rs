@@ -1365,9 +1365,22 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                     }
                 }
 
+                let show_nav_hints = ui.config.nav_mode
+                    && ui.config.nav_hints
+                    && state.focus == Focus::Results
+                    && !footer_ui.show;
+
+                let effective_footer_height = if footer_ui.show {
+                    footer_ui.height()
+                } else if show_nav_hints {
+                    1
+                } else {
+                    0
+                };
+
                 let mut footer =
                     if full_width_footer || preview_ui.as_ref().is_none_or(|p| !p.visible()) {
-                        split(&mut _area, footer_ui.height(), picker_ui.reverse())
+                        split(&mut _area, effective_footer_height, picker_ui.reverse())
                     } else {
                         Rect::default()
                     };
@@ -1427,7 +1440,7 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                     } else {
                         if !full_width_footer {
                             footer =
-                                split(&mut picker_area, footer_ui.height(), picker_ui.reverse());
+                                split(&mut picker_area, effective_footer_height, picker_ui.reverse());
                         }
 
                         [preview, picker_area, footer, gap_area]
@@ -1607,6 +1620,9 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                 );
                 render_display(frame, header, &mut picker_ui.header, &picker_ui.results);
                 render_display(frame, footer, &mut footer_ui, &picker_ui.results);
+                if show_nav_hints && footer.height > 0 {
+                    render_nav_hints(frame, footer, ui.config.nav_basic);
+                }
                 if let Some(preview_ui) = preview_ui.as_mut() {
                     state.update_preview_visible(preview_ui);
                     if preview_ui.visible() {
@@ -2005,6 +2021,45 @@ fn render_display(frame: &mut Frame, area: Rect, ui: &mut DisplayUI, results_ui:
         let widget = ui.make_full_width_row(results_ui.indentation() as u16);
         frame.render_widget(widget, area);
     }
+}
+
+fn render_nav_hints(frame: &mut Frame, area: Rect, is_basic: bool) {
+    use ratatui::style::{Color, Modifier, Style};
+    use ratatui::text::{Line, Span};
+    use ratatui::widgets::Paragraph;
+
+    let hint_spans = if is_basic {
+        vec![
+            Span::styled(" [Tab]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::styled(" Filter ", Style::default().fg(Color::DarkGray)),
+            Span::styled(" [j/k]", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(" Move ", Style::default().fg(Color::DarkGray)),
+            Span::styled(" [h/l]", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(" Up/Dir ", Style::default().fg(Color::DarkGray)),
+            Span::styled(" [J/K]", Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD)),
+            Span::styled(" Scroll Preview", Style::default().fg(Color::DarkGray)),
+        ]
+    } else {
+        vec![
+            Span::styled(" [Tab]", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::styled(" Filter ", Style::default().fg(Color::DarkGray)),
+            Span::styled(" [a]", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(" Add ", Style::default().fg(Color::DarkGray)),
+            Span::styled(" [r]", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(" Rename ", Style::default().fg(Color::DarkGray)),
+            Span::styled(" [d]", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+            Span::styled(" Trash ", Style::default().fg(Color::DarkGray)),
+            Span::styled(" [y]", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::styled(" Yank ", Style::default().fg(Color::DarkGray)),
+            Span::styled(" [x]", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+            Span::styled(" Cut ", Style::default().fg(Color::DarkGray)),
+            Span::styled(" [p]", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)),
+            Span::styled(" Paste ", Style::default().fg(Color::DarkGray)),
+            Span::styled(" [z/Z]", Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD)),
+            Span::styled(" Zip/Unzip", Style::default().fg(Color::DarkGray)),
+        ]
+    };
+    frame.render_widget(Paragraph::new(Line::from(hint_spans)), area);
 }
 
 // a bit weird, do we want mutable, do we want &mut ui, whatever this is simplest

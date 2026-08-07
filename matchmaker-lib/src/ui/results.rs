@@ -501,25 +501,58 @@ impl ResultsUI {
             }
         };
 
-        let nav_bar_style_clone = nav_bar_style.clone();
-        let get_nav_bar_span =
-            move |is_first: bool, is_last: bool| -> Option<ratatui::text::Span<'static>> {
-                nav_bar_style_clone.clone().map(|(border_type, style)| {
-                    let border_char = get_border_char(is_first, is_last, border_type);
-                    ratatui::text::Span::styled(border_char, style)
-                })
-            };
+        let nav_bar_spans = nav_bar_style.as_ref().map(|(border_type, style)| {
+            (
+                ratatui::text::Span::styled(get_border_char(true, true, *border_type), *style),
+                ratatui::text::Span::styled(get_border_char(true, false, *border_type), *style),
+                ratatui::text::Span::styled(get_border_char(false, true, *border_type), *style),
+                ratatui::text::Span::styled(get_border_char(false, false, *border_type), *style),
+            )
+        });
 
-        let nav_bar_style_clone2 = nav_bar_style.clone();
+        let get_nav_bar_span = |is_first: bool, is_last: bool| -> Option<ratatui::text::Span<'static>> {
+            nav_bar_spans.as_ref().map(|(both, first, last, mid)| {
+                if is_first && is_last {
+                    both.clone()
+                } else if is_first {
+                    first.clone()
+                } else if is_last {
+                    last.clone()
+                } else {
+                    mid.clone()
+                }
+            })
+        };
+
         let multi_prefix = self.config.multi_prefix.clone();
-        let get_dynamic_multi_prefix = move |is_first: bool, is_last: bool| -> String {
-            if let Some((border_type, _)) = nav_bar_style_clone2 {
-                let border_char = get_border_char(is_first, is_last, border_type);
-                if let Some(_first_char) = multi_prefix.chars().next() {
-                    let rest: String = multi_prefix.chars().skip(1).collect();
+        let nav_bar_multi_prefixes = nav_bar_style.as_ref().map(|(border_type, _)| {
+            let rest: String = multi_prefix.chars().skip(1).collect();
+            let make = |is_first: bool, is_last: bool| -> String {
+                let border_char = get_border_char(is_first, is_last, *border_type);
+                if multi_prefix.chars().next().is_some() {
                     format!("{}{}", border_char, rest)
                 } else {
                     format!("{} ", border_char)
+                }
+            };
+            (
+                make(true, true),
+                make(true, false),
+                make(false, true),
+                make(false, false),
+            )
+        });
+
+        let get_dynamic_multi_prefix = |is_first: bool, is_last: bool| -> String {
+            if let Some((both, first, last, mid)) = &nav_bar_multi_prefixes {
+                if is_first && is_last {
+                    both.clone()
+                } else if is_first {
+                    first.clone()
+                } else if is_last {
+                    last.clone()
+                } else {
+                    mid.clone()
                 }
             } else {
                 multi_prefix.clone()
@@ -566,7 +599,7 @@ impl ResultsUI {
                         );
                     }
                 }
-                let is_yanked = if !icon_name.is_empty() {
+                let is_yanked = if !self.yank_paths.is_empty() && !icon_name.is_empty() {
                     let path = std::path::Path::new(&icon_name);
                     let abs_path = if path.is_absolute() {
                         path.to_path_buf()
@@ -579,7 +612,7 @@ impl ResultsUI {
                     false
                 };
 
-                let is_cut = if !icon_name.is_empty() {
+                let is_cut = if !self.cut_paths.is_empty() && !icon_name.is_empty() {
                     let path = std::path::Path::new(&icon_name);
                     let abs_path = if path.is_absolute() {
                         path.to_path_buf()
