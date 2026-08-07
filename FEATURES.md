@@ -605,7 +605,10 @@ UX enhancements designed for zero-friction navigation, responsive keybinding hin
 ### C. Sticky Footer Alignment (`matchmaker-lib/src/render/mod.rs`)
 - **Zero-Gap Layout**: Dynamically anchors the footer directly beneath short picker and preview elements (`y = content_bottom`), eliminating large blank empty spaces when `max_rows` or `max` limits are configured.
 
-### D. Global Top Breadcrumb Persistence (`matchmaker-lib/src/render/mod.rs`)
-- **Persistent Full-Width Bar**: Forces full-width top breadcrumb placement (`y = 0`) across the entire screen whenever side-by-side preview is active (`has_preview`). Prevents the breadcrumb path from collapsing to height 0 or disappearing when switching focus with `Tab`.
+### E. 3-Pane Contextual Layout (`--parent-peek`) (`matchmaker-lib/src/render/mod.rs` & `ui/mod.rs`)
+- **Parent Directory Peek Pane**: Carves out a 3rd left-side pane displaying the parent directory contents (`[ Parent Directory │ Results List │ Preview Pane ]`) for spatial orientation (Ranger / Yazi style).
+- **Auto-Centered Selection**: Automatically centers the parent directory view around the active child folder, highlighting the current directory in bold yellow.
+- **Config & Flag Support**: Configurable via `[ui] parent_peek = true` and `parent_peek_pct = 15` in TOML, or CLI flags `--parent-peek`, `--nav parent-peek`, and `--parent-peek-pct 20`.
+
 
 

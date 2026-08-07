@@ -47,9 +47,8 @@ No `matchmaker`, a flag `--nav` (antigo `--ui-fm`) transforma o filtro fuzzy tra
 
 ### A. Melhorias de UX & Zero-Friction (Navegação Terminal)
 
-1. **Visão Tripla Contextual (Parent - Current - Child Preview)**:
-   - *Situação Atual*: O `matchmaker` exibe a lista de resultados e o painel de pré-visualização à direita (ou topo/baixo).
-   - *Oportunidade*: Adicionar um mini-painel à esquerda mostrando o diretório pai (Parent Directory Breadcrumb Peek). Isso evita a perda de contexto espacial ao navegar profundamente em subdiretórios com `l` e `h`.
+1. **Visão Tripla Contextual (Parent - Current - Child Preview) [CONCLUÍDO]**:
+   - *Status*: Implementado (`--parent-peek`). Painel lateral esquerdo minimizado exibindo o conteúdo do diretório pai com a pasta atual destacada e auto-centralizada.
 
 2. **Integração Nativa de Transição de Diretório ao Sair (`cd` on Exit)**:
    - *Situação Atual*: A troca de diretório ocorre via `ChDir` dentro do processo do `matchmaker`. Ao sair, o shell pai permanece no diretório original a menos que o output seja capturado por um alias externo.
