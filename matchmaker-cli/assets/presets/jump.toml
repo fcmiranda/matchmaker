@@ -70,7 +70,6 @@ percentage = 50
 
 [ui.nav_binds]
 "ctrl-z" = "@reloadnext"
-"z" = "@reloadnext"
 "l" = ["ChDir({=})", "@reload_local"]
 "h" = ["ChDir(..)", "@reload_local"]
 "alt-u" = "@ancestor_jump"

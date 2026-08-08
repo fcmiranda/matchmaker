@@ -273,8 +273,8 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
         nb("d", matchmaker::acs![Action::Semantic("fm_delete".into())]);
         nb("a", matchmaker::acs![Action::Semantic("fm_create".into())]);
         nb("r", matchmaker::acs![Action::Semantic("fm_rename".into())]);
-        nb("c", matchmaker::acs![Action::Semantic("fm_zip".into())]);
-        nb("C", matchmaker::acs![Action::Semantic("fm_unzip".into())]);
+        nb("z", matchmaker::acs![Action::Semantic("fm_zip".into())]);
+        nb("Z", matchmaker::acs![Action::Semantic("fm_unzip".into())]);
         nb(" ", matchmaker::acs![Action::Toggle]);
         nb("y", matchmaker::acs![Action::Semantic("fm_yank".into())]);
         nb("Y", matchmaker::acs![Action::Semantic("fm_unyank".into())]);

@@ -16,7 +16,7 @@ Jump Mode is designed for instant shell directory switching (`j <keyword>`) and 
 | **Interactive Navigation** | Static list (Exits on pick) | Full File Manager TUI | **Dynamic `l` (enter) / `h` (parent) without closing session** |
 | **Directory Prioritization** | Plain text list | Tree view | **Native 3-Tier Sorting (`dir_first` in C-speed Rust)** |
 | **TUI Interface & Breadcrumbs** | Basic border | Dual/Triple pane | **Custom rounded TUI, Breadcrumbs (`/`), Debounced Previews** |
-| **Hybrid Discovery** | History OR File search | File tree only | **Hybrid: Local search + Global Frecency cycling (`z` / `ctrl-z`)** |
+| **Hybrid Discovery** | History OR File search | File tree only | **Hybrid: Local search + Global Frecency cycling (`ctrl-z`)** |
 
 ---
 
@@ -28,7 +28,7 @@ Unlike traditional fuzzy finders where picking an item terminates the session:
 - Press **`h`**: Navigates up to the parent directory (`ChDir(..)`) .
 - Press **`Enter`**: Accepts the selected directory, automatically records it to the `frecency` database, and changes your shell working directory upon exit.
 
-### Hybrid Source Switching (`z` / `ctrl-z` / `@reloadnext`)
+### Hybrid Source Switching (`ctrl-z` / `@reloadnext`)
 Jump Mode allows cycling through multiple input sources on the fly:
 1. **Source 0 (Default)**: Current directory contents + deeper subdirectories (`fd`).
 2. **Source 1**: Local directory search with ignored files.
@@ -50,11 +50,11 @@ Matchmaker Jump Mode goes beyond simple directory jumping, supporting rich overl
 - **Yank / Cut Paths**: Mark paths for copy/move operations across directories.
 
 ### File Operations & Overlays
-- **Create File/Folder**: Trigger file creation overlay to create new directories or files on the fly.
-- **Rename**: Interactively rename files or directories with live inline overlays.
-- **Delete / Move to Trash**: Confirm and delete files/folders with safety prompts and undo history.
-- **Unzip / Archive Extraction**: Extract compressed archives directly inside the TUI.
-- **Drag-and-Drop / Clipboard Integration**: Copy absolute paths, relative paths, or file contents directly to system clipboard.
+- **`a` Create File/Folder**: Create directories or files on the fly.
+- **`r` Rename**: Rename files or directories with a live inline overlay.
+- **`d` Delete / Move to Trash**: Confirm deletion with undo history.
+- **`z` / `Z` Zip / Unzip**: Create an archive from the selected item(s), or extract the selected archive.
+- **`D` Drag-and-Drop with ripdrag**: Send the selected item(s) to `ripdrag`; install the `ripdrag` command and drag the files from its window to the destination application.
 
 ---
 
@@ -108,7 +108,6 @@ percentage = 80
 
 [ui.nav_binds]
 "ctrl-z" = "@reloadnext"
-"z" = "@reloadnext"
 "l" = ["ChDir({=})", "@reload_local"]
 "h" = ["ChDir(..)", "@reload_local"]
 

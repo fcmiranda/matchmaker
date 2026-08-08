@@ -2084,6 +2084,7 @@ fn render_nav_hints(frame: &mut Frame, area: Rect, is_basic: bool) {
             ("[p]", "Paste", Color::Magenta),
             ("[P]", "Pane", Color::Cyan),
             ("[z/Z]", "Zip/Unzip", Color::Blue),
+            ("[D]", "Ripdrag", Color::Magenta),
         ]
     };
 
