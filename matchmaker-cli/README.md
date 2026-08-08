@@ -80,6 +80,17 @@ npm install -g @squirreljetpack/matchmaker
 cargo install matchmaker-cli
 ```
 
+##### From Source
+
+To test local source changes with the `mm` command in your `PATH`, build the release binary and replace the installed copy:
+
+```sh
+cargo build --release --workspace
+install -m 755 target/release/mm "$HOME/.local/bin/mm"
+```
+
+`cargo build --workspace` only updates `target/debug/mm`; it does not update an installed `mm` binary.
+
 ---
 
 Pass it some items:
