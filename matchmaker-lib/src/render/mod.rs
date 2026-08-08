@@ -2076,6 +2076,7 @@ fn render_nav_hints(frame: &mut Frame, area: Rect, is_basic: bool) {
     } else {
         &[
             ("[Tab]", "Filter", Color::Cyan),
+            ("[D]", "Ripdrag", Color::Magenta),
             ("[a]", "Add", Color::Yellow),
             ("[r]", "Rename", Color::Yellow),
             ("[d]", "Trash", Color::Red),
@@ -2084,7 +2085,6 @@ fn render_nav_hints(frame: &mut Frame, area: Rect, is_basic: bool) {
             ("[p]", "Paste", Color::Magenta),
             ("[P]", "Pane", Color::Cyan),
             ("[z/Z]", "Zip/Unzip", Color::Blue),
-            ("[D]", "Ripdrag", Color::Magenta),
         ]
     };
 
