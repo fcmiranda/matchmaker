@@ -17,8 +17,7 @@ Prefer linking to existing docs instead of restating them:
 
 ## Working Rules
 
-- After every change, run `cargo build --workspace` (or `just build`) before finalizing; targeted tests complement this build but do not replace it.
-- When the change must be tested through the installed `mm` command, run `just install`. It builds the release workspace and updates `$HOME/.local/bin/mm`; a debug build only updates `target/debug/mm`.
+- After every change, run `just install` before finalizing. It builds the release workspace and updates `$HOME/.local/bin/mm`; targeted tests complement this build but do not replace it.
 - Prefer narrow validation first: `cargo test -p <crate>` before `cargo test --workspace` when a change is crate-local.
 - Use `just preview -- --help` or `cargo run -p matchmaker-cli -F experimental -- <args>` when validating CLI behavior.
 - Use `dprint fmt` or `dprint check` for Markdown and TOML edits.

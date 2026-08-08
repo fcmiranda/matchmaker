@@ -82,7 +82,7 @@ cargo install matchmaker-cli
 
 ##### From Source
 
-To test local source changes with the `mm` command in your `PATH`, run:
+After every local source change, run this command to build and update the `mm` command in your `PATH`:
 
 ```sh
 just install
