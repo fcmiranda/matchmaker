@@ -272,7 +272,7 @@ All colors and modifiers come from ratatui:
 
 - `restore_fullscreen`: (bool) Restore fullscreen on exit.
 - `redraw_on_resize`: (bool) Redraw the UI when the terminal is resized.
-- `extended_keys`: (bool) Enable enhanced keyboard support.
+- `extended_keys`: (bool) Enable enhanced keyboard support, including modified keys such as `Shift-Space` on terminals that support the Kitty keyboard protocol.
 - `sleep_ms`: (number) Delay in milliseconds before resizing.
 - `clear_on_exit`: (bool) Clear the TUI screen after selection.
 - `layout` *(flattened)*: Constraints for non-fullscreen mode.
@@ -323,4 +323,3 @@ See `mm --doc binds`.
 - `mm import zoxide`: Import historical directory records and scores from `zoxide`.
 - `mm clean` / `mm prune`: Purge stale/deleted paths from the frecency database.
 - `mm cache [path]`: Fast-index files in target directory into warm cache.
-
