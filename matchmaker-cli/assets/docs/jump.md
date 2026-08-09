@@ -46,7 +46,7 @@ Jump Mode allows cycling through multiple input sources on the fly:
 Matchmaker Jump Mode goes beyond simple directory jumping, supporting rich overlay actions and file operations:
 
 ### Selection & Path Operations
-- **Single / Multi-Selection**: Mark items using `Tab` / `Shift-Tab`.
+- **Single / Multi-Selection**: Mark items using `Space`; use `Shift-Space` to remove the last item marked and move back to it.
 - **Yank / Cut Paths**: Mark paths for copy/move operations across directories.
 
 ### File Operations & Overlays

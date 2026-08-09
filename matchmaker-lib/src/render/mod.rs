@@ -2076,6 +2076,7 @@ fn render_nav_hints(frame: &mut Frame, area: Rect, is_basic: bool) {
     } else {
         &[
             ("[Tab]", "Filter", Color::Cyan),
+            ("[S-Space]", "Unselect", Color::Yellow),
             ("[D]", "Ripdrag", Color::Magenta),
             ("[a]", "Add", Color::Yellow),
             ("[r]", "Rename", Color::Yellow),

@@ -276,6 +276,7 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
         nb("z", matchmaker::acs![Action::Semantic("fm_zip".into())]);
         nb("Z", matchmaker::acs![Action::Semantic("fm_unzip".into())]);
         nb(" ", matchmaker::acs![Action::Toggle]);
+        nb("shift-space", matchmaker::acs![Action::Up(1), Action::Deselect]);
         nb("y", matchmaker::acs![Action::Semantic("fm_yank".into())]);
         nb("Y", matchmaker::acs![Action::Semantic("fm_unyank".into())]);
         nb("x", matchmaker::acs![Action::Semantic("fm_cut".into())]);
