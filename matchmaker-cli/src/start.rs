@@ -1308,8 +1308,12 @@ pub async fn start(
                 });
                 let _ = handle.await;
 
-                let fresh_items: Vec<String> = collect_rx.into_iter().collect();
+                let mut fresh_items: Vec<String> = collect_rx.into_iter().collect();
                 if !fresh_items.is_empty() {
+                    fresh_items.sort_by_key(|item| {
+                        let slashes = item.bytes().filter(|&b| b == b'/' || b == b'\\').count();
+                        (slashes, item.clone())
+                    });
                     let _ = cache_store.put(&cwd_str, fresh_items);
                 }
                 Ok(0)
@@ -1326,8 +1330,12 @@ pub async fn start(
                 });
                 let _ = handle.await;
 
-                let fresh_items: Vec<String> = collect_rx.into_iter().collect();
+                let mut fresh_items: Vec<String> = collect_rx.into_iter().collect();
                 if !fresh_items.is_empty() {
+                    fresh_items.sort_by_key(|item| {
+                        let slashes = item.bytes().filter(|&b| b == b'/' || b == b'\\').count();
+                        (slashes, item.clone())
+                    });
                     let _ = cache_store.put(&cwd_str, fresh_items);
                 }
                 Ok(0)

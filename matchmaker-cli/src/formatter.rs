@@ -40,6 +40,125 @@ fn is_valid_content(s: &str) -> bool {
 /// Note: Although it accepts Option<..>, it can be considered as accepting a definite ConfigMMInnerItem. The second case with none is unreachable.
 /// If repeat is Some(f), and the template contains a non-multi replacement, we use state.map_selected_to_vec. For each selected, use that as the get_current() override. Return String::new().
 /// Otherwise, if repeat is None or if the template only consists of non-multi replacement, return a single string, pass the current to process_key. (If state.get_current() is None, return String::new(), which signals no action)
+use std::sync::Arc;
+
+#[derive(Debug, Clone)]
+pub enum TemplateToken {
+    Literal(String),
+    Key(String),
+}
+
+#[derive(Debug, Clone)]
+pub struct TemplateAST {
+    pub tokens: Vec<TemplateToken>,
+    pub needs_current: bool,
+}
+
+thread_local! {
+    static TEMPLATE_CACHE: std::cell::RefCell<std::collections::HashMap<String, Arc<TemplateAST>>> =
+        std::cell::RefCell::new(std::collections::HashMap::new());
+}
+
+impl TemplateAST {
+    pub fn compile(template: &str) -> Self {
+        let mut tokens = Vec::new();
+        let mut chars = template.char_indices().peekable();
+        let mut cur_literal = String::new();
+        let mut needs_current = false;
+
+        'outer: while let Some((_, c)) = chars.next() {
+            if c == '\\' {
+                if let Some(&(_, next)) = chars.peek() {
+                    if next == '{' {
+                        chars.next();
+                        cur_literal.push('{');
+                        continue;
+                    }
+                }
+                cur_literal.push('\\');
+                continue;
+            }
+
+            if c == '{' {
+                let Some(&(start, _)) = chars.peek() else {
+                    cur_literal.push('{');
+                    break;
+                };
+
+                while let Some(&(j, nc)) = chars.peek() {
+                    if nc == '{' {
+                        cur_literal.push('{');
+                        cur_literal.push_str(&template[start..j]);
+                        continue 'outer;
+                    }
+
+                    chars.next();
+
+                    if nc == '}' {
+                        let key = &template[start..j];
+                        if is_valid_content(key) {
+                            if !cur_literal.is_empty() {
+                                tokens.push(TemplateToken::Literal(std::mem::take(&mut cur_literal)));
+                            }
+                            if !key.starts_with(['+', '-', '$']) {
+                                needs_current = true;
+                            }
+                            tokens.push(TemplateToken::Key(key.to_string()));
+                        } else {
+                            cur_literal.push('{');
+                            cur_literal.push_str(key);
+                            cur_literal.push('}');
+                        }
+                        continue 'outer;
+                    }
+                }
+
+                cur_literal.push('{');
+                cur_literal.push_str(&template[start..]);
+                break;
+            }
+
+            cur_literal.push(c);
+        }
+
+        if !cur_literal.is_empty() {
+            tokens.push(TemplateToken::Literal(cur_literal));
+        }
+
+        TemplateAST {
+            tokens,
+            needs_current,
+        }
+    }
+
+    pub fn eval(
+        &self,
+        state: &ConfigMMState<'_, '_>,
+        item_override: Option<(u32, &ConfigMMInnerItem)>,
+    ) -> String {
+        let mut result = String::new();
+        for token in &self.tokens {
+            match token {
+                TemplateToken::Literal(lit) => result.push_str(lit),
+                TemplateToken::Key(key) => {
+                    if let Some(s) = process_key(key, state, item_override) {
+                        result.push_str(&s);
+                    } else {
+                        result.push('{');
+                        result.push_str(key);
+                        result.push('}');
+                    }
+                }
+            }
+        }
+        result
+    }
+}
+
+/// Process_key accepts a ConfigMMInnerItem and uses it in the non-multi branch instead of getting the item from current_raw.
+/// Note: Although it accepts Option<..>, it can be considered as accepting a definite ConfigMMInnerItem. The second case with none is unreachable.
+/// If repeat is Some(f), and the template contains a non-multi replacement, we use state.map_selected_to_vec. For each selected, use that as the get_current() override. Return String::new().
+/// Otherwise, if repeat is None or if the template only consists of non-multi replacement, return a single string, pass the current to process_key. (If state.get_current() is None, return String::new(), which signals no action)
 pub fn format_cli(
     state: &ConfigMMState<'_, '_>,
     template: &str,
@@ -48,16 +167,30 @@ pub fn format_cli(
     if template.is_empty() {
         return String::new();
     }
+
+    let ast = TEMPLATE_CACHE.with(|cache| {
+        let mut map = cache.borrow_mut();
+        if let Some(ast) = map.get(template) {
+            return ast.clone();
+        }
+        if map.len() > 1024 {
+            map.clear();
+        }
+        let ast = Arc::new(TemplateAST::compile(template));
+        map.insert(template.to_string(), ast.clone());
+        ast
+    });
+
     if let Some(f) = repeat {
-        if any_need_current(template) {
+        if ast.needs_current {
             state.map_selected_to_vec(|i, item| {
-                let s = format_cli_inner(state, template, Some((i, item)));
+                let s = ast.eval(state, Some((i, item)));
                 if !s.is_empty() {
                     f(s);
                 }
             });
         } else {
-            let s = format_cli_inner(state, template, None);
+            let s = ast.eval(state, None);
             if !s.is_empty() {
                 f(s);
             }
@@ -65,120 +198,11 @@ pub fn format_cli(
         return String::new();
     }
 
-    if state.current_raw().is_none() && any_need_current(template) {
+    if state.current_raw().is_none() && ast.needs_current {
         return String::new();
     }
 
-    format_cli_inner(state, template, None)
-}
-
-fn format_cli_inner(
-    state: &ConfigMMState<'_, '_>,
-    template: &str,
-    item_override: Option<(u32, &ConfigMMInnerItem)>,
-) -> String {
-    let mut result = String::with_capacity(template.len());
-    let mut chars = template.char_indices().peekable();
-
-    'outer: while let Some((_, c)) = chars.next() {
-        if c == '\\' {
-            if let Some(&(_, next)) = chars.peek() {
-                if next == '{' {
-                    chars.next();
-                    result.push('{');
-                    continue;
-                }
-            }
-            result.push('\\');
-            continue;
-        }
-
-        if c == '{' {
-            // no more chars
-            let Some(&(start, _)) = chars.peek() else {
-                result.push('{');
-                break;
-            };
-
-            while let Some(&(j, nc)) = chars.peek() {
-                if nc == '{' {
-                    // Nested '{' found: push what we have so far as literal
-                    // and let the outer loop consume the new '{'
-                    result.push('{');
-                    result.push_str(&template[start..j]);
-                    continue 'outer;
-                }
-
-                chars.next();
-
-                if nc == '}' {
-                    let key = &template[start..j];
-
-                    if is_valid_content(key)
-                        && let Some(s) = process_key(key, state, item_override)
-                    {
-                        result.push_str(&s);
-                    } else {
-                        // Invalid key
-                        result.push('{');
-                        result.push_str(key);
-                        result.push('}');
-                    }
-                    continue 'outer;
-                }
-            }
-
-            // No closing brace
-            result.push('{');
-            result.push_str(&template[start..]);
-            break;
-        }
-
-        result.push(c);
-    }
-
-    result
-}
-
-fn any_need_current(template: &str) -> bool {
-    let mut chars = template.char_indices().peekable();
-
-    'outer: while let Some((_, c)) = chars.next() {
-        if c == '\\' {
-            if let Some(&(_, next)) = chars.peek() {
-                if next == '{' {
-                    chars.next();
-                }
-            }
-            continue;
-        }
-
-        if c == '{' {
-            let Some(&(start, _)) = chars.peek() else {
-                break;
-            };
-
-            while let Some(&(j, nc)) = chars.peek() {
-                if nc == '{' {
-                    continue 'outer;
-                }
-
-                chars.next();
-
-                if nc == '}' {
-                    let key = &template[start..j];
-
-                    // Check valid content and slice match for prefixes
-                    if is_valid_content(key) && !key.starts_with(['+', '-', '$']) {
-                        return true;
-                    }
-                    continue 'outer;
-                }
-            }
-        }
-    }
-
-    false
+    ast.eval(state, None)
 }
 
 fn process_key(

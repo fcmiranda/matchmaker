@@ -31,7 +31,7 @@ impl Default for WalkerOptions {
     fn default() -> Self {
         Self {
             root: PathBuf::from("."),
-            hidden: false,
+            hidden: true,
             ignore: true,
             git_exclude: true,
             git_global: true,
@@ -68,6 +68,7 @@ impl AsyncWalker {
         builder.git_exclude(self.options.git_exclude);
         builder.git_global(self.options.git_global);
         builder.ignore(self.options.ignore);
+        builder.filter_entry(|entry| entry.file_name() != ".git");
         if let Some(depth) = self.options.max_depth {
             builder.max_depth(Some(depth));
         }
@@ -84,18 +85,49 @@ impl AsyncWalker {
         let builder = self.builder();
 
         tokio::task::spawn_blocking(move || {
+            let mut seen = std::collections::HashSet::new();
+
+            // Pass 1: Immediate shallow walk (max_depth = 1) to deliver top-level items on Frame 0
+            let shallow_walker = builder.clone().max_depth(Some(1)).build();
+            for result in shallow_walker {
+                let Ok(entry) = result else { continue };
+                if entry.depth() == 0 { continue };
+                let ft = entry.file_type();
+                let is_dir = ft.map_or(false, |t| t.is_dir());
+                let is_file = ft.map_or(false, |t| t.is_file());
+                match options.entry_type {
+                    EntryType::Files if !is_file => continue,
+                    EntryType::Directories if !is_dir => continue,
+                    _ => {}
+                }
+                let formatted = format_path(
+                    entry.path(),
+                    &options.root,
+                    options.strip_cwd_prefix,
+                    is_dir,
+                );
+                seen.insert(formatted.clone());
+                if push_fn(formatted).is_err() {
+                    return;
+                }
+            }
+
+            // Pass 2: Deep parallel walk for rest of directory tree
             let (tx, rx) = mpsc::channel::<String>();
+            let seen_arc = std::sync::Arc::new(std::sync::Mutex::new(seen));
 
             let walker = builder.build_parallel();
             let entry_type = options.entry_type.clone();
             let strip_cwd = options.strip_cwd_prefix;
             let root = options.root.clone();
+            let seen_clone = seen_arc.clone();
 
             thread::spawn(move || {
                 walker.run(move || {
                     let tx = tx.clone();
                     let entry_type = entry_type.clone();
                     let root = root.clone();
+                    let seen_clone = seen_clone.clone();
 
                     Box::new(move |result| {
                         let Ok(entry) = result else {
@@ -118,8 +150,13 @@ impl AsyncWalker {
 
                         let path = entry.path();
                         let formatted = format_path(path, &root, strip_cwd, is_dir);
-                        let _ = tx.send(formatted);
+                        if let Ok(mut set) = seen_clone.lock() {
+                            if !set.insert(formatted.clone()) {
+                                return WalkState::Continue;
+                            }
+                        }
 
+                        let _ = tx.send(formatted);
                         WalkState::Continue
                     })
                 });
@@ -167,6 +204,11 @@ impl AsyncWalker {
             );
             results.push(formatted);
         }
+
+        results.sort_by_key(|item| {
+            let slashes = item.bytes().filter(|&b| b == b'/' || b == b'\\').count();
+            (slashes, item.clone())
+        });
 
         results
     }
@@ -246,6 +288,37 @@ mod tests {
         };
         let items_dirs = AsyncWalker::new(options_dirs).collect_sync();
         assert!(items_dirs.iter().any(|i| i.ends_with('/') || i == "sub"));
+
+        let _ = fs::remove_dir_all(&temp_dir);
+        Ok(())
+    }
+
+    #[test]
+    fn test_walker_hidden_files() -> anyhow::Result<()> {
+        let temp_dir = std::env::temp_dir().join("mm_test_walker_hidden");
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(temp_dir.join(".config"))?;
+        fs::write(temp_dir.join(".config").join("settings.toml"), "a = 1")?;
+        fs::write(temp_dir.join(".zshrc"), "# zsh")?;
+        fs::create_dir_all(temp_dir.join(".git"))?;
+        fs::write(temp_dir.join(".git").join("HEAD"), "ref: refs/heads/main")?;
+
+        let options = WalkerOptions {
+            root: temp_dir.clone(),
+            strip_cwd_prefix: true,
+            ..Default::default()
+        };
+
+        let walker = AsyncWalker::new(options);
+        let items = walker.collect_sync();
+
+        // Should include hidden files like .config and .zshrc
+        assert!(items.iter().any(|i| i == ".config/" || i == ".config"));
+        assert!(items.iter().any(|i| i == ".config/settings.toml"));
+        assert!(items.iter().any(|i| i == ".zshrc"));
+
+        // Should exclude .git folder contents
+        assert!(!items.iter().any(|i| i.contains(".git/HEAD")));
 
         let _ = fs::remove_dir_all(&temp_dir);
         Ok(())
