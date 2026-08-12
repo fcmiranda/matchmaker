@@ -44,6 +44,8 @@ Register-ArgumentCompleter -Native -CommandName 'mm' -ScriptBlock {
             [CompletionResult]::new('--icons', '--icons', [CompletionResultType]::ParameterName, 'Prepend a Nerd Font file-type icon before each result row')
             [CompletionResult]::new('--symlink-target', '--symlink-target', [CompletionResultType]::ParameterName, 'Append symlink target path after the first column when the entry is a symlink')
             [CompletionResult]::new('--nav-hints', '--nav-hints', [CompletionResultType]::ParameterName, 'Show keybinding hints in footer/status when Results pane is focused in navigation mode')
+            [CompletionResult]::new('--parent-peek', '--parent-peek', [CompletionResultType]::ParameterName, 'Show a 3rd pane on the left displaying parent directory contents')
+            [CompletionResult]::new('--status-inline', '--status-inline', [CompletionResultType]::ParameterName, 'Display match status counter inline on the right side of the filter input bar')
             [CompletionResult]::new('-h', '-h', [CompletionResultType]::ParameterName, 'Print help')
             [CompletionResult]::new('--help', '--help', [CompletionResultType]::ParameterName, 'Print help')
             break

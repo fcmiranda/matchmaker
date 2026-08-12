@@ -38,6 +38,8 @@ _mm() {
 '--icons[Prepend a Nerd Font file-type icon before each result row]' \
 '--symlink-target[Append symlink target path after the first column when the entry is a symlink]' \
 '--nav-hints[Show keybinding hints in footer/status when Results pane is focused in navigation mode]' \
+'--parent-peek[Show a 3rd pane on the left displaying parent directory contents]' \
+'--status-inline[Display match status counter inline on the right side of the filter input bar]' \
 '-h[Print help]' \
 '--help[Print help]' \
 '*::args -- args passed to the start command:_default' \

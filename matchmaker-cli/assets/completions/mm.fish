@@ -25,4 +25,6 @@ complete -c mm -l frecency -d 'Enable frecency tracking and re-ranking for searc
 complete -c mm -l icons -d 'Prepend a Nerd Font file-type icon before each result row'
 complete -c mm -l symlink-target -d 'Append symlink target path after the first column when the entry is a symlink'
 complete -c mm -l nav-hints -d 'Show keybinding hints in footer/status when Results pane is focused in navigation mode'
+complete -c mm -l parent-peek -d 'Show a 3rd pane on the left displaying parent directory contents'
+complete -c mm -l status-inline -d 'Display match status counter inline on the right side of the filter input bar'
 complete -c mm -s h -l help -d 'Print help'
