@@ -41,6 +41,17 @@ fn get_item_tier_and_clean_path<'a>(raw_str: &'a str, dir_first: bool) -> (u8, &
     }
 }
 
+#[inline]
+fn count_slashes(s: &str) -> u64 {
+    let mut count = 0u64;
+    for &b in s.as_bytes() {
+        if b == b'/' || b == b'\\' {
+            count += 1;
+        }
+    }
+    count
+}
+
 fn compute_item_score(
     total: u32,
     idx: usize,
@@ -65,11 +76,7 @@ fn compute_item_score(
         penalty
     };
     let depth = if effective_penalty > 0 {
-        raw_path
-            .as_bytes()
-            .iter()
-            .filter(|&&b| b == b'/' || b == b'\\')
-            .count() as u64
+        count_slashes(raw_path)
     } else {
         0
     };
@@ -345,7 +352,7 @@ impl<T: SSS> Worker<T> {
             struct DecoratedItem<'a, T> {
                 item: nucleo::Item<'a, T>,
                 tier: u8,
-                clean_path: std::borrow::Cow<'a, str>,
+                lower_path: Option<String>,
                 score: u64,
             }
 
@@ -373,10 +380,15 @@ impl<T: SSS> Worker<T> {
                             (t, Cow::Owned(c.to_string()))
                         }
                     };
+                    let lower_path = if tier < 2 {
+                        Some(clean_path.to_ascii_lowercase())
+                    } else {
+                        None
+                    };
                     DecoratedItem {
                         item,
                         tier,
-                        clean_path,
+                        lower_path,
                         score,
                     }
                 })
@@ -388,13 +400,11 @@ impl<T: SSS> Worker<T> {
                 }
 
                 if a.tier < 2 {
-                    let cmp = a
-                        .clean_path
-                        .bytes()
-                        .map(|b| b.to_ascii_lowercase())
-                        .cmp(b.clean_path.bytes().map(|b| b.to_ascii_lowercase()));
-                    if cmp != std::cmp::Ordering::Equal {
-                        return cmp;
+                    if let (Some(la), Some(lb)) = (&a.lower_path, &b.lower_path) {
+                        let cmp = la.cmp(lb);
+                        if cmp != std::cmp::Ordering::Equal {
+                            return cmp;
+                        }
                     }
                 }
 
@@ -556,7 +566,7 @@ impl<T: SSS> Worker<T> {
             struct DecoratedItem<'a, T> {
                 item: nucleo::Item<'a, T>,
                 tier: u8,
-                clean_path: std::borrow::Cow<'a, str>,
+                lower_path: Option<String>,
                 score: u64,
             }
 
@@ -584,10 +594,15 @@ impl<T: SSS> Worker<T> {
                             (t, Cow::Owned(c.to_string()))
                         }
                     };
+                    let lower_path = if tier < 2 {
+                        Some(clean_path.to_ascii_lowercase())
+                    } else {
+                        None
+                    };
                     DecoratedItem {
                         item,
                         tier,
-                        clean_path,
+                        lower_path,
                         score,
                     }
                 })
@@ -599,13 +614,11 @@ impl<T: SSS> Worker<T> {
                 }
 
                 if a.tier < 2 {
-                    let cmp = a
-                        .clean_path
-                        .bytes()
-                        .map(|b| b.to_ascii_lowercase())
-                        .cmp(b.clean_path.bytes().map(|b| b.to_ascii_lowercase()));
-                    if cmp != std::cmp::Ordering::Equal {
-                        return cmp;
+                    if let (Some(la), Some(lb)) = (&a.lower_path, &b.lower_path) {
+                        let cmp = la.cmp(lb);
+                        if cmp != std::cmp::Ordering::Equal {
+                            return cmp;
+                        }
                     }
                 }
 
