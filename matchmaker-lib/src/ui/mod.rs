@@ -162,6 +162,7 @@ impl<'a, T: SSS, S: Selection> PickerUI<'a, T, S> {
         Self {
             action: QueryUI::new(QueryConfig {
                 prompt: "action> ".to_string(),
+                border: Default::default(),
                 status_inline: false,
                 ..input_config.clone()
             }),
@@ -180,6 +181,7 @@ impl<'a, T: SSS, S: Selection> PickerUI<'a, T, S> {
     pub fn layout(&self, area: Rect) -> [Rect; 6] {
         let PickerUI {
             query,
+            action,
             header,
             results,
             action_visible,
@@ -189,7 +191,7 @@ impl<'a, T: SSS, S: Selection> PickerUI<'a, T, S> {
         } = self;
 
         let action_height = if *action_visible {
-            1 + query.config.border.height()
+            1 + action.config.border.height()
                 + action_config.preview_height
                 + action_config.border.height()
         } else {
