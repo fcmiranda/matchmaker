@@ -1056,7 +1056,10 @@ pub async fn start(
                 let target_dir = target_path.clone();
                 let env_vars = state.make_env_vars();
                 tokio::task::spawn_blocking(move || {
-                    if let Some(out) = Command::from_script(&cmd_to_run)
+                    let lines: Option<Vec<String>> = if is_default_file_walker_command(&cmd_to_run) {
+                        let walker = matchmaker::walker::AsyncWalker::from_root(&target_dir);
+                        Some(walker.collect_sync())
+                    } else if let Some(out) = Command::from_script(&cmd_to_run)
                         .current_dir(&target_dir)
                         .envs(env_vars)
                         .stdin(Stdio::null())
@@ -1065,13 +1068,19 @@ pub async fn start(
                         ._elog()
                     {
                         let text = String::from_utf8_lossy(&out.stdout);
-                        let mut lines: Vec<String> = text
+                        let mut l: Vec<String> = text
                             .split(spec_sep)
                             .map(|s| s.to_string())
                             .collect();
-                        if lines.last().map_or(false, |l| l.is_empty()) {
-                            lines.pop();
+                        if l.last().map_or(false, |line| line.is_empty()) {
+                            l.pop();
                         }
+                        Some(l)
+                    } else {
+                        None
+                    };
+
+                    if let Some(lines) = lines {
                         if let Ok(mut c) = cache_ref.lock() {
                             if c.len() >= 64 {
                                 c.clear();
