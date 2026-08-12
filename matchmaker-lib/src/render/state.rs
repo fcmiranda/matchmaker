@@ -1,5 +1,5 @@
 use bitflags::Flags;
-use cba::{bait::TransformExt, broc::EnvVars, env_vars, unwrap};
+use cba::{bait::TransformExt, broc::EnvVars, unwrap};
 use ratatui::text::Text;
 
 use crate::{
@@ -460,27 +460,36 @@ impl<'a, 'b: 'a, T: SSS, S: Selection> MMState<'a, 'b, T, S> {
     }
 
     pub fn make_env_vars(&self) -> EnvVars {
-        let mut vars = env_vars! {
-            "FZF_LINES" => self.tui_area().height.to_string(),
-            "FZF_COLUMNS" => self.tui_area().width.to_string(),
-            "FZF_TOTAL_COUNT" => self.status().item_count.to_string(),
-            "FZF_MATCH_COUNT" => self.status().matched_count.to_string(),
-            "FZF_SELECT_COUNT" => self.selections().len().to_string(),
-            "FZF_POS" => get_current(self.picker_ui).map_or("".to_string(), |x| format!("{}", x.0)),
-            "FZF_QUERY" => self.input.clone(),
-            "FZF_MODE" => crate::MODE.lock().map(|m| m.clone()).unwrap_or_default(),
+        let height_str = self.tui_area().height.to_string();
+        let width_str = self.tui_area().width.to_string();
+        let item_count_str = self.status().item_count.to_string();
+        let match_count_str = self.status().matched_count.to_string();
+        let select_count_str = self.selections().len().to_string();
+        let pos_str = get_current(self.picker_ui).map_or("".to_string(), |x| x.0.to_string());
+        let mode_str = crate::MODE.lock().map(|m| m.clone()).unwrap_or_default();
 
-            "MM_LINES" => self.tui_area().height.to_string(),
-            "MM_COLUMNS" => self.tui_area().width.to_string(),
-            "MM_TOTAL_COUNT" => self.status().item_count.to_string(),
-            "MM_MATCH_COUNT" => self.status().matched_count.to_string(),
-            "MM_SELECT_COUNT" => self.selections().len().to_string(),
-            "MM_POS" => get_current(self.picker_ui).map_or("".to_string(), |x| format!("{}", x.0)),
-            "MM_QUERY" => self.input.clone(),
-            "MM_MODE" => crate::MODE.lock().map(|m| m.clone()).unwrap_or_default(),
-        };
+        let mut vars = self.envs.clone();
+        vars.reserve(16);
 
-        vars.extend(self.envs.clone());
+        vars.extend([
+            ("FZF_LINES".to_string(), height_str.clone()),
+            ("FZF_COLUMNS".to_string(), width_str.clone()),
+            ("FZF_TOTAL_COUNT".to_string(), item_count_str.clone()),
+            ("FZF_MATCH_COUNT".to_string(), match_count_str.clone()),
+            ("FZF_SELECT_COUNT".to_string(), select_count_str.clone()),
+            ("FZF_POS".to_string(), pos_str.clone()),
+            ("FZF_QUERY".to_string(), self.input.clone()),
+            ("FZF_MODE".to_string(), mode_str.clone()),
+            ("MM_LINES".to_string(), height_str),
+            ("MM_COLUMNS".to_string(), width_str),
+            ("MM_TOTAL_COUNT".to_string(), item_count_str),
+            ("MM_MATCH_COUNT".to_string(), match_count_str),
+            ("MM_SELECT_COUNT".to_string(), select_count_str),
+            ("MM_POS".to_string(), pos_str),
+            ("MM_QUERY".to_string(), self.input.clone()),
+            ("MM_MODE".to_string(), mode_str),
+        ]);
+
         vars
     }
 
