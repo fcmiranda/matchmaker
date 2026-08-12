@@ -355,7 +355,14 @@ impl Default for UiConfig {
                 Action::Pos(0),
             ]),
         );
-        nav_binds.insert("h".to_string(), Actions::from([Action::ChDir("..".to_string()), Action::Reload("".to_string()), Action::Pos(0)]));
+        nav_binds.insert(
+            "h".to_string(),
+            Actions::from([
+                Action::ChDir("..".to_string()),
+                Action::Reload("".to_string()),
+                Action::Pos(0),
+            ]),
+        );
         nav_binds.insert("J".to_string(), Actions::from([Action::PreviewDown(1)]));
         nav_binds.insert("K".to_string(), Actions::from([Action::PreviewUp(1)]));
         nav_binds.insert("gg".to_string(), Actions::from([Action::PreviewUp(0)]));
@@ -467,10 +474,7 @@ impl Default for ActionBoxConfig {
         Self {
             width_pct: Percentage::new(100),
             preview_height: 0,
-            border: BorderSetting {
-                sides: Some(Borders::BOTTOM),
-                ..Default::default()
-            },
+            border: BorderSetting::default(),
         }
     }
 }
@@ -598,7 +602,7 @@ where
 
 pub fn deserialize_optional_parent_peek<'de, D>(
     deserializer: D,
-) -> Result<Option<PartialParentPeekConfig>, D::Error>
+) -> Result<Option<ParentPeekConfig>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
@@ -606,12 +610,12 @@ where
     #[serde(untagged)]
     enum Helper {
         Bool(bool),
-        Config(PartialParentPeekConfig),
+        Config(ParentPeekConfig),
     }
 
     match Option::<Helper>::deserialize(deserializer)? {
-        Some(Helper::Bool(b)) => Ok(Some(PartialParentPeekConfig {
-            enabled: Some(b),
+        Some(Helper::Bool(b)) => Ok(Some(ParentPeekConfig {
+            enabled: b,
             ..Default::default()
         })),
         Some(Helper::Config(c)) => Ok(Some(c)),
