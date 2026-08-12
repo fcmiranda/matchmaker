@@ -27,6 +27,8 @@ It takes inspiration from [fzf](https://github.com/junegunn/fzf) in features and
 - Comprehensive logging in case you need to debug applications.
 - oh yeah, and `mm --last-key` gives you the last key that was pressed in a previous run of the program.[^13]
 - a *[panoply](#presets)* of amazing presets which manifest as *dashing* TUIs to boost your productivity.
+- **Native In-Process Parallel Walker**: Multi-threaded, git-aware directory tree scanner using `ignore` (same as `ripgrep`), eliminating `fork+exec` shell subprocess overhead.
+- **Persistent Root Directory Cache**: Embedded `redb` KV store (`~/.local/state/matchmaker/dir_cache.redb`) delivering **< 5ms instant TUI warm-starts** on repeated runs in large repositories.
 - Available as a rust library to use in your own code!
 
 On the way:

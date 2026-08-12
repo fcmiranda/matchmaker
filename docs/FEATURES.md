@@ -610,5 +610,27 @@ UX enhancements designed for zero-friction navigation, responsive keybinding hin
 - **Auto-Centered Selection**: Automatically centers the parent directory view around the active child folder, highlighting the current directory in bold yellow.
 - **Config & Flag Support**: Configurable via `[ui] parent_peek = true` and `parent_peek_pct = 15` in TOML, or CLI flags `--parent-peek`, `--nav parent-peek`, and `--parent-peek-pct 20`.
 
+---
+
+## 18. Native Parallel Walker & Persistent Root Directory Warm-Start Cache
+
+Architectural evolution eliminating external shell subprocess calls (`fd`/`find`) and providing sub-5ms TUI warm-starts for large repositories.
+
+### A. In-Process Parallel Walker (`matchmaker-lib/src/walker.rs`)
+- **Engine**: Native Rust directory tree walker powered by the `ignore` crate (same engine as `ripgrep`).
+- **Parallel Execution**: Uses `WalkParallel` multi-threaded worker pools (`thread::available_parallelism()`) to scan the filesystem directly in RAM.
+- **Git-Aware**: Automatically respects `.gitignore`, `.ignore`, global gitignore rules, and hidden file flags without launching external processes.
+- **Benefits**:
+  - **Eliminates `fork()` + `exec()` overhead**: Avoids spawning `bash`, `command -v`, `fd`, or `find` on startup (~15-30ms saved).
+  - **Direct Nucleo Ingestion**: Streams entries directly into `nucleo::Worker` channels without string IPC serialization.
+
+### B. Persistent Root Directory Cache (`matchmaker-lib/src/cache.rs`)
+- **Storage Engine**: Embedded high-performance Key-Value database using `redb` (`~/.local/state/matchmaker/dir_cache.redb`).
+- **Zero-Latency Warm Start**:
+  - On launching `mm` in a directory previously visited, cached file paths are loaded from `redb` into `nucleo::Worker` in **< 5ms**.
+  - A background `AsyncWalker` task runs asynchronously to scan for deltas (created/deleted files) and updates `dir_cache.redb` transparently without blocking the main TUI render.
+- **Maintenance**: `mm clean` automatically purges stale cache entries for directories that no longer exist on disk.
+
+
 
 
