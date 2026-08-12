@@ -21,6 +21,7 @@ pub use selector::Selector;
 mod matchmaker;
 pub use matchmaker::*;
 pub mod tui;
+pub mod walker;
 
 // misc
 mod aliases;

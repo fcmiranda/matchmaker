@@ -1230,13 +1230,15 @@ pub async fn start(
     // ----------- read -----------------------
     let handle = if sort {
         // Collect all input, sort alphabetically, then inject in sorted order.
-        // Alphabetical sort on paths naturally produces tree order because '/' (0x2F)
-        // is less than any ASCII letter, so "a/b" always sorts before "a0".
         let sep = separator.or(input_separator).unwrap_or('\n');
         let raw: Vec<u8> = if !atty::is(atty::Stream::Stdin) && !no_read {
             let mut buf = Vec::new();
             std::io::stdin().read_to_end(&mut buf).ok();
             buf
+        } else if is_default_file_walker_command(&command) {
+            let walker = matchmaker::walker::AsyncWalker::from_root(".");
+            let items = walker.collect_sync();
+            items.join("\n").into_bytes()
         } else if !command.is_empty() {
             Command::from_script(&command)
                 .envs(envs)
@@ -1251,7 +1253,6 @@ pub async fn start(
 
         let text = String::from_utf8_lossy(&raw);
         let mut lines: Vec<&str> = text.split(sep).collect();
-        // Drop a trailing empty token produced by a final newline.
         if lines.last() == Some(&"") {
             lines.pop();
         }
@@ -1273,6 +1274,13 @@ pub async fn start(
             input_separator,
             abort_empty.then_some(render_tx),
         )
+    } else if is_default_file_walker_command(&command) {
+        let walker = matchmaker::walker::AsyncWalker::from_root(".");
+        let handle = walker.spawn_walk(push_fn);
+        tokio::spawn(async move {
+            let _ = handle.await;
+            Ok(0)
+        })
     } else if !command.is_empty()
         && let Some((mut _child, stdout)) = Command::from_script(&command)
             .envs(envs)
@@ -1384,3 +1392,12 @@ fn to_static(line: Line<'_>) -> Line<'static> {
             .collect::<Vec<_>>(),
     )
 }
+
+fn is_default_file_walker_command(cmd: &str) -> bool {
+    let trimmed = cmd.trim();
+    trimmed.is_empty()
+        || (trimmed.contains("fd") && trimmed.contains("find"))
+        || trimmed == "fd --strip-cwd-prefix --print0"
+        || trimmed == "find . -print0"
+}
+
