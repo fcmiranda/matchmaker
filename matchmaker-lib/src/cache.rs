@@ -8,7 +8,7 @@ use std::{
 use redb::{Database, ReadableTable, TableDefinition};
 use serde::{Deserialize, Serialize};
 
-pub const DIR_CACHE_TABLE: TableDefinition<&str, &str> = TableDefinition::new("dir_cache_v1");
+pub const DIR_CACHE_TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("dir_cache_v2");
 
 /// Cache record for a directory listing.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -121,7 +121,14 @@ impl DirCacheStore {
         let read_txn = db.begin_read().ok()?;
         let table = read_txn.open_table(DIR_CACHE_TABLE).ok()?;
         let guard = table.get(key_str.as_str()).ok()??;
-        serde_json::from_str::<DirCacheRecord>(guard.value()).ok()
+        let bytes = guard.value();
+        if let Ok(rec) = postcard::from_bytes::<DirCacheRecord>(bytes) {
+            Some(rec)
+        } else if let Ok(json_str) = std::str::from_utf8(bytes) {
+            serde_json::from_str::<DirCacheRecord>(json_str).ok()
+        } else {
+            None
+        }
     }
 
     /// Stores/updates cached directory listing record for a root directory path.
@@ -136,12 +143,12 @@ impl DirCacheStore {
         }
 
         let record = DirCacheRecord::new(key_str.clone(), items);
-        let json_str = serde_json::to_string(&record)?;
+        let bytes = postcard::to_allocvec(&record)?;
 
         let write_txn = db.begin_write()?;
         {
             let mut table = write_txn.open_table(DIR_CACHE_TABLE)?;
-            table.insert(key_str.as_str(), json_str.as_str())?;
+            table.insert(key_str.as_str(), bytes.as_slice())?;
         }
         write_txn.commit()?;
         Ok(())

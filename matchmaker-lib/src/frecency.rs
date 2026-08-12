@@ -7,7 +7,18 @@ use redb::{Database, ReadableTable, TableDefinition};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
-pub const FRECENCY_TABLE: TableDefinition<&str, &str> = TableDefinition::new("frecency_v1");
+pub const FRECENCY_TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("frecency_v2");
+
+#[inline]
+fn decode_record(bytes: &[u8]) -> Option<FrecencyRecord> {
+    if let Ok(record) = postcard::from_bytes::<FrecencyRecord>(bytes) {
+        Some(record)
+    } else if let Ok(json_str) = std::str::from_utf8(bytes) {
+        serde_json::from_str::<FrecencyRecord>(json_str).ok()
+    } else {
+        None
+    }
+}
 
 /// Access record for a given path.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -287,17 +298,15 @@ impl FrecencyStore {
         let score = {
             let mut table = write_txn.open_table(FRECENCY_TABLE)?;
             let mut record = if let Some(guard) = table.get(key)? {
-                let json_str = guard.value();
-                serde_json::from_str::<FrecencyRecord>(json_str)
-                    .unwrap_or_else(|_| FrecencyRecord::new(key.to_string()))
+                decode_record(guard.value()).unwrap_or_else(|| FrecencyRecord::new(key.to_string()))
             } else {
                 FrecencyRecord::new(key.to_string())
             };
 
             record.record_access(now);
             let updated_score = record.calculate_score(now);
-            let json_str = serde_json::to_string(&record)?;
-            table.insert(key, json_str.as_str())?;
+            let bytes = postcard::to_allocvec(&record)?;
+            table.insert(key, bytes.as_slice())?;
             updated_score
         };
 
@@ -327,7 +336,7 @@ impl FrecencyStore {
 
         match table.get(key) {
             Ok(Some(guard)) => {
-                if let Ok(record) = serde_json::from_str::<FrecencyRecord>(guard.value()) {
+                if let Some(record) = decode_record(guard.value()) {
                     record.calculate_score(now)
                 } else {
                     0
@@ -337,7 +346,7 @@ impl FrecencyStore {
                 let clean = clean_path(raw_path);
                 if clean != key {
                     if let Ok(Some(guard)) = table.get(clean) {
-                        if let Ok(record) = serde_json::from_str::<FrecencyRecord>(guard.value()) {
+                        if let Some(record) = decode_record(guard.value()) {
                             return record.calculate_score(now);
                         }
                     }
@@ -358,11 +367,11 @@ impl FrecencyStore {
         let read_txn = db.begin_read().ok()?;
         let table = read_txn.open_table(FRECENCY_TABLE).ok()?;
         if let Some(guard) = table.get(key).ok()? {
-            serde_json::from_str::<FrecencyRecord>(guard.value()).ok()
+            decode_record(guard.value())
         } else {
             let clean = clean_path(raw_path);
             let guard = table.get(clean).ok()??;
-            serde_json::from_str::<FrecencyRecord>(guard.value()).ok()
+            decode_record(guard.value())
         }
     }
 
@@ -388,8 +397,8 @@ impl FrecencyStore {
                 if let Ok(iter) = table.iter() {
                     for entry in iter.flatten() {
                         let key = entry.0.value();
-                        let json_val = entry.1.value();
-                        if let Ok(record) = serde_json::from_str::<FrecencyRecord>(json_val) {
+                        let bytes = entry.1.value();
+                        if let Some(record) = decode_record(bytes) {
                             let score = record.calculate_score(now);
                             if score > 0 {
                                 snapshot.scores.insert(key.to_string(), score);
@@ -423,8 +432,7 @@ impl FrecencyStore {
             if let Ok(table) = read_txn.open_table(FRECENCY_TABLE) {
                 if let Ok(iter) = table.iter() {
                     for entry in iter.flatten() {
-                        if let Ok(record) = serde_json::from_str::<FrecencyRecord>(entry.1.value())
-                        {
+                        if let Some(record) = decode_record(entry.1.value()) {
                             records.push(record);
                         }
                     }
@@ -451,9 +459,7 @@ impl FrecencyStore {
         {
             let mut table = write_txn.open_table(FRECENCY_TABLE)?;
             let mut record = if let Some(guard) = table.get(key)? {
-                let json_str = guard.value();
-                serde_json::from_str::<FrecencyRecord>(json_str)
-                    .unwrap_or_else(|_| FrecencyRecord::new(key.to_string()))
+                decode_record(guard.value()).unwrap_or_else(|| FrecencyRecord::new(key.to_string()))
             } else {
                 FrecencyRecord::new(key.to_string())
             };
@@ -463,8 +469,8 @@ impl FrecencyStore {
                 record.record_access(now);
             }
 
-            let json_str = serde_json::to_string(&record)?;
-            table.insert(key, json_str.as_str())?;
+            let bytes = postcard::to_allocvec(&record)?;
+            table.insert(key, bytes.as_slice())?;
         }
 
         write_txn.commit()?;
