@@ -51,13 +51,7 @@ always_trigger = true
 [columns]
 
 [start.command]
-command = '''
-    if command -v fd >/dev/null 2>&1; then
-        fd --strip-cwd-prefix --print0
-    else
-        find . -print0
-    fi
-    '''
+command = ""
 separator = "\\0"
 
 [start]

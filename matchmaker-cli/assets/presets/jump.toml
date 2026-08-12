@@ -89,13 +89,4 @@ additional_commands = [
 ]
 
 [start.command]
-command = '''
-IGNORE="-E.git -Enode_modules -E.cache -Etarget -Edist -Ebuild -E__pycache__ -E.venv -Evenv -Eenv -Evendor -E.next"
-
-if command -v fd >/dev/null 2>&1; then
-    fd -H $IGNORE --strip-cwd-prefix --min-depth 1 --max-depth 1 . 2>/dev/null
-    fd -H $IGNORE --strip-cwd-prefix --min-depth 2 . 2>/dev/null
-else
-    find .
-fi
-'''
+command = ""
