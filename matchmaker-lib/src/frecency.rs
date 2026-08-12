@@ -83,6 +83,10 @@ pub struct FrecencySnapshot {
 impl FrecencySnapshot {
     #[inline]
     pub fn get_bonus(&self, path: &str) -> u32 {
+        if self.scores.is_empty() && self.basename_scores.is_empty() {
+            return 0;
+        }
+
         let clean = clean_path(path);
         if let Some(&score) = self.scores.get(clean) {
             return score;

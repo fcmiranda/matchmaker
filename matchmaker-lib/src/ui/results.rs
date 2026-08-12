@@ -1751,6 +1751,13 @@ impl StatusUI {
 
 // ---------- icon helpers ----------
 
+thread_local! {
+    static SYMLINK_CACHE: std::cell::RefCell<rustc_hash::FxHashMap<String, Option<String>>> =
+        std::cell::RefCell::new(rustc_hash::FxHashMap::default());
+    static ICON_CACHE: std::cell::RefCell<rustc_hash::FxHashMap<String, (char, Color)>> =
+        std::cell::RefCell::new(rustc_hash::FxHashMap::default());
+}
+
 /// Append a symlink-target annotation to the **first line** of `col`.
 ///
 /// Reads the link target with `std::fs::read_link`. If the path is not a
@@ -1763,49 +1770,68 @@ fn maybe_append_symlink_target(
     style: ratatui::style::Style,
     max_width: u16,
 ) {
-    let path = std::path::Path::new(name.trim());
-    if let Ok(target) = std::fs::read_link(path) {
-        let target_str = target.to_string_lossy().into_owned();
-        let arrow = " \u{f061} ";
-        let arrow_width = arrow.width();
+    let trimmed = name.trim();
+    if trimmed.is_empty() {
+        return;
+    }
 
-        // Measure how much width the first line already occupies.
-        let used: usize = col
-            .lines
-            .first()
-            .map(|l| l.spans.iter().map(|s| s.content.width()).sum())
-            .unwrap_or(0);
-
-        let remaining = (max_width as usize).saturating_sub(used);
-
-        // Need at least space for the arrow + 2 chars to show anything useful safely.
-        if remaining < arrow_width + 2 {
-            return;
+    let target_opt = SYMLINK_CACHE.with(|cache| {
+        let mut map = cache.borrow_mut();
+        if map.len() > 1024 {
+            map.clear();
         }
+        map.entry(trimmed.to_string())
+            .or_insert_with(|| {
+                std::path::Path::new(trimmed)
+                    .read_link()
+                    .ok()
+                    .map(|t| t.to_string_lossy().into_owned())
+            })
+            .clone()
+    });
 
-        let budget = remaining.saturating_sub(arrow_width + 1);
-        let annotation = if target_str.width() <= budget {
-            format!("{arrow}{target_str}")
-        } else {
-            // Truncate target to budget - 1 chars + "…"
-            let mut truncated = String::new();
-            let mut w = 0;
-            for g in unicode_segmentation::UnicodeSegmentation::graphemes(target_str.as_str(), true)
-            {
-                let gw = g.width();
-                if w + gw + 1 > budget {
-                    break;
-                }
-                truncated.push_str(g);
-                w += gw;
+    let Some(target_str) = target_opt else {
+        return;
+    };
+
+    let arrow = " \u{f061} ";
+    let arrow_width = arrow.width();
+
+    // Measure how much width the first line already occupies.
+    let used: usize = col
+        .lines
+        .first()
+        .map(|l| l.spans.iter().map(|s| s.content.width()).sum())
+        .unwrap_or(0);
+
+    let remaining = (max_width as usize).saturating_sub(used);
+
+    // Need at least space for the arrow + 2 chars to show anything useful safely.
+    if remaining < arrow_width + 2 {
+        return;
+    }
+
+    let budget = remaining.saturating_sub(arrow_width + 1);
+    let annotation = if target_str.width() <= budget {
+        format!("{arrow}{target_str}")
+    } else {
+        // Truncate target to budget - 1 chars + "…"
+        let mut truncated = String::new();
+        let mut w = 0;
+        for g in unicode_segmentation::UnicodeSegmentation::graphemes(target_str.as_str(), true) {
+            let gw = g.width();
+            if w + gw + 1 > budget {
+                break;
             }
-            format!("{arrow}{truncated}…")
-        };
-
-        let span = ratatui::text::Span::styled(annotation, style);
-        if let Some(line) = col.lines.first_mut() {
-            line.spans.push(span);
+            truncated.push_str(g);
+            w += gw;
         }
+        format!("{arrow}{truncated}…")
+    };
+
+    let span = ratatui::text::Span::styled(annotation, style);
+    if let Some(line) = col.lines.first_mut() {
+        line.spans.push(span);
     }
 }
 
@@ -1849,6 +1875,22 @@ pub fn icon_for_name(name: &str) -> (char, Color) {
         return ('\u{f115}', Color::Blue); // nf-fa-folder_open
     }
 
+    ICON_CACHE.with(|cache| {
+        let mut map = cache.borrow_mut();
+        if let Some(&res) = map.get(trimmed) {
+            return res;
+        }
+        if map.len() > 2048 {
+            map.clear();
+        }
+
+        let res = compute_icon_for_name(trimmed);
+        map.insert(trimmed.to_string(), res);
+        res
+    })
+}
+
+fn compute_icon_for_name(trimmed: &str) -> (char, Color) {
     use std::path::Path;
     let path = Path::new(trimmed);
 
@@ -1864,7 +1906,7 @@ pub fn icon_for_name(name: &str) -> (char, Color) {
     let basename = path
         .file_name()
         .and_then(|n| n.to_str())
-        .unwrap_or(name.trim());
+        .unwrap_or(trimmed);
 
     match basename.to_lowercase().as_str() {
         "cargo.toml" | "cargo.lock" => return ('\u{e7a8}', Color::Red),
