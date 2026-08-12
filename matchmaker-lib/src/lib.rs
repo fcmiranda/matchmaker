@@ -20,6 +20,7 @@ mod selector;
 pub use selector::Selector;
 mod matchmaker;
 pub use matchmaker::*;
+pub mod cache;
 pub mod tui;
 pub mod walker;
 

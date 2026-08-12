@@ -328,6 +328,12 @@ fn handle_frecency_cli(args: &[String]) -> bool {
                     exit(1);
                 }
             }
+            let dir_cache = matchmaker::cache::DirCacheStore::open();
+            if let Ok(count) = dir_cache.clean_stale() {
+                if count > 0 {
+                    println!("Cleaned {count} stale entries from directory cache database.");
+                }
+            }
             true
         }
         "cache" => {

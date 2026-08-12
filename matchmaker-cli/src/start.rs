@@ -1275,12 +1275,55 @@ pub async fn start(
             abort_empty.then_some(render_tx),
         )
     } else if is_default_file_walker_command(&command) {
-        let walker = matchmaker::walker::AsyncWalker::from_root(".");
-        let handle = walker.spawn_walk(push_fn);
-        tokio::spawn(async move {
-            let _ = handle.await;
-            Ok(0)
-        })
+        let cwd_str = std::env::current_dir()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_default();
+        let cache_store = matchmaker::cache::DirCacheStore::open();
+
+        if let Some(cached_rec) = cache_store.get(&cwd_str)
+            && !cached_rec.items.is_empty()
+        {
+            let mut push_fn = push_fn;
+            for item in cached_rec.items {
+                if push_fn(item).is_err() {
+                    break;
+                }
+            }
+
+            tokio::spawn(async move {
+                let (collect_tx, collect_rx) = std::sync::mpsc::channel();
+                let walker = matchmaker::walker::AsyncWalker::from_root(".");
+                let handle = walker.spawn_walk(move |line| {
+                    let _ = collect_tx.send(line);
+                    Ok(())
+                });
+                let _ = handle.await;
+
+                let fresh_items: Vec<String> = collect_rx.into_iter().collect();
+                if !fresh_items.is_empty() {
+                    let _ = cache_store.put(&cwd_str, fresh_items);
+                }
+                Ok(0)
+            })
+        } else {
+            tokio::spawn(async move {
+                let (collect_tx, collect_rx) = std::sync::mpsc::channel();
+                let walker = matchmaker::walker::AsyncWalker::from_root(".");
+                let mut push_fn = push_fn;
+
+                let handle = walker.spawn_walk(move |line| {
+                    let _ = collect_tx.send(line.clone());
+                    push_fn(line)
+                });
+                let _ = handle.await;
+
+                let fresh_items: Vec<String> = collect_rx.into_iter().collect();
+                if !fresh_items.is_empty() {
+                    let _ = cache_store.put(&cwd_str, fresh_items);
+                }
+                Ok(0)
+            })
+        }
     } else if !command.is_empty()
         && let Some((mut _child, stdout)) = Command::from_script(&command)
             .envs(envs)
