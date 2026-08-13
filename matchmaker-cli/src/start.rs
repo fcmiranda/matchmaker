@@ -1338,7 +1338,7 @@ pub async fn start(
             .unwrap_or_default();
         let cache_store = matchmaker::cache::DirCacheStore::open();
 
-        if let Some(cached_rec) = cache_store.get(&cwd_str)
+        if let Some(cached_rec) = cache_store.get_valid(&cwd_str)
             && !cached_rec.items.is_empty()
         {
             let mut push_fn = push_fn;

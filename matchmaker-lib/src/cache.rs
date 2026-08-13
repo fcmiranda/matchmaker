@@ -15,6 +15,8 @@ pub const DIR_CACHE_TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("
 pub struct DirCacheRecord {
     pub root: String,
     pub timestamp: u64, // Unix timestamp in seconds
+    #[serde(default)]
+    pub mtime_nanos: u64, // Root directory mtime in nanoseconds for mtime validation
     pub items: Vec<String>,
 }
 
@@ -24,9 +26,16 @@ impl DirCacheRecord {
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
+        let mtime_nanos = fs::metadata(&root)
+            .and_then(|m| m.modified())
+            .ok()
+            .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+            .map(|d| d.as_nanos() as u64)
+            .unwrap_or(0);
         Self {
             root,
             timestamp,
+            mtime_nanos,
             items,
         }
     }
@@ -129,6 +138,27 @@ impl DirCacheStore {
         } else {
             None
         }
+    }
+
+    /// Retrieves cached directory listing record only if root directory mtime matches,
+    /// invalidating automatically if files/folders were created, deleted, or renamed externally.
+    pub fn get_valid(&self, raw_root: &str) -> Option<DirCacheRecord> {
+        let rec = self.get(raw_root)?;
+        let current_mtime_nanos = fs::metadata(raw_root)
+            .and_then(|m| m.modified())
+            .ok()
+            .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+            .map(|d| d.as_nanos() as u64)
+            .unwrap_or(0);
+
+        if current_mtime_nanos != 0 && rec.mtime_nanos != 0 && current_mtime_nanos != rec.mtime_nanos {
+            log::debug!(
+                "DirCache invalidated for {raw_root}: directory mtime changed ({current_mtime_nanos} != {})",
+                rec.mtime_nanos
+            );
+            return None;
+        }
+        Some(rec)
     }
 
     /// Stores/updates cached directory listing record for a root directory path.
