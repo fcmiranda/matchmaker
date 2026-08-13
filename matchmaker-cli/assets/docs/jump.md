@@ -28,8 +28,8 @@ Unlike traditional fuzzy finders where picking an item terminates the session:
 - Press **`h`**: Navigates up to the parent directory (`ChDir(..)`) .
 - Press **`Enter`**: Accepts the selected directory, automatically records it to the `frecency` database, and changes your shell working directory upon exit.
 
-### Hybrid Source Switching (`ctrl-r` / `@reloadnext`)
-Jump Mode allows cycling between input sources on the fly using `ctrl-r`:
+### Hybrid Source Switching (`f` / `ctrl-f` / `@reloadnext`)
+Jump Mode allows cycling between input sources on the fly using `f` or `ctrl-f`:
 1. **Source 0 (Default)**: Current directory contents + subdirectories (native `AsyncWalker`).
 2. **Source 1**: Global frecency directory database (`mm list --dirs`).
 
@@ -45,7 +45,9 @@ Jump Mode allows cycling between input sources on the fly using `ctrl-r`:
 Matchmaker Jump Mode goes beyond simple directory jumping, supporting rich overlay actions and file operations:
 
 ### Selection & Path Operations
-- **Single / Multi-Selection**: Toggle selection of highlighted items using `Space`.
+- **Multi-Selection Down (`Space`)**: Toggles selection of highlighted item and moves cursor down.
+- **Backwards Unselection Up (`v` / `ToggleUp`)**: Moves cursor UP 1 line and toggles/unselects the item, allowing fast line-by-line unselection going backwards.
+- **Clear All Selections (`ClearSelections`)**: Clears all active selections instantly.
 - **Yank / Cut Paths**: Mark paths for copy/move operations across directories.
 
 ### File Operations & Overlays

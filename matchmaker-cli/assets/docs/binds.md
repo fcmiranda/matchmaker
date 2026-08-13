@@ -143,7 +143,9 @@ Actions are the operations performed when a trigger is activated.
 | ----------------- | ---------------------------------------------------------- |
 | `Select`          | Add the current item to the selections.                    |
 | `Deselect`        | Remove the current item from the selections.               |
-| `Toggle`          | Toggle the selection state of the current item.            |
+| `DeselectUp`      | Move cursor UP 1 line and remove item from selections.     |
+| `Toggle`          | Toggle selection state of current item and move down.      |
+| `ToggleUp`        | Move cursor UP 1 line and toggle selection state of item.  |
 | `CycleAll`        | Toggle selection for all items in the current view.        |
 | `ClearSelections` | Clear all active selections.                               |
 | `Accept`          | Accept the current selection and exit.                     |

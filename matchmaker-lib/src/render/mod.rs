@@ -32,7 +32,9 @@ fn action_from_null<A: ActionExt>(action: Action<NullActionExt>) -> Option<Actio
     Some(match action {
         Action::Select => Action::Select,
         Action::Deselect => Action::Deselect,
+        Action::DeselectUp => Action::DeselectUp,
         Action::Toggle => Action::Toggle,
+        Action::ToggleUp => Action::ToggleUp,
         Action::CycleAll => Action::CycleAll,
         Action::ClearSelections => Action::ClearSelections,
         Action::Accept => Action::Accept,
@@ -637,11 +639,23 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                                 selections.desel(item);
                             }
                         }
+                        Action::DeselectUp => {
+                            results.cursor_prev();
+                            if let Some(item) = worker.get_nth(results.index()) {
+                                selections.desel(item);
+                            }
+                        }
                         Action::Toggle => {
                             if let Some(item) = worker.get_nth(results.index()) {
                                 selections.toggle(item);
                                 // Advance cursor so repeated presses select consecutive items.
                                 results.cursor_next();
+                            }
+                        }
+                        Action::ToggleUp => {
+                            results.cursor_prev();
+                            if let Some(item) = worker.get_nth(results.index()) {
+                                selections.toggle(item);
                             }
                         }
                         Action::CycleAll => {

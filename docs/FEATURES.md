@@ -631,6 +631,7 @@ Architectural evolution eliminating external shell subprocess calls (`fd`/`find`
 ### B. Persistent Root Directory Cache (`matchmaker-lib/src/cache.rs`)
 - **Storage Engine**: Embedded high-performance Key-Value database using `redb` (`~/.local/state/matchmaker/dir_cache.redb`).
 - **Binary `postcard` Serialization**: Uses compact binary `postcard` encoding, shrinking DB file size by 60% and speeding up decoding.
+- **Automatic `mtime` Cache Invalidation**: `DirCacheStore` records root directory modification timestamps (`mtime_nanos`). When `get_valid` is called, it checks filesystem `mtime`. If files or folders were created, deleted, or renamed externally (e.g. via `touch`, `mkdir`, `rm` outside `mm`), the cache invalidates automatically and streams fresh live entries.
 - **Zero-Latency Warm Start**:
   - On launching `mm` in a directory previously visited, cached file paths are loaded from `redb` into `nucleo::Worker` in **< 5ms**.
   - Items are stored sorted by path depth (`slashes`), preserving shallow-first top-level directory visibility.
@@ -640,6 +641,14 @@ Architectural evolution eliminating external shell subprocess calls (`fd`/`find`
 ### C. Zero-Syscall Render Loop & Template AST Pre-compilation
 - **Thread-Local Metadata Caches**: `ICON_CACHE` and `SYMLINK_CACHE` thread-local maps in `results.rs` eliminate 100% of `stat()`, `lstat()`, and `readlink()` disk system calls during frame rendering.
 - **Template AST Pre-compilation (`matchmaker-cli/src/formatter.rs`)**: Template strings (`{=}`, `{1}`) are parsed into `TemplateAST` tokens once and cached in thread-local storage (`TEMPLATE_CACHE`), speeding up template formatting by 30%.
+
+---
+
+## 19. Backwards Multi-Selection Navigation Actions (`ToggleUp` & `DeselectUp`)
+
+- **`ToggleUp`**: Moves the selection cursor UP 1 line (`cursor_prev()`) and toggles the selection state of that item.
+- **`DeselectUp`**: Moves the selection cursor UP 1 line (`cursor_prev()`) and deselects that item.
+- **Usage**: Enables fast line-by-line unselection going backwards (e.g. bound to `"v"` in navigation mode or `"shift-space"` / `"ctrl-space"` in normal mode) without having to jump back to the top of the selection list.
 
 
 

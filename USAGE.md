@@ -807,13 +807,15 @@ directory_path_style.fg = "dark_gray"
 
 | Action | Argument | Description |
 |---|---|---|
+| `ToggleUp` | None | Move selection cursor UP 1 line and toggle item selection |
+| `DeselectUp` | None | Move selection cursor UP 1 line and deselect item |
 | `FmSetYankPaths(paths)` | Newline-separated col-0 strings | Mark paths with yank prefix style; empty clears all marks |
 
 ---
 
 ## 17. Native Parallel Walker & Persistent Root Directory Cache
 
-**What it does:** Automatically replaces external `fd`/`find` shell subprocesses with an in-process Rust parallel directory walker (`ignore` crate) and maintains an embedded KV store (`redb`) for instant TUI warm-starts.
+**What it does:** Automatically replaces external `fd`/`find` shell subprocesses with an in-process Rust parallel directory walker (`ignore` crate) and maintains an embedded KV store (`redb`) for instant TUI warm-starts with automatic `mtime` cache invalidation.
 
 ### Performance Benefits
 
@@ -832,8 +834,9 @@ directory_path_style.fg = "dark_gray"
    - **Internal `.git` Exclusion:** Excludes internal `.git/` repository objects to keep lists clean.
    - **Bypassing `.gitignore`:** If you want to include files ignored by `.gitignore`, set a custom `command` in `config.toml` (e.g. `command = "fd --type f --hidden --no-ignore"` or `command = "rg --files --hidden --no-ignore"`).
 
-2. **Instant Warm Starts & Deterministic Rendering:**
+2. **Instant Warm Starts, `mtime` Validation & Deterministic Rendering:**
    On launching `mm` in a previously visited directory, file paths are loaded from `~/.local/state/matchmaker/dir_cache.redb` in **< 5ms** using binary `postcard` encoding.
+   - **Automatic `mtime` Cache Invalidation:** `DirCacheStore` tracks parent directory modification timestamps (`mtime_nanos`). If files/folders are created, deleted, or renamed externally (e.g. via `touch`, `mkdir`, `rm` outside `mm`), the cache automatically invalidates and streams fresh live files on Frame 0.
    - **Frame 0 Shallow-First Order:** Pass 1 scans top-level entries (`max_depth = 1`) in < 1ms, ensuring top-level folders/files always appear immediately on screen. Pass 2 fills in deeper subfolders in background.
    - **Zero-Syscall TUI Render Loop:** Thread-local icon & symlink caches eliminate 100% of disk `stat`/`lstat`/`readlink` system calls per frame.
    - **Template AST Pre-compilation:** Template placeholder strings (`{=}`, `{1}`) are compiled into AST tokens once and cached in thread-local storage, speeding up formatting by 30%.

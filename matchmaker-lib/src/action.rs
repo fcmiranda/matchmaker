@@ -17,8 +17,12 @@ pub enum Action<A: ActionExt = NullActionExt> {
     Select,
     /// Remove item from selections
     Deselect,
+    /// Remove item from selections and move cursor up
+    DeselectUp,
     /// Toggle item in selections
     Toggle,
+    /// Toggle item in selections and move cursor up
+    ToggleUp,
     /// Toggle all selections
     CycleAll,
     /// Clear all selections
@@ -374,7 +378,7 @@ impl<A: ActionExt + Display> Serialize for Actions<A> {
 // ----- action serde
 enum_from_str_display!(
     units:
-    Select, Deselect, Toggle, CycleAll, ClearSelections, Accept,
+    Select, Deselect, DeselectUp, Toggle, ToggleUp, CycleAll, ClearSelections, Accept,
 
     HalfPageDown, HalfPageUp,
 
