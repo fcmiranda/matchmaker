@@ -1140,7 +1140,39 @@ pub async fn start(
             cmd = active_cmd;
         }
 
-        if !cmd.is_empty() {
+        if is_default_file_walker_command(&cmd) {
+            state.picker_ui.worker.restart(false);
+            state.reloading = true;
+
+            let injector = state.injector();
+            let injector = IndexedInjector::new_globally_indexed(injector);
+            let injector = SegmentedInjector::new(injector, splitter.clone());
+            let injector = AnsiInjector::new(injector, preprocess.clone());
+
+            let mut push_fn = inject_line(
+                state.picker_ui.header.config.header_lines,
+                reload_render_tx.clone(),
+                injector,
+                group_prefix.clone(),
+            );
+
+            state.picker_ui.selector.clear();
+            let reload_render_tx = reload_render_tx.clone();
+            tokio::task::spawn_blocking(move || {
+                let walker = matchmaker::walker::AsyncWalker::from_root(".");
+                let handle = walker.spawn_walk(move |line| {
+                    let _ = push_fn(line);
+                    Ok(())
+                });
+                let _ = tokio::runtime::Handle::current().block_on(handle);
+
+                let _ = reload_render_tx.send(matchmaker::message::RenderCommand::Action(
+                    matchmaker::action::Action::Custom(crate::action::MMAction::ReloadReady(
+                        vec![],
+                    )),
+                ));
+            });
+        } else if !cmd.is_empty() {
             state.picker_ui.worker.restart(false);
             state.reloading = true;
 

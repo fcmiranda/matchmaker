@@ -49,7 +49,7 @@ percentage = 50
 
 [binds]
 "@reloadnext" = "ReloadNext"
-"ctrl-r" = "@reloadnext"
+"ctrl-f" = "@reloadnext"
 "ctrl-j" = "Down"
 "ctrl-k" = "Up"
 "@ancestor_jump" = '''Transform(
@@ -69,7 +69,7 @@ percentage = 50
 )'''
 
 [ui.nav_binds]
-"ctrl-r" = "@reloadnext"
+"f" = "@reloadnext"
 "l" = ["ChDir({=})", "@reload_local"]
 "h" = ["ChDir(..)", "@reload_local"]
 "alt-u" = "@ancestor_jump"
