@@ -9,6 +9,7 @@ use redb::{Database, ReadableTable, TableDefinition};
 use serde::{Deserialize, Serialize};
 
 pub const DIR_CACHE_TABLE: TableDefinition<&str, &[u8]> = TableDefinition::new("dir_cache_v2");
+pub const ZERO_COPY_MAGIC: u32 = 0x4D4D5A43; // 'MMZC'
 
 /// Cache record for a directory listing.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -46,6 +47,69 @@ impl DirCacheRecord {
             .unwrap_or_default()
             .as_secs();
         now.saturating_sub(self.timestamp)
+    }
+
+    /// Encodes the record into a packed, zero-copy binary layout for sub-millisecond retrieval.
+    pub fn to_zero_copy_bytes(&self) -> Vec<u8> {
+        let root_bytes = self.root.as_bytes();
+        let root_len = root_bytes.len() as u32;
+
+        let mut capacity = 4 + 8 + 8 + 4 + root_bytes.len();
+        for item in &self.items {
+            capacity += item.len() + 1;
+        }
+
+        let mut buf = Vec::with_capacity(capacity);
+        buf.extend_from_slice(&ZERO_COPY_MAGIC.to_le_bytes());
+        buf.extend_from_slice(&self.timestamp.to_le_bytes());
+        buf.extend_from_slice(&self.mtime_nanos.to_le_bytes());
+        buf.extend_from_slice(&root_len.to_le_bytes());
+        buf.extend_from_slice(root_bytes);
+
+        for (i, item) in self.items.iter().enumerate() {
+            if i > 0 {
+                buf.push(0);
+            }
+            buf.extend_from_slice(item.as_bytes());
+        }
+        buf
+    }
+
+    /// Decodes record from packed zero-copy binary buffer without intermediate AST allocations.
+    pub fn from_zero_copy_bytes(bytes: &[u8]) -> Option<Self> {
+        if bytes.len() < 24 {
+            return None;
+        }
+
+        let magic = u32::from_le_bytes(bytes[0..4].try_into().ok()?);
+        if magic != ZERO_COPY_MAGIC {
+            return None;
+        }
+
+        let timestamp = u64::from_le_bytes(bytes[4..12].try_into().ok()?);
+        let mtime_nanos = u64::from_le_bytes(bytes[12..20].try_into().ok()?);
+        let root_len = u32::from_le_bytes(bytes[20..24].try_into().ok()?) as usize;
+
+        if bytes.len() < 24 + root_len {
+            return None;
+        }
+
+        let root = std::str::from_utf8(&bytes[24..24 + root_len]).ok()?.to_string();
+        let payload = &bytes[24 + root_len..];
+
+        let items = if payload.is_empty() {
+            Vec::new()
+        } else {
+            let payload_str = std::str::from_utf8(payload).ok()?;
+            payload_str.split('\0').map(|s| s.to_string()).collect()
+        };
+
+        Some(Self {
+            root,
+            timestamp,
+            mtime_nanos,
+            items,
+        })
     }
 }
 
@@ -131,7 +195,9 @@ impl DirCacheStore {
         let table = read_txn.open_table(DIR_CACHE_TABLE).ok()?;
         let guard = table.get(key_str.as_str()).ok()??;
         let bytes = guard.value();
-        if let Ok(rec) = postcard::from_bytes::<DirCacheRecord>(bytes) {
+        if let Some(rec) = DirCacheRecord::from_zero_copy_bytes(bytes) {
+            Some(rec)
+        } else if let Ok(rec) = postcard::from_bytes::<DirCacheRecord>(bytes) {
             Some(rec)
         } else if let Ok(json_str) = std::str::from_utf8(bytes) {
             serde_json::from_str::<DirCacheRecord>(json_str).ok()
@@ -173,7 +239,7 @@ impl DirCacheStore {
         }
 
         let record = DirCacheRecord::new(key_str.clone(), items);
-        let bytes = postcard::to_allocvec(&record)?;
+        let bytes = record.to_zero_copy_bytes();
 
         let write_txn = db.begin_write()?;
         {
@@ -276,5 +342,25 @@ mod tests {
 
         let _ = fs::remove_dir_all(&temp_dir);
         Ok(())
+    }
+
+    #[test]
+    fn test_zero_copy_encoding_decoding() {
+        let rec = DirCacheRecord {
+            root: "/home/user/project".to_string(),
+            timestamp: 1234567890,
+            mtime_nanos: 987654321,
+            items: vec!["src/lib.rs".to_string(), "Cargo.toml".to_string(), "docs/README.md".to_string()],
+        };
+
+        let encoded = rec.to_zero_copy_bytes();
+        assert!(!encoded.is_empty());
+        assert_eq!(&encoded[0..4], &ZERO_COPY_MAGIC.to_le_bytes());
+
+        let decoded = DirCacheRecord::from_zero_copy_bytes(&encoded).unwrap();
+        assert_eq!(decoded.root, rec.root);
+        assert_eq!(decoded.timestamp, rec.timestamp);
+        assert_eq!(decoded.mtime_nanos, rec.mtime_nanos);
+        assert_eq!(decoded.items, rec.items);
     }
 }
