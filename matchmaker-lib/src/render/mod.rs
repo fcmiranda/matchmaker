@@ -647,9 +647,13 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                         }
                         Action::Toggle => {
                             if let Some(item) = worker.get_nth(results.index()) {
-                                selections.toggle(item);
-                                // Advance cursor so repeated presses select consecutive items.
-                                results.cursor_next();
+                                if selections.contains(&item) {
+                                    selections.toggle(item);
+                                    results.cursor_prev();
+                                } else {
+                                    selections.toggle(item);
+                                    results.cursor_next();
+                                }
                             }
                         }
                         Action::ToggleUp => {
@@ -2090,8 +2094,7 @@ fn render_nav_hints(frame: &mut Frame, area: Rect, is_basic: bool) {
     } else {
         &[
             ("[Tab]", "Filter", Color::Cyan),
-            ("[Space]", "Sel", Color::Yellow),
-            ("[S-Space]", "Unsel", Color::Yellow),
+            ("[Space]", "Sel/Unsel", Color::Yellow),
             ("[f]", "Cycle", Color::Cyan),
             ("[a]", "Add", Color::Green),
             ("[r]", "Rename", Color::Yellow),

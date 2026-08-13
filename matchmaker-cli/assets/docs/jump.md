@@ -45,8 +45,7 @@ Jump Mode allows cycling between input sources on the fly using `f` or `ctrl-f`:
 Matchmaker Jump Mode goes beyond simple directory jumping, supporting rich overlay actions and file operations:
 
 ### Selection & Path Operations
-- **Multi-Selection Down (`Space`)**: Toggles selection of highlighted item and moves cursor down.
-- **Backwards Unselection Up (`Shift-Space` / `v` / `ToggleUp`)**: Moves cursor UP 1 line and toggles/unselects the item, allowing fast line-by-line unselection going backwards (`v` works as a 100% universal fallback in Tmux).
+- **Smart Selection & Rewind (`Space`)**: Pressing `Space` on an unselected item selects it and steps DOWN. Pressing `Space` on an already-selected item unselects it and steps UP (rewind chain), allowing fast 1-key multi-selection and backward unselection without extra keybindings.
 - **Clear All Selections (`ClearSelections`)**: Clears all active selections instantly.
 - **Yank / Cut Paths**: Mark paths for copy/move operations across directories.
 
