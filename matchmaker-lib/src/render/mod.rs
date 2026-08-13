@@ -2085,21 +2085,22 @@ fn render_nav_hints(frame: &mut Frame, area: Rect, is_basic: bool) {
             ("[Tab]", "Filter", Color::Cyan),
             ("[j/k]", "Move", Color::Yellow),
             ("[h/l]", "Up/Dir", Color::Yellow),
-            ("[J/K]", "Scroll Preview", Color::Blue),
+            ("[J/K]", "Preview", Color::Blue),
         ]
     } else {
         &[
             ("[Tab]", "Filter", Color::Cyan),
-            ("[S-Space]", "Unselect", Color::Yellow),
-            ("[D]", "Ripdrag", Color::Magenta),
-            ("[a]", "Add", Color::Yellow),
+            ("[Space]", "Sel", Color::Yellow),
+            ("[S-Space]", "Unsel", Color::Yellow),
+            ("[f]", "Cycle", Color::Cyan),
+            ("[a]", "Add", Color::Green),
             ("[r]", "Rename", Color::Yellow),
             ("[d]", "Trash", Color::Red),
-            ("[y]", "Yank", Color::Green),
-            ("[x]", "Cut", Color::Red),
+            ("[y/x]", "Copy/Cut", Color::Green),
             ("[p]", "Paste", Color::Magenta),
-            ("[P]", "Pane", Color::Cyan),
             ("[z/Z]", "Zip/Unzip", Color::Blue),
+            ("[D]", "Drag", Color::Magenta),
+            ("[P]", "Pane", Color::Cyan),
         ]
     };
 

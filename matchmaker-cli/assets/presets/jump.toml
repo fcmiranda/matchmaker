@@ -75,6 +75,7 @@ percentage = 50
 "h" = ["ChDir(..)", "@reload_local"]
 "alt-u" = "@ancestor_jump"
 "shift-space" = "ToggleUp"
+"v" = "ToggleUp"
 
 [breadcrumb]
 show = true
