@@ -28,11 +28,10 @@ Unlike traditional fuzzy finders where picking an item terminates the session:
 - Press **`h`**: Navigates up to the parent directory (`ChDir(..)`) .
 - Press **`Enter`**: Accepts the selected directory, automatically records it to the `frecency` database, and changes your shell working directory upon exit.
 
-### Hybrid Source Switching (`ctrl-z` / `@reloadnext`)
-Jump Mode allows cycling through multiple input sources on the fly:
-1. **Source 0 (Default)**: Current directory contents + deeper subdirectories (`fd`).
-2. **Source 1**: Local directory search with ignored files.
-3. **Source 2**: Global frecency directory database (`mm list --dirs`).
+### Hybrid Source Switching (`ctrl-r` / `@reloadnext`)
+Jump Mode allows cycling between input sources on the fly using `ctrl-r`:
+1. **Source 0 (Default)**: Current directory contents + subdirectories (native `AsyncWalker`).
+2. **Source 1**: Global frecency directory database (`mm list --dirs`).
 
 ### Visual Previews & Breadcrumbs
 - **Live Tree Previews**: Previews folders using `eza --tree --level=2 --icons --git-ignore` and files using `bat`.
@@ -46,7 +45,7 @@ Jump Mode allows cycling through multiple input sources on the fly:
 Matchmaker Jump Mode goes beyond simple directory jumping, supporting rich overlay actions and file operations:
 
 ### Selection & Path Operations
-- **Single / Multi-Selection**: Mark items using `Space`; use `Shift-Space` to remove the last item marked and move back to it.
+- **Single / Multi-Selection**: Toggle selection of highlighted items using `Space`.
 - **Yank / Cut Paths**: Mark paths for copy/move operations across directories.
 
 ### File Operations & Overlays
