@@ -25,6 +25,7 @@ typo_tolerance = true
 dir_first = true
 
 [results]
+max = 15
 reverse = false
 icons = true
 symlink_target = true

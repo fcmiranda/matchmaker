@@ -1512,6 +1512,16 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                     }
                 }
 
+                if parent_peek_rect.width > 0 {
+                    if footer.height > 0 {
+                        let available_h = footer.y.saturating_sub(parent_peek_rect.y);
+                        parent_peek_rect.height = parent_peek_rect.height.min(available_h);
+                    }
+                    if let Some(max_h) = ui.config.parent_peek.max {
+                        parent_peek_rect.height = parent_peek_rect.height.min(max_h);
+                    }
+                }
+
                 // save dimensions and check if dimensions changed
                 did_resize = state.update_layout(Layout {
                     preview,

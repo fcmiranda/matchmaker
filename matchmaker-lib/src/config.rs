@@ -554,6 +554,9 @@ pub struct ParentPeekConfig {
     pub enabled: bool,
     /// Width percentage of the parent peek pane (default: 15%).
     pub pct: Percentage,
+    /// Maximum row height for the parent peek pane (default: None).
+    #[serde(alias = "max_rows")]
+    pub max: Option<u16>,
     /// Parent folder title color (default: Cyan).
     #[serde(deserialize_with = "camelcase_normalized_option", default)]
     pub parent_color: Option<Color>,
@@ -572,6 +575,7 @@ impl Default for ParentPeekConfig {
         Self {
             enabled: false,
             pct: Percentage::new(15),
+            max: None,
             parent_color: Some(Color::Cyan),
             highlight: true,
             highlight_color: Some(Color::Yellow),
@@ -795,6 +799,7 @@ pub struct ResultsConfig {
     /// Maximum row height.
     /// VScroll/Preview can still be used to view the whole result.
     pub max_height: usize,
+    #[serde(alias = "max")]
     pub max_rows: Option<u16>,
     pub show_skipped: bool,
     /// Always false if max_height is set

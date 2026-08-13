@@ -608,7 +608,9 @@ UX enhancements designed for zero-friction navigation, responsive keybinding hin
 ### E. 3-Pane Contextual Layout (`--parent-peek`) (`matchmaker-lib/src/render/mod.rs` & `ui/mod.rs`)
 - **Parent Directory Peek Pane**: Carves out a 3rd left-side pane displaying the parent directory contents (`[ Parent Directory │ Results List │ Preview Pane ]`) for spatial orientation (Ranger / Yazi style).
 - **Auto-Centered Selection**: Automatically centers the parent directory view around the active child folder, highlighting the current directory in bold yellow.
-- **Config & Flag Support**: Configurable via `[ui] parent_peek = true` and `parent_peek_pct = 15` in TOML, or CLI flags `--parent-peek`, `--nav parent-peek`, and `--parent-peek-pct 20`.
+- **Footer Boundary Limiter**: Automatically clamps `parent_peek` height so it stops at the `footer` boundary and never overlaps footer/hints.
+- **Uniform `max` Property**: Supports `max = 15` in `[ui.parent_peek]` (to limit parent peek height) and `max = 15` in `[results]` (as a uniform alias for `max_rows`).
+- **Config & Flag Support**: Configurable via `[ui.parent_peek] enabled = true`, `pct = 15`, `max = 15` in TOML, or CLI flags `--parent-peek`, `--nav parent-peek`, and `--parent-peek-pct 20`.
 
 ---
 
