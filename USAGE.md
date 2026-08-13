@@ -776,6 +776,10 @@ nav  selected-fg  selected-bg  selected-prefix  unselected-prefix  spinner  yank
 - `mm clean` / `mm prune`: Remove non-existent paths from the database.
 - `mm cache [path]`: Fast-index files into warm cache (< 1ms).
 
+#### Piped & Non-File Text Stream Frecency
+
+Matchmaker's `frecency.rs` store tracks **arbitrary string keys** on STDIN. When piping text into `mm` (`command | mm`), user selection events record frecency scores for any items (Docker container names, git branches, SSH hosts, tmux sessions, or command history lines), automatically ranking frequently selected items at the top of future runs.
+
 ### Preset: `jump.toml` (Directory Jumping Optimization)
 
 The `jump.toml` preset is engineered for instant directory navigation:

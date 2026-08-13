@@ -114,3 +114,22 @@ In directories with 600,000+ files:
 - **Query `"mat"`**:
   - `matchmaker/` (direct folder): Tier 0 (+2B) + Frecency bonus (+300) + Nucleo prefix match -> **Score ~2,000,000,350** (**#1 Position**).
   - `matchmaker/fecavmi/src/main.rs` (deep file): Tier 2 (0) + Depth penalty (-45) -> **Score ~850** (Ranks far below, preserving root folder navigation).
+
+---
+
+## 6. Universal Frecency for Piped & Non-File Text Streams
+
+Unlike filesystem-only indexers (such as FFF daemon) that only index directory paths, Matchmaker's `frecency.rs` engine operates on **arbitrary string keys**. When piping text lines from any shell command into `mm` (`command | mm`), selection events automatically record frecency scores for those exact string lines.
+
+### Key Use Cases:
+
+- **Docker Containers & Kubernetes Pods**: `docker exec -it $(docker ps --format '{{.Names}}' | mm) bash`  
+  Frequently accessed container names (e.g. `api-server-dev`) rise to the top on Frame 0, allowing instant 1-press `Enter` selection.
+- **Git Branches**: `git checkout $(git branch --sort=-committerdate | awk '{print $1}' | mm)`  
+  Active feature branches stay prioritized at the top of the list during branch switching.
+- **SSH Hosts**: `ssh $(grep -i "^Host " ~/.ssh/config | awk '{print $2}' | grep -v '*' | mm)`  
+  Frequently visited SSH remote hosts are automatically boosted in search results.
+- **Tmux Sessions**: `tmux switch-client -t $(tmux list-sessions -F "#{session_name}" | mm)`  
+  Session names you switch to most often appear at the top.
+- **Make / Just / Task Recipes**: `just $(just --summary | tr ' ' '\n' | mm)`  
+  Build and test tasks used daily are ranked higher than rarely used recipes.
