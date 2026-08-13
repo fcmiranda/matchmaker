@@ -50,6 +50,7 @@ percentage = 50
 [binds]
 "@reloadnext" = "ReloadNext"
 "ctrl-f" = "@reloadnext"
+"shift-space" = "ToggleUp"
 "ctrl-j" = "Down"
 "ctrl-k" = "Up"
 "@ancestor_jump" = '''Transform(
@@ -73,7 +74,7 @@ percentage = 50
 "l" = ["ChDir({=})", "@reload_local"]
 "h" = ["ChDir(..)", "@reload_local"]
 "alt-u" = "@ancestor_jump"
-"v" = "ToggleUp"
+"shift-space" = "ToggleUp"
 
 [breadcrumb]
 show = true

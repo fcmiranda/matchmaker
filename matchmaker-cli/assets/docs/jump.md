@@ -46,7 +46,7 @@ Matchmaker Jump Mode goes beyond simple directory jumping, supporting rich overl
 
 ### Selection & Path Operations
 - **Multi-Selection Down (`Space`)**: Toggles selection of highlighted item and moves cursor down.
-- **Backwards Unselection Up (`v` / `ToggleUp`)**: Moves cursor UP 1 line and toggles/unselects the item, allowing fast line-by-line unselection going backwards.
+- **Backwards Unselection Up (`Shift-Space` / `ToggleUp`)**: Moves cursor UP 1 line and toggles/unselects the item, allowing fast line-by-line unselection going backwards.
 - **Clear All Selections (`ClearSelections`)**: Clears all active selections instantly.
 - **Yank / Cut Paths**: Mark paths for copy/move operations across directories.
 
