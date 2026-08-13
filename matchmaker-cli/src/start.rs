@@ -1144,6 +1144,10 @@ pub async fn start(
             state.picker_ui.worker.restart(false);
             state.reloading = true;
 
+            if let Ok(mut c) = spec_cache_reload.lock() {
+                c.clear();
+            }
+
             let injector = state.injector();
             let injector = IndexedInjector::new_globally_indexed(injector);
             let injector = SegmentedInjector::new(injector, splitter.clone());
@@ -1159,12 +1163,26 @@ pub async fn start(
             state.picker_ui.selector.clear();
             let reload_render_tx = reload_render_tx.clone();
             tokio::task::spawn_blocking(move || {
+                let (collect_tx, collect_rx) = std::sync::mpsc::channel();
                 let walker = matchmaker::walker::AsyncWalker::from_root(".");
                 let handle = walker.spawn_walk(move |line| {
-                    let _ = push_fn(line);
-                    Ok(())
+                    let _ = collect_tx.send(line.clone());
+                    push_fn(line)
                 });
                 let _ = tokio::runtime::Handle::current().block_on(handle);
+
+                let mut fresh_items: Vec<String> = collect_rx.into_iter().collect();
+                if !fresh_items.is_empty() {
+                    fresh_items.sort_by_key(|item| {
+                        let slashes = item.bytes().filter(|&b| b == b'/' || b == b'\\').count();
+                        (slashes, item.clone())
+                    });
+                    let cwd_str = std::env::current_dir()
+                        .map(|p| p.to_string_lossy().to_string())
+                        .unwrap_or_default();
+                    let cache_store = matchmaker::cache::DirCacheStore::open();
+                    let _ = cache_store.put(&cwd_str, fresh_items);
+                }
 
                 let _ = reload_render_tx.send(matchmaker::message::RenderCommand::Action(
                     matchmaker::action::Action::Custom(crate::action::MMAction::ReloadReady(
