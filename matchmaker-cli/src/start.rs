@@ -888,6 +888,13 @@ pub async fn start(
         Some(render_tx.clone()),
     );
     mm._register_become_handler(cli_formatter.clone());
+    // Speculative directory cache & background scanning
+    let speculative_cache: Arc<Mutex<HashMap<std::path::PathBuf, Vec<String>>>> =
+        Arc::new(Mutex::new(HashMap::new()));
+    let spec_cache_chdir = speculative_cache.clone();
+    let spec_cache_cursor = speculative_cache.clone();
+    let spec_cache_reload = speculative_cache.clone();
+
     let chdir_formatter = cli_formatter.clone();
     let mut history: std::collections::HashMap<std::path::PathBuf, String> =
         std::collections::HashMap::new();
@@ -931,6 +938,23 @@ pub async fn start(
         if state.ui.config.nav_mode {
             if let Ok(cwd) = std::env::current_dir() {
                 history.insert(cwd.clone(), state.picker_ui.query.input.clone());
+
+                // Save old_cwd items in speculative cache so returning to parent is instant
+                let items: Vec<String> = state
+                    .picker_ui
+                    .worker
+                    .raw_results()
+                    .map(|item| state.picker_ui.worker.columns[0].raw(item).into_owned())
+                    .collect();
+                if !items.is_empty() {
+                    if let Ok(mut c) = spec_cache_chdir.lock() {
+                        if c.len() >= 64 {
+                            c.clear();
+                        }
+                        c.insert(cwd.clone(), items);
+                    }
+                }
+
                 old_cwd = Some(cwd);
             }
         }
@@ -991,12 +1015,6 @@ pub async fn start(
             }
         }
     });
-
-    // Speculative directory cache & background scanning
-    let speculative_cache: Arc<Mutex<HashMap<std::path::PathBuf, Vec<String>>>> =
-        Arc::new(Mutex::new(HashMap::new()));
-    let spec_cache_cursor = speculative_cache.clone();
-    let spec_cache_reload = speculative_cache.clone();
 
     let reload_rules_spec = all_rules.clone();
     let default_base_cmd_spec = default_base_cmd;
@@ -1096,7 +1114,6 @@ pub async fn start(
     let reload_formatter = cli_formatter.clone();
     let reload_render_tx = render_tx.clone();
 
-    let mut cmd = command.clone();
     mm.register_interrupt_handler(Interrupt::Reload, move |state| {
         let current_dir = std::env::current_dir().unwrap_or_default();
 
@@ -1132,15 +1149,71 @@ pub async fn start(
             }
         }
 
-        let active_cmd = get_active_cmd(&current_dir);
-
-        if !state.payload().is_empty() {
-            cmd = use_formatter(&reload_formatter, state, state.payload(), None);
+        let cmd = if !state.payload().is_empty() {
+            use_formatter(&reload_formatter, state, state.payload(), None)
         } else {
-            cmd = active_cmd;
-        }
+            get_active_cmd(&current_dir)
+        };
 
         if is_default_file_walker_command(&cmd) {
+            let cwd_str = current_dir.to_string_lossy().to_string();
+            let cache_store = matchmaker::cache::DirCacheStore::open();
+
+            if let Some(cached_rec) = cache_store.get_valid(&cwd_str)
+                && !cached_rec.items.is_empty()
+            {
+                debug!("DirCacheStore HIT for {cwd_str}");
+                state.picker_ui.worker.restart(false);
+                state.reloading = true;
+
+                let injector = state.injector();
+                let injector = IndexedInjector::new_globally_indexed(injector);
+                let injector = SegmentedInjector::new(injector, splitter.clone());
+                let injector = AnsiInjector::new(injector, preprocess.clone());
+
+                let mut push_fn = inject_line(
+                    state.picker_ui.header.config.header_lines,
+                    reload_render_tx.clone(),
+                    injector,
+                    group_prefix.clone(),
+                );
+
+                state.picker_ui.selector.clear();
+                for item in cached_rec.items {
+                    let _ = push_fn(item);
+                }
+
+                let _ = reload_render_tx.send(matchmaker::message::RenderCommand::Action(
+                    matchmaker::action::Action::Custom(crate::action::MMAction::ReloadReady(
+                        vec![],
+                    )),
+                ));
+
+                // Background async walk to refresh disk cache if needed
+                let cwd_clone = cwd_str.clone();
+                tokio::spawn(async move {
+                    let (collect_tx, collect_rx) = std::sync::mpsc::channel();
+                    let walker = matchmaker::walker::AsyncWalker::from_root(&cwd_clone);
+                    let handle = walker.spawn_walk(move |line| {
+                        let _ = collect_tx.send(line);
+                        Ok(())
+                    });
+                    let _ = handle.await;
+
+                    let mut fresh_items: Vec<String> = collect_rx.into_iter().collect();
+                    if !fresh_items.is_empty() {
+                        fresh_items.sort_by_key(|item| {
+                            let slashes =
+                                item.bytes().filter(|&b| b == b'/' || b == b'\\').count();
+                            (slashes, item.clone())
+                        });
+                        let cache_store = matchmaker::cache::DirCacheStore::open();
+                        let _ = cache_store.put(&cwd_clone, fresh_items);
+                    }
+                });
+                return;
+            }
+
             state.picker_ui.worker.restart(false);
             state.reloading = true;
 
@@ -1162,12 +1235,25 @@ pub async fn start(
 
             state.picker_ui.selector.clear();
             let reload_render_tx = reload_render_tx.clone();
+            let reload_render_tx_ready = reload_render_tx.clone();
             tokio::task::spawn_blocking(move || {
                 let (collect_tx, collect_rx) = std::sync::mpsc::channel();
                 let walker = matchmaker::walker::AsyncWalker::from_root(".");
+                let mut first = true;
                 let handle = walker.spawn_walk(move |line| {
                     let _ = collect_tx.send(line.clone());
-                    push_fn(line)
+                    let res = push_fn(line);
+                    if first {
+                        first = false;
+                        let _ = reload_render_tx_ready.send(
+                            matchmaker::message::RenderCommand::Action(
+                                matchmaker::action::Action::Custom(
+                                    crate::action::MMAction::ReloadReady(vec![]),
+                                ),
+                            ),
+                        );
+                    }
+                    res
                 });
                 let _ = tokio::runtime::Handle::current().block_on(handle);
 
@@ -1184,11 +1270,13 @@ pub async fn start(
                     let _ = cache_store.put(&cwd_str, fresh_items);
                 }
 
-                let _ = reload_render_tx.send(matchmaker::message::RenderCommand::Action(
-                    matchmaker::action::Action::Custom(crate::action::MMAction::ReloadReady(
-                        vec![],
-                    )),
-                ));
+                if first {
+                    let _ = reload_render_tx.send(matchmaker::message::RenderCommand::Action(
+                        matchmaker::action::Action::Custom(crate::action::MMAction::ReloadReady(
+                            vec![],
+                        )),
+                    ));
+                }
             });
         } else if !cmd.is_empty() {
             state.picker_ui.worker.restart(false);
