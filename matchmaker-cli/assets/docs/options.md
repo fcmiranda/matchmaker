@@ -308,6 +308,8 @@ See `mm --doc binds`.
 
 - `frecency`: (bool) Enable frecency (frequency + recency) score boosting for match ranking.
 - `frecency_weight`: (number) Multiplier for frecency bonus score (default: 1).
+- `location_bias` / `lb`: (number) Percentage bonus boost for items located inside or relative to current working directory (default: 30, i.e. +30%). Set 0 to disable.
+- `frecency_half_life_days` / `hl`: (number) Half-life in days for continuous exponential frecency decay (default: 7). Set 0 to use legacy discrete time buckets.
 - `depth_penalty` / `dp`: (number) Score penalty per path depth level ('/' or '\'). 0 disables.
 - `typo_tolerance` / `tt`: (bool) Allow character substitutions/typo matching for queries >= 3 chars.
 - `dir_first` / `df`: (bool) Prioritize direct child directories over files and deeper paths (Tier 0: direct dirs, Tier 1: direct files, Tier 2: deeper items).

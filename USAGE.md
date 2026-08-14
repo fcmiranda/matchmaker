@@ -752,6 +752,8 @@ printf "--- Group A\nItem 1\nItem 2\n--- Group B\nItem 3" | mm --group-prefix '-
 | `results.directory_path_style` | `StyleSetting` | `fg: DarkGray` |
 | `matcher.worker.frecency` | `bool` | `false` |
 | `matcher.worker.frecency_weight` | `u32` | `1` |
+| `matcher.worker.location_bias` | `u32` | `30` |
+| `matcher.worker.frecency_half_life_days` | `u32` | `7` |
 | `matcher.worker.typo_tolerance` | `bool` | `false` |
 | `ui.nav_color` | `Color` | `Reset` |
 
