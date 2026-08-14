@@ -42,6 +42,24 @@ fn get_item_tier_and_clean_path<'a>(raw_str: &'a str, dir_first: bool) -> (u8, &
 }
 
 #[inline]
+fn cmp_ascii_case_insensitive(a: &str, b: &str) -> std::cmp::Ordering {
+    let mut a_bytes = a.bytes().map(|b| b.to_ascii_lowercase());
+    let mut b_bytes = b.bytes().map(|b| b.to_ascii_lowercase());
+    loop {
+        match (a_bytes.next(), b_bytes.next()) {
+            (Some(x), Some(y)) => {
+                if x != y {
+                    return x.cmp(&y);
+                }
+            }
+            (None, Some(_)) => return std::cmp::Ordering::Less,
+            (Some(_), None) => return std::cmp::Ordering::Greater,
+            (None, None) => return std::cmp::Ordering::Equal,
+        }
+    }
+}
+
+#[inline]
 fn count_slashes(s: &str) -> u64 {
     let mut count = 0u64;
     for &b in s.as_bytes() {
@@ -352,7 +370,7 @@ impl<T: SSS> Worker<T> {
             struct DecoratedItem<'a, T> {
                 item: nucleo::Item<'a, T>,
                 tier: u8,
-                lower_path: Option<String>,
+                raw_path: Cow<'a, str>,
                 score: u64,
             }
 
@@ -370,25 +388,12 @@ impl<T: SSS> Worker<T> {
                         frec_weight,
                         penalty,
                     );
-                    let (tier, clean_path) = match raw_path {
-                        Cow::Borrowed(s) => {
-                            let (t, c) = get_item_tier_and_clean_path(s, self.dir_first);
-                            (t, Cow::Borrowed(c))
-                        }
-                        Cow::Owned(s) => {
-                            let (t, c) = get_item_tier_and_clean_path(&s, self.dir_first);
-                            (t, Cow::Owned(c.to_string()))
-                        }
-                    };
-                    let lower_path = if tier < 2 {
-                        Some(clean_path.to_ascii_lowercase())
-                    } else {
-                        None
-                    };
+                    let (tier, _) =
+                        get_item_tier_and_clean_path(raw_path.as_ref(), self.dir_first);
                     DecoratedItem {
                         item,
                         tier,
-                        lower_path,
+                        raw_path,
                         score,
                     }
                 })
@@ -400,11 +405,11 @@ impl<T: SSS> Worker<T> {
                 }
 
                 if a.tier < 2 {
-                    if let (Some(la), Some(lb)) = (&a.lower_path, &b.lower_path) {
-                        let cmp = la.cmp(lb);
-                        if cmp != std::cmp::Ordering::Equal {
-                            return cmp;
-                        }
+                    let (_, clean_a) = get_item_tier_and_clean_path(a.raw_path.as_ref(), true);
+                    let (_, clean_b) = get_item_tier_and_clean_path(b.raw_path.as_ref(), true);
+                    let cmp = cmp_ascii_case_insensitive(clean_a, clean_b);
+                    if cmp != std::cmp::Ordering::Equal {
+                        return cmp;
                     }
                 }
 
@@ -566,7 +571,7 @@ impl<T: SSS> Worker<T> {
             struct DecoratedItem<'a, T> {
                 item: nucleo::Item<'a, T>,
                 tier: u8,
-                lower_path: Option<String>,
+                raw_path: Cow<'a, str>,
                 score: u64,
             }
 
@@ -584,25 +589,12 @@ impl<T: SSS> Worker<T> {
                         frec_weight,
                         penalty,
                     );
-                    let (tier, clean_path) = match raw_path {
-                        Cow::Borrowed(s) => {
-                            let (t, c) = get_item_tier_and_clean_path(s, self.dir_first);
-                            (t, Cow::Borrowed(c))
-                        }
-                        Cow::Owned(s) => {
-                            let (t, c) = get_item_tier_and_clean_path(&s, self.dir_first);
-                            (t, Cow::Owned(c.to_string()))
-                        }
-                    };
-                    let lower_path = if tier < 2 {
-                        Some(clean_path.to_ascii_lowercase())
-                    } else {
-                        None
-                    };
+                    let (tier, _) =
+                        get_item_tier_and_clean_path(raw_path.as_ref(), self.dir_first);
                     DecoratedItem {
                         item,
                         tier,
-                        lower_path,
+                        raw_path,
                         score,
                     }
                 })
@@ -614,11 +606,11 @@ impl<T: SSS> Worker<T> {
                 }
 
                 if a.tier < 2 {
-                    if let (Some(la), Some(lb)) = (&a.lower_path, &b.lower_path) {
-                        let cmp = la.cmp(lb);
-                        if cmp != std::cmp::Ordering::Equal {
-                            return cmp;
-                        }
+                    let (_, clean_a) = get_item_tier_and_clean_path(a.raw_path.as_ref(), true);
+                    let (_, clean_b) = get_item_tier_and_clean_path(b.raw_path.as_ref(), true);
+                    let cmp = cmp_ascii_case_insensitive(clean_a, clean_b);
+                    if cmp != std::cmp::Ordering::Equal {
+                        return cmp;
                     }
                 }
 

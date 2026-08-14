@@ -85,13 +85,13 @@ impl AsyncWalker {
         let builder = self.builder();
 
         tokio::task::spawn_blocking(move || {
-            let mut seen = std::collections::HashSet::new();
-
             // Pass 1: Immediate shallow walk (max_depth = 1) to deliver top-level items on Frame 0
             let shallow_walker = builder.clone().max_depth(Some(1)).build();
             for result in shallow_walker {
                 let Ok(entry) = result else { continue };
-                if entry.depth() == 0 { continue };
+                if entry.depth() == 0 {
+                    continue;
+                }
                 let ft = entry.file_type();
                 let is_dir = ft.map_or(false, |t| t.is_dir());
                 let is_file = ft.map_or(false, |t| t.is_file());
@@ -106,35 +106,31 @@ impl AsyncWalker {
                     options.strip_cwd_prefix,
                     is_dir,
                 );
-                seen.insert(formatted.clone());
                 if push_fn(formatted).is_err() {
                     return;
                 }
             }
 
-            // Pass 2: Deep parallel walk for rest of directory tree
+            // Pass 2: Deep parallel walk for rest of directory tree (depth > 1)
             let (tx, rx) = mpsc::channel::<String>();
-            let seen_arc = std::sync::Arc::new(std::sync::Mutex::new(seen));
-
             let walker = builder.build_parallel();
             let entry_type = options.entry_type.clone();
             let strip_cwd = options.strip_cwd_prefix;
             let root = options.root.clone();
-            let seen_clone = seen_arc.clone();
 
             thread::spawn(move || {
                 walker.run(move || {
                     let tx = tx.clone();
                     let entry_type = entry_type.clone();
                     let root = root.clone();
-                    let seen_clone = seen_clone.clone();
 
                     Box::new(move |result| {
                         let Ok(entry) = result else {
                             return WalkState::Continue;
                         };
 
-                        if entry.depth() == 0 {
+                        // Skip root and depth 1 (already delivered in Pass 1 for instant frame 0)
+                        if entry.depth() <= 1 {
                             return WalkState::Continue;
                         }
 
@@ -150,11 +146,6 @@ impl AsyncWalker {
 
                         let path = entry.path();
                         let formatted = format_path(path, &root, strip_cwd, is_dir);
-                        if let Ok(mut set) = seen_clone.lock() {
-                            if !set.insert(formatted.clone()) {
-                                return WalkState::Continue;
-                            }
-                        }
 
                         let _ = tx.send(formatted);
                         WalkState::Continue
@@ -319,6 +310,51 @@ mod tests {
 
         // Should exclude .git folder contents
         assert!(!items.iter().any(|i| i.contains(".git/HEAD")));
+
+        let _ = fs::remove_dir_all(&temp_dir);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_walker_spawn_walk_unique() -> anyhow::Result<()> {
+        let temp_dir = std::env::temp_dir().join("mm_test_walker_spawn_walk");
+        let _ = fs::remove_dir_all(&temp_dir);
+        fs::create_dir_all(temp_dir.join("src").join("sub"))?;
+        fs::write(temp_dir.join("src").join("main.rs"), "fn main() {}")?;
+        fs::write(temp_dir.join("src").join("sub").join("lib.rs"), "pub fn x() {}")?;
+        fs::write(temp_dir.join("README.md"), "# Test")?;
+
+        let options = WalkerOptions {
+            root: temp_dir.clone(),
+            strip_cwd_prefix: true,
+            ..Default::default()
+        };
+
+        let walker = AsyncWalker::new(options);
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        let handle = walker.spawn_walk(move |line| {
+            let _ = tx.send(line);
+            Ok(())
+        });
+        handle.await?;
+
+        let mut items = Vec::new();
+        while let Ok(item) = rx.try_recv() {
+            items.push(item);
+        }
+
+        // Verify all depth 1 and depth 2 items are present
+        assert!(items.iter().any(|i| i == "src/" || i == "src"));
+        assert!(items.iter().any(|i| i == "README.md"));
+        assert!(items.iter().any(|i| i == "src/main.rs"));
+        assert!(items.iter().any(|i| i == "src/sub/" || i == "src/sub"));
+        assert!(items.iter().any(|i| i == "src/sub/lib.rs"));
+
+        // Verify uniqueness (no duplicate entries between pass 1 and pass 2)
+        let mut unique_items = items.clone();
+        unique_items.sort();
+        unique_items.dedup();
+        assert_eq!(items.len(), unique_items.len(), "Items should be unique without duplicates");
 
         let _ = fs::remove_dir_all(&temp_dir);
         Ok(())

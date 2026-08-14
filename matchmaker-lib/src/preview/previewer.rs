@@ -57,6 +57,45 @@ pub struct Previewer {
     event_controller_tx: Option<EventSender>,
 }
 
+#[inline]
+fn try_parse_simple_command(cmd: &str) -> Option<Command> {
+    let trimmed = cmd.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    // If command contains any shell metacharacter, let the shell handle it
+    if trimmed.chars().any(|c| {
+        matches!(
+            c,
+            '|' | '>'
+                | '<'
+                | '&'
+                | ';'
+                | '$'
+                | '`'
+                | '\n'
+                | '*'
+                | '?'
+                | '('
+                | ')'
+                | '{'
+                | '}'
+                | '\''
+                | '"'
+                | '\\'
+        )
+    }) {
+        return None;
+    }
+    let mut parts = trimmed.split_whitespace();
+    let prog = parts.next()?;
+    let mut command = Command::new(prog);
+    for arg in parts {
+        command.arg(arg);
+    }
+    Some(command)
+}
+
 impl Previewer {
     pub fn new(config: PreviewerConfig) -> (Self, Sender<PreviewMessage>) {
         let (tx, rx) = channel(PreviewMessage::Stop);
@@ -303,6 +342,8 @@ impl Previewer {
                         let mut program = Command::new(iter.next().unwrap());
                         program.args(iter).arg(&cmd);
                         program
+                    } else if let Some(direct) = try_parse_simple_command(&cmd) {
+                        direct
                     } else {
                         Command::from_script(&cmd)
                     };
@@ -658,3 +699,25 @@ fn kill_child(child: &mut Child) {
 //         Self::new(1)
 //     }
 // }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_try_parse_simple_command() {
+        assert!(try_parse_simple_command("bat --color=always file.rs").is_some());
+        assert!(try_parse_simple_command("cat /tmp/test.txt").is_some());
+        assert!(try_parse_simple_command("ls -la src/").is_some());
+        assert!(try_parse_simple_command("   ").is_none());
+
+        // Metacharacters should fall back to shell (return None)
+        assert!(try_parse_simple_command("bat file.rs | grep fn").is_none());
+        assert!(try_parse_simple_command("echo hello > out.txt").is_none());
+        assert!(try_parse_simple_command("cat file && echo ok").is_none());
+        assert!(try_parse_simple_command("echo $VAR").is_none());
+        assert!(try_parse_simple_command("cat `which bat`").is_none());
+        assert!(try_parse_simple_command("echo 'hello world'").is_none());
+        assert!(try_parse_simple_command("echo \"hello world\"").is_none());
+    }
+}

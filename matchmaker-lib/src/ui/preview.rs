@@ -582,7 +582,7 @@ impl PreviewUI {
                             let y = center_y.saturating_sub(crop_h / 2);
                             display_img = img.crop_imm(x, y, crop_w, crop_h);
                         }
-                        let mut picker = picker;
+                        let picker = picker;
                         Some(picker.new_resize_protocol(display_img))
                     } else {
                         None

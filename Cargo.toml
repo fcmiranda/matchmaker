@@ -13,10 +13,17 @@ matchmaker-partial = { path = "./matchmaker-partial" }
 matchmaker-partial-macros = { path = "./matchmaker-partial-macros" }
 nucleo = { git = "https://github.com/Squirreljetpack/nucleo", branch = "mm" }
 
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
+
 # The profile that 'dist' will build with
 [profile.dist]
 inherits = "release"
-lto = "thin"
+lto = "fat"
 
 [workspace.dependencies]
 cli_boilerplate_automation = { version = "0.4.0" }
@@ -26,8 +33,4 @@ matchmaker-partial-macros = { version = "0.0.*", default-features = false }
 
 [workspace.lints.clippy]
 single_match = "allow"
-# 
-# [profile.release]
-# opt-level = 0
-# incremental = true
-# codegen-units = 256
+

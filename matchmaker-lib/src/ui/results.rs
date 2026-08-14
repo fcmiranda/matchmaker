@@ -90,9 +90,28 @@ impl ResultsUI {
         self.hidden_columns = hidden_columns;
     }
 
+    #[inline]
+    fn is_path_in_set(set: &HashSet<String>, col0_name: &str, cwd: &std::path::Path) -> bool {
+        if set.is_empty() || col0_name.is_empty() {
+            return false;
+        }
+        if set.contains(col0_name) {
+            return true;
+        }
+        let path = std::path::Path::new(col0_name);
+        if path.is_absolute() {
+            set.contains(col0_name)
+        } else {
+            let abs_path = cwd.join(path);
+            let s = abs_path.to_string_lossy();
+            set.contains(s.as_ref())
+        }
+    }
+
     /// Return the correct inactive prefix style for a given row.
     ///
     /// Priority: yank (highest) > selected > default.
+    #[inline]
     fn inactive_prefix_style(
         &self,
         col0_name: &str,
@@ -103,35 +122,17 @@ impl ResultsUI {
         if is_spinner {
             return self.config.spinner_style;
         }
-        let is_yanked = if !col0_name.is_empty() {
-            let path = std::path::Path::new(col0_name);
-            let abs_path = if path.is_absolute() {
-                path.to_path_buf()
+        if self.cut_paths.is_empty() && self.yank_paths.is_empty() {
+            return if is_selected {
+                self.config.selected_prefix_style
             } else {
-                cwd.join(path)
+                self.config.prefix_inactive_style
             };
-            self.yank_paths
-                .contains(&abs_path.to_string_lossy().to_string())
-        } else {
-            false
-        };
+        }
 
-        let is_cut = if !col0_name.is_empty() {
-            let path = std::path::Path::new(col0_name);
-            let abs_path = if path.is_absolute() {
-                path.to_path_buf()
-            } else {
-                cwd.join(path)
-            };
-            self.cut_paths
-                .contains(&abs_path.to_string_lossy().to_string())
-        } else {
-            false
-        };
-
-        if is_cut {
+        if Self::is_path_in_set(&self.cut_paths, col0_name, cwd) {
             self.config.cut_prefix_style
-        } else if is_yanked {
+        } else if Self::is_path_in_set(&self.yank_paths, col0_name, cwd) {
             self.config.yank_prefix_style
         } else if is_selected {
             self.config.selected_prefix_style
@@ -140,6 +141,7 @@ impl ResultsUI {
         }
     }
 
+    #[inline]
     fn active_prefix_style(
         &self,
         col0_name: &str,
@@ -150,35 +152,17 @@ impl ResultsUI {
         if is_spinner {
             return self.config.spinner_style;
         }
-        let is_yanked = if !col0_name.is_empty() {
-            let path = std::path::Path::new(col0_name);
-            let abs_path = if path.is_absolute() {
-                path.to_path_buf()
+        if self.cut_paths.is_empty() && self.yank_paths.is_empty() {
+            return if is_selected {
+                self.config.selected_prefix_style
             } else {
-                cwd.join(path)
+                self.config.prefix_style
             };
-            self.yank_paths
-                .contains(&abs_path.to_string_lossy().to_string())
-        } else {
-            false
-        };
+        }
 
-        let is_cut = if !col0_name.is_empty() {
-            let path = std::path::Path::new(col0_name);
-            let abs_path = if path.is_absolute() {
-                path.to_path_buf()
-            } else {
-                cwd.join(path)
-            };
-            self.cut_paths
-                .contains(&abs_path.to_string_lossy().to_string())
-        } else {
-            false
-        };
-
-        if is_cut {
+        if Self::is_path_in_set(&self.cut_paths, col0_name, cwd) {
             self.config.cut_prefix_style
-        } else if is_yanked {
+        } else if Self::is_path_in_set(&self.yank_paths, col0_name, cwd) {
             self.config.yank_prefix_style
         } else if is_selected {
             self.config.selected_prefix_style
