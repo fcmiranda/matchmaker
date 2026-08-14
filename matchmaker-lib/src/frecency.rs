@@ -99,23 +99,13 @@ impl FrecencySnapshot {
         }
 
         let clean = clean_path(path);
+        // 1. Direct exact match in scores table
         if let Some(&score) = self.scores.get(clean) {
             return score;
         }
 
-        let bytes = clean.as_bytes();
-        let idx = bytes
-            .iter()
-            .rposition(|&b| b == b'/' || b == b'\\')
-            .map(|i| i + 1)
-            .unwrap_or(0);
-        let filename = &clean[idx..];
-
-        if let Some(&score) = self.basename_scores.get(filename) {
-            return score;
-        }
-
         let mut buf = [0u8; 1024];
+        // 2. Expand ~/ with self.home and check exact path
         if (clean.starts_with("~/") || clean.starts_with("~\\")) && !self.home.is_empty() {
             let rest = &clean[2..];
             let needed = self.home.len() + 1 + rest.len();
@@ -129,6 +119,7 @@ impl FrecencySnapshot {
                     }
                 }
             }
+        // 3. Resolve relative path against self.cwd and check exact path
         } else if !clean.starts_with('/') && !clean.starts_with('\\') && !self.cwd.is_empty() {
             let needed = self.cwd.len() + 1 + clean.len();
             if needed <= buf.len() {
@@ -143,6 +134,19 @@ impl FrecencySnapshot {
             }
         }
 
+        // 4. Fallback: basename match gets a discounted fraction (25%) so exact path matches strictly dominate
+        let bytes = clean.as_bytes();
+        let idx = bytes
+            .iter()
+            .rposition(|&b| b == b'/' || b == b'\\')
+            .map(|i| i + 1)
+            .unwrap_or(0);
+        let filename = &clean[idx..];
+
+        if let Some(&score) = self.basename_scores.get(filename) {
+            return score / 4;
+        }
+
         0
     }
 
@@ -155,6 +159,20 @@ impl FrecencySnapshot {
         let trimmed = path.trim_end_matches('/').trim_end_matches('\\');
         if self.scores.contains_key(trimmed) {
             return true;
+        }
+        let mut buf = [0u8; 1024];
+        if !trimmed.starts_with('/') && !trimmed.starts_with('\\') && !self.cwd.is_empty() {
+            let needed = self.cwd.len() + 1 + trimmed.len();
+            if needed <= buf.len() {
+                buf[..self.cwd.len()].copy_from_slice(self.cwd.as_bytes());
+                buf[self.cwd.len()] = b'/';
+                buf[self.cwd.len() + 1..needed].copy_from_slice(trimmed.as_bytes());
+                if let Ok(full_str) = std::str::from_utf8(&buf[..needed]) {
+                    if self.scores.contains_key(full_str) {
+                        return true;
+                    }
+                }
+            }
         }
         let bytes = trimmed.as_bytes();
         let idx = bytes
@@ -693,6 +711,61 @@ mod tests {
         // Short suffix match
         let short_suffix = "scripts/run_eval.py";
         assert!(snapshot.get_bonus(short_suffix) > 0);
+
+        let _ = fs::remove_dir_all(&temp_dir);
+        Ok(())
+    }
+
+    #[test]
+    fn test_exact_path_outranks_generic_basename() -> anyhow::Result<()> {
+        let temp_dir = std::env::temp_dir().join("mm_test_frecency_ranking");
+        let _ = fs::remove_dir_all(&temp_dir);
+        let db_path = temp_dir.join("test.redb");
+
+        let store = FrecencyStore::open_at(&db_path)?;
+        let accessed_path = temp_dir
+            .join("github")
+            .join("matchmaker")
+            .join("fecavmi")
+            .join(".agents")
+            .join("skills")
+            .join("skill-creator")
+            .join("scripts")
+            .join("run_eval.py");
+        fs::create_dir_all(accessed_path.parent().unwrap())?;
+        fs::write(&accessed_path, "")?;
+
+        let unaccessed_path = temp_dir
+            .join("github")
+            .join("acpd")
+            .join(".agents")
+            .join("skills")
+            .join("skill-creator")
+            .join("scripts")
+            .join("run_eval.py");
+        fs::create_dir_all(unaccessed_path.parent().unwrap())?;
+        fs::write(&unaccessed_path, "")?;
+
+        store.add(accessed_path.to_str().unwrap())?;
+        let mut snapshot = store.get_snapshot();
+        snapshot.cwd = temp_dir.to_str().unwrap().to_string();
+
+        let rel_accessed = "github/matchmaker/fecavmi/.agents/skills/skill-creator/scripts/run_eval.py";
+        let rel_unaccessed = "github/acpd/.agents/skills/skill-creator/scripts/run_eval.py";
+
+        let accessed_bonus = snapshot.get_bonus(rel_accessed);
+        let unaccessed_bonus = snapshot.get_bonus(rel_unaccessed);
+
+        assert!(accessed_bonus > 0, "Accessed path should have a positive bonus");
+        assert!(
+            accessed_bonus > unaccessed_bonus,
+            "Accessed exact path bonus ({accessed_bonus}) must strictly outrank coincidental basename ({unaccessed_bonus})"
+        );
+        assert_eq!(
+            accessed_bonus,
+            unaccessed_bonus * 4,
+            "Coincidental basename should be discounted by 4x"
+        );
 
         let _ = fs::remove_dir_all(&temp_dir);
         Ok(())
