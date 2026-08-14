@@ -86,7 +86,6 @@ impl FrecencyRecord {
 #[derive(Debug, Clone, Default)]
 pub struct FrecencySnapshot {
     pub scores: FxHashMap<String, u32>,
-    pub basename_scores: FxHashMap<String, u32>,
     pub cwd: String,
     pub home: String,
 }
@@ -94,7 +93,7 @@ pub struct FrecencySnapshot {
 impl FrecencySnapshot {
     #[inline]
     pub fn get_bonus(&self, path: &str) -> u32 {
-        if self.scores.is_empty() && self.basename_scores.is_empty() {
+        if self.scores.is_empty() {
             return 0;
         }
 
@@ -134,26 +133,13 @@ impl FrecencySnapshot {
             }
         }
 
-        // 4. Fallback: basename match gets a discounted fraction (25%) so exact path matches strictly dominate
-        let bytes = clean.as_bytes();
-        let idx = bytes
-            .iter()
-            .rposition(|&b| b == b'/' || b == b'\\')
-            .map(|i| i + 1)
-            .unwrap_or(0);
-        let filename = &clean[idx..];
-
-        if let Some(&score) = self.basename_scores.get(filename) {
-            return score / 4;
-        }
-
         0
     }
 
-    /// Fast zero-allocation check if path or basename has any frecency bonus.
+    /// Fast zero-allocation check if path has any frecency bonus.
     #[inline]
     pub fn has_bonus_fast(&self, path: &str) -> bool {
-        if self.scores.is_empty() && self.basename_scores.is_empty() {
+        if self.scores.is_empty() {
             return false;
         }
         let trimmed = path.trim_end_matches('/').trim_end_matches('\\');
@@ -168,19 +154,11 @@ impl FrecencySnapshot {
                 buf[self.cwd.len()] = b'/';
                 buf[self.cwd.len() + 1..needed].copy_from_slice(trimmed.as_bytes());
                 if let Ok(full_str) = std::str::from_utf8(&buf[..needed]) {
-                    if self.scores.contains_key(full_str) {
-                        return true;
-                    }
+                    return self.scores.contains_key(full_str);
                 }
             }
         }
-        let bytes = trimmed.as_bytes();
-        let idx = bytes
-            .iter()
-            .rposition(|&b| b == b'/' || b == b'\\')
-            .map(|i| i + 1)
-            .unwrap_or(0);
-        self.basename_scores.contains_key(&trimmed[idx..])
+        false
     }
 }
 
@@ -397,7 +375,6 @@ impl FrecencyStore {
     pub fn get_snapshot(&self) -> FrecencySnapshot {
         let mut snapshot = FrecencySnapshot {
             scores: FxHashMap::default(),
-            basename_scores: FxHashMap::default(),
             cwd: std::env::current_dir()
                 .map(|p| p.to_string_lossy().to_string())
                 .unwrap_or_default(),
@@ -420,15 +397,6 @@ impl FrecencyStore {
                             let score = record.calculate_score(now);
                             if score > 0 {
                                 snapshot.scores.insert(key.to_string(), score);
-                                if let Some(name) =
-                                    Path::new(key).file_name().and_then(|n| n.to_str())
-                                {
-                                    snapshot
-                                        .basename_scores
-                                        .entry(name.to_string())
-                                        .and_modify(|s| *s = (*s).max(score))
-                                        .or_insert(score);
-                                }
                             }
                         }
                     }
@@ -699,18 +667,15 @@ mod tests {
         let abs_str = abs_path.to_str().unwrap();
 
         store.add(abs_str)?;
-        let snapshot = store.get_snapshot();
+        let mut snapshot = store.get_snapshot();
+        snapshot.cwd = temp_dir.to_str().unwrap().to_string();
 
         // Exact match
         assert!(snapshot.get_bonus(abs_str) > 0);
 
-        // Relative suffix match
-        let rel_suffix = ".agents/skills/skill-creator/scripts/run_eval.py";
-        assert!(snapshot.get_bonus(rel_suffix) > 0);
-
-        // Short suffix match
-        let short_suffix = "scripts/run_eval.py";
-        assert!(snapshot.get_bonus(short_suffix) > 0);
+        // Relative path resolved against cwd
+        let rel_path = ".agents/skills/skill-creator/scripts/run_eval.py";
+        assert!(snapshot.get_bonus(rel_path) > 0);
 
         let _ = fs::remove_dir_all(&temp_dir);
         Ok(())
@@ -757,14 +722,9 @@ mod tests {
         let unaccessed_bonus = snapshot.get_bonus(rel_unaccessed);
 
         assert!(accessed_bonus > 0, "Accessed path should have a positive bonus");
-        assert!(
-            accessed_bonus > unaccessed_bonus,
-            "Accessed exact path bonus ({accessed_bonus}) must strictly outrank coincidental basename ({unaccessed_bonus})"
-        );
         assert_eq!(
-            accessed_bonus,
-            unaccessed_bonus * 4,
-            "Coincidental basename should be discounted by 4x"
+            unaccessed_bonus, 0,
+            "Unaccessed path must have 0 bonus (no basename pollution)"
         );
 
         let _ = fs::remove_dir_all(&temp_dir);
