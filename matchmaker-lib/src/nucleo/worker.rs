@@ -78,12 +78,13 @@ fn compute_item_score(
     query_len: usize,
     snapshot_ref: Option<&crate::frecency::FrecencySnapshot>,
     frec_weight: u32,
+    location_bias: u32,
     penalty: u32,
 ) -> u64 {
     let base_score = total.saturating_sub(idx as u32) as u64;
     let frecency_bonus = if !is_query_empty {
         snapshot_ref
-            .map(|snap| snap.get_bonus(raw_path) * frec_weight)
+            .map(|snap| snap.get_bonus_with_bias(raw_path, location_bias) * frec_weight)
             .unwrap_or(0) as u64
     } else {
         0
@@ -183,6 +184,8 @@ where
     pub depth_penalty: u32,
     pub frecency: bool,
     pub frecency_weight: u32,
+    pub location_bias: u32,
+    pub frecency_half_life_days: u32,
     pub sort_cap: usize,
     pub frecency_snapshot: Option<crate::frecency::FrecencySnapshot>,
     pub typo_tolerance: bool,
@@ -232,6 +235,8 @@ impl<T: SSS> Worker<T> {
             depth_penalty: 0,
             frecency: false,
             frecency_weight: 1,
+            location_bias: 30,
+            frecency_half_life_days: 7,
             sort_cap: 1000,
             frecency_snapshot: None,
             typo_tolerance: false,
@@ -386,6 +391,7 @@ impl<T: SSS> Worker<T> {
                         query_len,
                         snapshot_ref,
                         frec_weight,
+                        self.location_bias,
                         penalty,
                     );
                     let (tier, _) =
@@ -587,6 +593,7 @@ impl<T: SSS> Worker<T> {
                         query_len,
                         snapshot_ref,
                         frec_weight,
+                        self.location_bias,
                         penalty,
                     );
                     let (tier, _) =

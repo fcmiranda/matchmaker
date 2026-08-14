@@ -156,12 +156,15 @@ impl ConfigMatchmaker {
         worker.depth_penalty = worker_config.depth_penalty;
         worker.frecency = worker_config.frecency;
         worker.frecency_weight = worker_config.frecency_weight;
+        worker.location_bias = worker_config.location_bias;
+        worker.frecency_half_life_days = worker_config.frecency_half_life_days;
         worker.sort_cap = worker_config.sort_cap;
         worker.typo_tolerance = worker_config.typo_tolerance;
         worker.dir_first = worker_config.dir_first;
         if worker_config.frecency {
             let store = crate::frecency::FrecencyStore::open();
-            worker.frecency_snapshot = Some(store.get_snapshot());
+            worker.frecency_snapshot =
+                Some(store.get_snapshot_with_half_life(worker_config.frecency_half_life_days));
         }
 
         let injector = worker.injector();

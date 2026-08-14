@@ -55,30 +55,42 @@ impl FrecencyRecord {
         }
     }
 
-    /// Calculate Frecency Score based on exponential decay weights:
-    /// - Age < 1 hour (3600s): Weight 100
-    /// - Age < 1 day (86400s): Weight 80
-    /// - Age < 1 week (604800s): Weight 40
-    /// - Age < 1 month (2592000s): Weight 20
-    /// - Age >= 1 month: Weight 10
+    /// Calculate Frecency Score based on continuous exponential half-life decay (default 7 days).
     pub fn calculate_score(&self, now: u64) -> u32 {
-        let mut score: u32 = 0;
-        for &ts in &self.timestamps {
-            let age = now.saturating_sub(ts);
-            let weight = if age < 3600 {
-                100
-            } else if age < 86400 {
-                80
-            } else if age < 604800 {
-                40
-            } else if age < 2592000 {
-                20
-            } else {
-                10
-            };
-            score = score.saturating_add(weight);
+        self.calculate_score_with_half_life(now, 7)
+    }
+
+    /// Calculate Frecency Score based on continuous exponential half-life decay.
+    /// If half_life_days == 0, falls back to legacy discrete time buckets (<1h, <1d, <1w, <1mo, >1mo).
+    pub fn calculate_score_with_half_life(&self, now: u64, half_life_days: u32) -> u32 {
+        if half_life_days == 0 {
+            let mut score: u32 = 0;
+            for &ts in &self.timestamps {
+                let age = now.saturating_sub(ts);
+                let weight = if age < 3600 {
+                    100
+                } else if age < 86400 {
+                    80
+                } else if age < 604800 {
+                    40
+                } else if age < 2592000 {
+                    20
+                } else {
+                    10
+                };
+                score = score.saturating_add(weight);
+            }
+            score
+        } else {
+            let half_life_secs = (half_life_days as f64) * 86_400.0;
+            let mut total_score: f64 = 0.0;
+            for &ts in &self.timestamps {
+                let age = now.saturating_sub(ts) as f64;
+                let decay = (-age / half_life_secs).exp2();
+                total_score += 100.0 * decay;
+            }
+            total_score.round() as u32
         }
-        score
     }
 }
 
@@ -93,6 +105,11 @@ pub struct FrecencySnapshot {
 impl FrecencySnapshot {
     #[inline]
     pub fn get_bonus(&self, path: &str) -> u32 {
+        self.get_bonus_with_bias(path, 0)
+    }
+
+    #[inline]
+    pub fn get_bonus_with_bias(&self, path: &str, location_bias: u32) -> u32 {
         if self.scores.is_empty() {
             return 0;
         }
@@ -100,6 +117,11 @@ impl FrecencySnapshot {
         let clean = clean_path(path);
         // 1. Direct exact match in scores table
         if let Some(&score) = self.scores.get(clean) {
+            let is_cwd_child = !self.cwd.is_empty()
+                && (clean.starts_with(&self.cwd) || !clean.starts_with('/'));
+            if is_cwd_child && location_bias > 0 {
+                return score.saturating_add((score as u64 * location_bias as u64 / 100) as u32);
+            }
             return score;
         }
 
@@ -114,6 +136,10 @@ impl FrecencySnapshot {
                 buf[self.home.len() + 1..needed].copy_from_slice(rest.as_bytes());
                 if let Ok(full_str) = std::str::from_utf8(&buf[..needed]) {
                     if let Some(&score) = self.scores.get(clean_path(full_str)) {
+                        let is_cwd_child = !self.cwd.is_empty() && full_str.starts_with(&self.cwd);
+                        if is_cwd_child && location_bias > 0 {
+                            return score.saturating_add((score as u64 * location_bias as u64 / 100) as u32);
+                        }
                         return score;
                     }
                 }
@@ -127,6 +153,9 @@ impl FrecencySnapshot {
                 buf[self.cwd.len() + 1..needed].copy_from_slice(clean.as_bytes());
                 if let Ok(full_str) = std::str::from_utf8(&buf[..needed]) {
                     if let Some(&score) = self.scores.get(clean_path(full_str)) {
+                        if location_bias > 0 {
+                            return score.saturating_add((score as u64 * location_bias as u64 / 100) as u32);
+                        }
                         return score;
                     }
                 }
@@ -371,8 +400,13 @@ impl FrecencyStore {
         }
     }
 
-    /// Load all tracked entries into an in-memory snapshot for sub-millisecond lookup.
+    /// Load all tracked entries into an in-memory snapshot for sub-millisecond lookup (default 7 days half-life).
     pub fn get_snapshot(&self) -> FrecencySnapshot {
+        self.get_snapshot_with_half_life(7)
+    }
+
+    /// Load all tracked entries into an in-memory snapshot with a configurable decay half-life in days.
+    pub fn get_snapshot_with_half_life(&self, half_life_days: u32) -> FrecencySnapshot {
         let mut snapshot = FrecencySnapshot {
             scores: FxHashMap::default(),
             cwd: std::env::current_dir()
@@ -394,7 +428,7 @@ impl FrecencyStore {
                         let key = entry.0.value();
                         let bytes = entry.1.value();
                         if let Some(record) = decode_record(bytes) {
-                            let score = record.calculate_score(now);
+                            let score = record.calculate_score_with_half_life(now, half_life_days);
                             if score > 0 {
                                 snapshot.scores.insert(key.to_string(), score);
                             }
@@ -469,39 +503,34 @@ impl FrecencyStore {
             return Ok(0);
         };
 
-        let mut keys_to_remove = Vec::new();
+        let mut stale_keys = Vec::new();
         if let Ok(read_txn) = db.begin_read() {
             if let Ok(table) = read_txn.open_table(FRECENCY_TABLE) {
                 if let Ok(iter) = table.iter() {
                     for entry in iter.flatten() {
-                        let path_str = entry.0.value();
-                        let p = Path::new(path_str);
+                        let key = entry.0.value();
+                        let p = Path::new(key);
                         if !p.is_absolute() || !p.exists() {
-                            keys_to_remove.push(path_str.to_string());
+                            stale_keys.push(key.to_string());
                         }
                     }
                 }
             }
         }
 
-        if keys_to_remove.is_empty() {
+        if stale_keys.is_empty() {
             return Ok(0);
         }
 
         let write_txn = db.begin_write()?;
-        let removed_count = {
+        {
             let mut table = write_txn.open_table(FRECENCY_TABLE)?;
-            let mut count = 0;
-            for key in &keys_to_remove {
-                if table.remove(key.as_str())?.is_some() {
-                    count += 1;
-                }
+            for key in &stale_keys {
+                let _ = table.remove(key.as_str())?;
             }
-            count
-        };
-
+        }
         write_txn.commit()?;
-        Ok(removed_count)
+        Ok(stale_keys.len())
     }
 
     /// Removes a specific path entry from the frecency database. Returns true if key was present.
@@ -551,18 +580,18 @@ mod tests {
 
     #[test]
     fn test_frecency_score_decay() {
-        let now = 1_000_000;
+        let now = 10_000_000;
         let mut rec = FrecencyRecord::new("foo.txt".into());
         rec.record_access(now);
         assert_eq!(rec.calculate_score(now), 100);
 
-        // 2 hours later (7200s) -> weight 80
-        rec.timestamps.push(now - 7200);
-        assert_eq!(rec.calculate_score(now), 180);
+        // 7 days ago (604800s) -> decayed by exactly 50% = 50 pts (total: 150)
+        rec.timestamps.push(now - 604_800);
+        assert_eq!(rec.calculate_score(now), 150);
 
-        // 3 days ago -> weight 40
-        rec.timestamps.push(now - 3 * 86400);
-        assert_eq!(rec.calculate_score(now), 220);
+        // 14 days ago -> decayed by 75% = 25 pts (total: 175)
+        rec.timestamps.push(now - 2 * 604_800);
+        assert_eq!(rec.calculate_score(now), 175);
     }
 
     #[test]
@@ -729,5 +758,47 @@ mod tests {
 
         let _ = fs::remove_dir_all(&temp_dir);
         Ok(())
+    }
+
+    #[test]
+    fn test_location_bias_boost() -> anyhow::Result<()> {
+        let temp_dir = std::env::temp_dir().join("mm_test_location_bias");
+        let _ = fs::remove_dir_all(&temp_dir);
+        let db_path = temp_dir.join("test.redb");
+
+        let store = FrecencyStore::open_at(&db_path)?;
+        let local_file = temp_dir.join("local_file.rs");
+        fs::create_dir_all(&temp_dir)?;
+        fs::write(&local_file, "")?;
+
+        store.add(local_file.to_str().unwrap())?;
+        let mut snapshot = store.get_snapshot();
+        snapshot.cwd = temp_dir.to_str().unwrap().to_string();
+
+        let base_bonus = snapshot.get_bonus_with_bias("local_file.rs", 0);
+        let biased_bonus = snapshot.get_bonus_with_bias("local_file.rs", 30);
+
+        assert!(base_bonus > 0);
+        assert_eq!(
+            biased_bonus,
+            base_bonus + (base_bonus * 30 / 100),
+            "Location bias +30% should apply to CWD local paths"
+        );
+
+        let _ = fs::remove_dir_all(&temp_dir);
+        Ok(())
+    }
+
+    #[test]
+    fn test_legacy_discrete_half_life_0() {
+        let now = 1_000_000;
+        let mut rec = FrecencyRecord::new("legacy.txt".into());
+        rec.record_access(now);
+        // Discrete bucket < 1h -> weight 100
+        assert_eq!(rec.calculate_score_with_half_life(now, 0), 100);
+
+        // 2 hours ago -> weight 80 in legacy mode
+        rec.timestamps.push(now - 7200);
+        assert_eq!(rec.calculate_score_with_half_life(now, 0), 180);
     }
 }

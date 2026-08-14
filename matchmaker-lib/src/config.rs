@@ -78,6 +78,12 @@ pub struct WorkerConfig {
     pub track: bool,
     /// Reverse the order of the input
     pub reverse: bool, // TODO: test with sort_threshold
+    /// Percentage bonus boost for items located inside or relative to current working directory (CWD). Default is 30 (i.e. +30%).
+    #[partial(alias = "lb")]
+    pub location_bias: u32,
+    /// Half-life in days for continuous exponential frecency decay. Default is 7 days (0 switches to legacy discrete buckets).
+    #[partial(alias = "hl")]
+    pub frecency_half_life_days: u32,
 }
 
 impl Default for WorkerConfig {
@@ -93,6 +99,8 @@ impl Default for WorkerConfig {
             raw: false,
             track: false,
             reverse: false,
+            location_bias: 30,
+            frecency_half_life_days: 7,
         }
     }
 }
