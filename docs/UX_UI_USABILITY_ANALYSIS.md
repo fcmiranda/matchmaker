@@ -210,9 +210,46 @@ A auditoria revelou fricções que impactam a fluidez absoluta (*Zero-Friction M
 
 ---
 
-### Fricção 4: O Abismo de Execução no Ciclo de Saída do Shell (`cd` on Exit)
-- **O Problema:** A ação primária de um usuário ao rodar um comando de salto (`j` ou `z`) é **mudar o diretório de trabalho do terminal shell ativo** ao pressionar `Enter`.
-- **Situação:** Como processos filhos não podem alterar o diretório de trabalho do shell pai diretamente em sistemas POSIX, o `matchmaker` depende de aliases ou flags externas. Sem o wrapper do shell, o processo apenas encerra sem alterar o shell, quebrando a expectativa fundamental do utilitário.
+### Fricção 4: O Abismo de Execução no Ciclo de Saída do Shell (`cd` on Exit) — Solução & Padrão de Referência
+- **O Desafio Clássico em POSIX:** Processos filhos (`mm`) não podem alterar o diretório de trabalho do shell pai (`zsh`/`bash`) diretamente.
+- **A Solução de Alta Performance Existente no Workflow (`_smart_tab` + `_jump_widget`):** No ambiente do usuário (`binds.zsh`), este gargalo foi superado com maestria através de um widget ZLE (`_smart_tab`) acionado pela tecla `Tab` quando o buffer está vazio:
+  ```zsh
+  # Trecho de ~/.dotfiles/main/zsh/.zsh/utils/binds.zsh
+  _jump_widget() {
+      zle -I 2>/dev/null || true
+      local result
+      result=$(mm --no-read -o jump)
+      local exit_code=$?
+
+      if [[ -n "$result" ]]; then
+          if [[ $exit_code -eq 2 ]]; then
+              LBUFFER+="$result"
+          elif [[ -d "$result" ]]; then
+              cd "$result"
+          else
+              LBUFFER+="$result"
+          fi
+      fi
+      zle reset-prompt
+  }
+  zle -N _jump_widget
+
+  _smart_tab() {
+      if [[ -z "$BUFFER" ]]; then
+          zle _jump_widget          # Linha vazia -> Jump instantâneo no Tab
+      elif [[ -n "$POSTDISPLAY" ]]; then
+          zle autosuggest-accept     # Ghost text presente -> Aceita sugestão
+      else
+          zle expand-or-complete     # Texto presente -> Completar
+      fi
+  }
+  zle -N _smart_tab
+  bindkey '^I' _smart_tab           # Single Tab Inteligente
+  ```
+- **Avaliação de UX deste Padrão:** Trata-se do **estado da arte em Zero Friction**:
+  1. *Zero Mental Overload:* Pressionar `Tab` com o prompt vazio entra instantaneamente no Matchmaker sem digitar nenhum comando ou prefixo (`j`, `z`, `mm`).
+  2. *Retorno Automático:* Selecionar uma pasta faz o `cd` imediatamente; selecionar um arquivo insere o caminho no `LBUFFER` para composição de comandos.
+- **Oportunidade para o Projeto:** Padronizar e oficializar este snippet exato no comando `mm --init zsh` para que todos os usuários do ecossistema Matchmaker tenham essa mesma experiência de fricção zero por padrão.
 
 ---
 
@@ -239,8 +276,8 @@ A auditoria revelou fricções que impactam a fluidez absoluta (*Zero-Friction M
 │ 3. Progressive           │ Preview minimalista em    │ Redução de carga cognitiva     │
 │    Disclosure            │ pasta e expansão sob foco │ extrínseca (Rams)              │
 ├──────────────────────────┼───────────────────────────┼────────────────────────────────┤
-│ 4. Wrapper Nativo        │ Função shell oficial      │ Zero fricção no ciclo de vida  │
-│    `mm --shell-init`     │ com persistência de `cwd` │ do comando `cd`                │
+│ 4. Official Smart Tab    │ Gerador nativo com o      │ Zero fricção no ciclo de vida  │
+│    Shell Init (`_smart_tab`)│ padrão `binds.zsh`     │ do comando `cd` (1-key Tab)    │
 ├──────────────────────────┼───────────────────────────┼────────────────────────────────┤
 │ 5. High-Contrast Focus   │ Mudança de cor do bloco   │ Processamento pré-atentivo do  │
 │    Indication            │ ativo ao alternar foco    │ estado modal da interface      │
@@ -339,21 +376,45 @@ percentage = 45
 
 ---
 
-### Proposta 4: Integração Nativa de Shell (`mm --init zsh/bash/fish`)
-Disponibilizar no binário `matchmaker-cli` uma flag de inicialização transparente para o arquivo de configuração do usuário (`.zshrc` / `.bashrc`):
+### Proposta 4: Integração Nativa de Shell (`mm --init zsh/bash/fish`) com Padrão Smart Tab
+Oficializar e disponibilizar no binário `matchmaker-cli` uma flag de inicialização transparente que injete o padrão ZLE `_smart_tab` com fallback automático de autossugestão e complementação:
 
 ```bash
 # Adicionar ao ~/.zshrc:
 eval "$(mm --init zsh)"
 
-# Função gerada:
-j() {
-    local target
-    target=$(mm -o jump "$@")
-    if [ -n "$target" ] && [ -d "$target" ]; then
-        cd "$target" || return
+# Script gerado automaticamente pelo mm:
+_mm_jump_widget() {
+    zle -I 2>/dev/null || true
+    local result
+    result=$(mm --no-read -o jump)
+    local exit_code=$?
+
+    if [[ -n "$result" ]]; then
+        if [[ $exit_code -eq 2 ]]; then
+            LBUFFER+="$result"
+        elif [[ -d "$result" ]]; then
+            cd "$result"
+        else
+            LBUFFER+="$result"
+        fi
+    fi
+    zle reset-prompt
+}
+zle -N _mm_jump_widget
+
+_mm_smart_tab() {
+    if [[ -z "$BUFFER" ]]; then
+        zle _mm_jump_widget
+    elif [[ -n "$POSTDISPLAY" ]]; then
+        zle autosuggest-accept
+    else
+        zle expand-or-complete
     fi
 }
+zle -N _mm_smart_tab
+bindkey '^I' _mm_smart_tab
+bindkey '^T' _mm_jump_widget
 ```
 
 ---
