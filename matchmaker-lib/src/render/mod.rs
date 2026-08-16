@@ -2099,7 +2099,8 @@ fn render_nav_hints(frame: &mut Frame, area: Rect, is_basic: bool) {
             ("[Tab]", "Filter", Color::Cyan),
             ("[j/k]", "Move", Color::Yellow),
             ("[h/l]", "Up/Dir", Color::Yellow),
-            ("[J/K]", "Preview", Color::Blue),
+            ("[p]", "Toggle", Color::Magenta),
+            ("[J/K]", "Scroll", Color::Blue),
         ]
     } else {
         &[
@@ -2114,6 +2115,7 @@ fn render_nav_hints(frame: &mut Frame, area: Rect, is_basic: bool) {
             ("[z/Z]", "Zip/Unzip", Color::Blue),
             ("[D]", "Drag", Color::Magenta),
             ("[P]", "Pane", Color::Cyan),
+            ("[C-p]", "Toggle", Color::Blue),
         ]
     };
 

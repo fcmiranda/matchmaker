@@ -53,6 +53,7 @@ percentage = 50
 "ctrl-f" = "@reloadnext"
 "ctrl-j" = "Down"
 "ctrl-k" = "Up"
+"ctrl-p" = "SwitchPreview"
 "@ancestor_jump" = '''Transform(
     curr="$(pwd)"
     parents=""
@@ -73,6 +74,8 @@ percentage = 50
 "f" = "@reloadnext"
 "l" = ["ChDir({=})", "@reload_local"]
 "h" = ["ChDir(..)", "@reload_local"]
+"p" = "SwitchPreview"
+"ctrl-p" = "SwitchPreview"
 "alt-u" = "@ancestor_jump"
 
 [breadcrumb]
