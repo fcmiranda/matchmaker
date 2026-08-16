@@ -22,11 +22,21 @@ Jump Mode is designed for instant shell directory switching (`j <keyword>`) and 
 
 ## 2. Key Features & Navigation UX
 
-### Instant Interactive Traversal (`l` & `h`)
+### Instant Interactive & Seamless Traversal (`l`, `h`, `ctrl-l`, `ctrl-h`)
 Unlike traditional fuzzy finders where picking an item terminates the session:
-- Press **`l`**: Enters the highlighted directory (`ChDir({=})`), immediately refreshing the view for subfolder exploration.
-- Press **`h`**: Navigates up to the parent directory (`ChDir(..)`) .
-- Press **`Enter`**: Accepts the selected directory, automatically records it to the `frecency` database, and changes your shell working directory upon exit.
+- **`l` / `ctrl-l`**: Enters the highlighted directory (`ChDir({=})`), clears the filter query, and reloads the view for subfolder exploration. `ctrl-l` works seamlessly directly from the filter input without pressing `Tab`.
+- **`h` / `ctrl-h`**: Navigates up to the parent directory (`ChDir(..)`), clears the filter query, and reloads.
+- **`Enter`**: Accepts the selected directory, automatically records it to the `frecency` database, and changes your shell working directory upon exit.
+
+### Ancestor Jump (`ctrl-u` / `u`)
+Instantly generates and loads the upward ancestor directory hierarchy (from current directory up to `/`).
+
+> [!TIP]
+> #### 🌟 Where Ancestor Jump Shines:
+> - **Monorepos & Deep Directory Trees**: When you are 5+ levels deep (e.g., `~/dev/github/matchmaker/matchmaker-lib/src/render/widgets/`) and need to jump straight to the repository root (`~/dev/github/matchmaker/`) in 1 step without hitting `h` or typing `cd ..` multiple times.
+> - **Sister Project Switching**: Ascend directly to a common root directory (e.g. `~/dev/github/` or `~/dev/`) to jump across distinct projects within the same Matchmaker session.
+> - **Visual Context Inspection**: Audits parent directories using the live tree preview panel before selecting and jumping.
+> - **Ergonomic Hotkeys**: Accessible via `ctrl-u` while typing in the filter or `u` in navigation mode.
 
 ### Hybrid Source Switching (`f` / `ctrl-f` / `@reloadnext`)
 Jump Mode allows cycling between input sources on the fly using `f` or `ctrl-f`:
