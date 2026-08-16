@@ -12,6 +12,11 @@ enabled = true
 [ui.parent_peek.border]
 show = false
 
+[footer]
+style.fg = "DarkGray"
+style.modifier = "DIM"
+match_indent = false
+
 [query]
 status_inline = true
 
@@ -54,29 +59,20 @@ percentage = 50
 "ctrl-j" = "Down"
 "ctrl-k" = "Up"
 "ctrl-p" = "SwitchPreview"
-"@ancestor_jump" = '''Transform(
-    curr="$(pwd)"
-    parents=""
-    while [ "$curr" != "/" ] && [ -n "$curr" ]; do
-        curr="$(dirname "$curr")"
-        parents="$parents $curr"
-    done
-    if command -v mm >/dev/null 2>&1; then
-        target=$(echo "$parents" | tr ' ' '\n' | grep -v '^$' | mm --prompt="Parent > " || true)
-        if [ -n "$target" ]; then
-            echo "ChDir($target)"
-            echo "Reload"
-        fi
-    fi
-)'''
+"ctrl-l" = ["ChDir({=})", "Cancel", "Reload", "Pos(0)"]
+"ctrl-h" = ["ChDir(..)", "Cancel", "Reload", "Pos(0)"]
+"ctrl-u" = ["Reload(curr=\"$(pwd)\"; while [ \"$curr\" != \"/\" ] && [ -n \"$curr\" ]; do curr=\"$(dirname \"$curr\")\"; echo \"$curr\"; done)", "Cancel", "Pos(0)"]
 
 [ui.nav_binds]
 "f" = "@reloadnext"
-"l" = ["ChDir({=})", "@reload_local"]
-"h" = ["ChDir(..)", "@reload_local"]
+"l" = ["ChDir({=})", "Cancel", "Reload", "Pos(0)"]
+"h" = ["ChDir(..)", "Cancel", "Reload", "Pos(0)"]
+"ctrl-l" = ["ChDir({=})", "Cancel", "Reload", "Pos(0)"]
+"ctrl-h" = ["ChDir(..)", "Cancel", "Reload", "Pos(0)"]
 "p" = "SwitchPreview"
 "ctrl-p" = "SwitchPreview"
-"alt-u" = "@ancestor_jump"
+"u" = ["Reload(curr=\"$(pwd)\"; while [ \"$curr\" != \"/\" ] && [ -n \"$curr\" ]; do curr=\"$(dirname \"$curr\")\"; echo \"$curr\"; done)", "Cancel", "Pos(0)"]
+"ctrl-u" = ["Reload(curr=\"$(pwd)\"; while [ \"$curr\" != \"/\" ] && [ -n \"$curr\" ]; do curr=\"$(dirname \"$curr\")\"; echo \"$curr\"; done)", "Cancel", "Pos(0)"]
 
 [breadcrumb]
 show = true

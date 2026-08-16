@@ -2099,6 +2099,7 @@ fn render_nav_hints(frame: &mut Frame, area: Rect, is_basic: bool) {
             ("[Tab]", "Filter", Color::Cyan),
             ("[j/k]", "Move", Color::Yellow),
             ("[h/l]", "Up/Dir", Color::Yellow),
+            ("[C-h/l]", "Trav", Color::Green),
             ("[p]", "Toggle", Color::Magenta),
             ("[J/K]", "Scroll", Color::Blue),
         ]

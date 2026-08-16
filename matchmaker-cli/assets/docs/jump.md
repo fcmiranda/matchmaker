@@ -102,14 +102,24 @@ percentage = 80
 
 [binds]
 "@reloadnext" = "ReloadNext"
-"ctrl-z" = "@reloadnext"
+"ctrl-f" = "@reloadnext"
 "ctrl-j" = "Down"
 "ctrl-k" = "Up"
+"ctrl-p" = "SwitchPreview"
+"ctrl-l" = ["ChDir({=})", "Cancel", "Reload", "Pos(0)"]
+"ctrl-h" = ["ChDir(..)", "Cancel", "Reload", "Pos(0)"]
+"ctrl-u" = ["Reload(curr=\"$(pwd)\"; while [ \"$curr\" != \"/\" ] && [ -n \"$curr\" ]; do curr=\"$(dirname \"$curr\")\"; echo \"$curr\"; done)", "Cancel", "Pos(0)"]
 
 [ui.nav_binds]
-"ctrl-z" = "@reloadnext"
-"l" = ["ChDir({=})", "@reload_local"]
-"h" = ["ChDir(..)", "@reload_local"]
+"f" = "@reloadnext"
+"l" = ["ChDir({=})", "Cancel", "Reload", "Pos(0)"]
+"h" = ["ChDir(..)", "Cancel", "Reload", "Pos(0)"]
+"ctrl-l" = ["ChDir({=})", "Cancel", "Reload", "Pos(0)"]
+"ctrl-h" = ["ChDir(..)", "Cancel", "Reload", "Pos(0)"]
+"p" = "SwitchPreview"
+"ctrl-p" = "SwitchPreview"
+"u" = ["Reload(curr=\"$(pwd)\"; while [ \"$curr\" != \"/\" ] && [ -n \"$curr\" ]; do curr=\"$(dirname \"$curr\")\"; echo \"$curr\"; done)", "Cancel", "Pos(0)"]
+"ctrl-u" = ["Reload(curr=\"$(pwd)\"; while [ \"$curr\" != \"/\" ] && [ -n \"$curr\" ]; do curr=\"$(dirname \"$curr\")\"; echo \"$curr\"; done)", "Cancel", "Pos(0)"]
 
 [breadcrumb]
 show = true
