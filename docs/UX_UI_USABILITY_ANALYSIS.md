@@ -117,9 +117,13 @@ style.fg = "Cyan"
 
 [ui.nav_binds]
 "f" = "@reloadnext"
-"l" = ["ChDir({=})", "@reload_local"]
-"h" = ["ChDir(..)", "@reload_local"]
-"alt-u" = "@ancestor_jump"
+"l" = ["ChDir({=})", "Cancel", "Reload", "Pos(0)"]
+"h" = ["ChDir(..)", "Cancel", "Reload", "Pos(0)"]
+"ctrl-l" = ["ChDir({=})", "Cancel", "Reload", "Pos(0)"]
+"ctrl-h" = ["ChDir(..)", "Cancel", "Reload", "Pos(0)"]
+"ctrl-p" = "SwitchPreview"
+"u" = ["Reload(curr=\"$(pwd)\"; while [ \"$curr\" != \"/\" ] && [ -n \"$curr\" ]; do curr=\"$(dirname \"$curr\")\"; echo \"$curr\"; done)", "Cancel", "Pos(0)"]
+"ctrl-u" = ["Reload(curr=\"$(pwd)\"; while [ \"$curr\" != \"/\" ] && [ -n \"$curr\" ]; do curr=\"$(dirname \"$curr\")\"; echo \"$curr\"; done)", "Cancel", "Pos(0)"]
 ```
 
 ### Análise do Fluxo de Trabalho (Task Flow):
@@ -364,15 +368,31 @@ percentage = 45
 [binds]
 "@reloadnext" = "ReloadNext"
 "ctrl-f" = "@reloadnext"
-"alt-l" = ["ChDir({=})", "Cancel", "@reload_local"]
-"alt-h" = ["ChDir(..)", "Cancel", "@reload_local"]
+"ctrl-j" = "Down"
+"ctrl-k" = "Up"
+"ctrl-p" = "SwitchPreview"
+"ctrl-l" = ["ChDir({=})", "Cancel", "Reload", "Pos(0)"]
+"ctrl-h" = ["ChDir(..)", "Cancel", "Reload", "Pos(0)"]
+"ctrl-u" = ["Reload(curr=\"$(pwd)\"; while [ \"$curr\" != \"/\" ] && [ -n \"$curr\" ]; do curr=\"$(dirname \"$curr\")\"; echo \"$curr\"; done)", "Cancel", "Pos(0)"]
 
 [ui.nav_binds]
 "f" = "@reloadnext"
-"l" = ["ChDir({=})", "Cancel", "@reload_local"]
-"h" = ["ChDir(..)", "Cancel", "@reload_local"]
-"alt-u" = "@ancestor_jump"
+"l" = ["ChDir({=})", "Cancel", "Reload", "Pos(0)"]
+"h" = ["ChDir(..)", "Cancel", "Reload", "Pos(0)"]
+"ctrl-l" = ["ChDir({=})", "Cancel", "Reload", "Pos(0)"]
+"ctrl-h" = ["ChDir(..)", "Cancel", "Reload", "Pos(0)"]
+"p" = "SwitchPreview"
+"ctrl-p" = "SwitchPreview"
+"u" = ["Reload(curr=\"$(pwd)\"; while [ \"$curr\" != \"/\" ] && [ -n \"$curr\" ]; do curr=\"$(dirname \"$curr\")\"; echo \"$curr\"; done)", "Cancel", "Pos(0)"]
+"ctrl-u" = ["Reload(curr=\"$(pwd)\"; while [ \"$curr\" != \"/\" ] && [ -n \"$curr\" ]; do curr=\"$(dirname \"$curr\")\"; echo \"$curr\"; done)", "Cancel", "Pos(0)"]
 ```
+
+> [!TIP]
+> #### 🌟 Onde o Ancestor Jump (`Ctrl+U` / `u`) Brilha:
+> - **Monorepos & Hierarquias Profundas**: Pular múltiplos níveis de diretórios aninhados diretamente para a raiz do repositório em 1 passo, sem apertar `h` ou `cd ..` repetidamente.
+> - **Troca Rápida de Projetos Irmãos**: Subir até uma raiz compartilhada (`~/dev/github/` ou `~/dev/`) para transicionar entre repositórios sem sair da sessão.
+> - **Auditoria com Preview**: Enquanto navega pelas pastas pai com `j/k`, o painel de preview da direita mostra a árvore de arquivos de cada nível antes do salto.
+> - **Design Sem Fricção**: Acesso em ambos os modos através de `Ctrl+U` (durante digitação) ou tecla única `u` (na navegação).
 
 ---
 

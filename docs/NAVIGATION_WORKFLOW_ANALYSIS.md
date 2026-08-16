@@ -25,6 +25,9 @@ No `matchmaker`, a flag `--nav` (antigo `--ui-fm`) transforma o filtro fuzzy tra
   - `y` / `x` / `p`: Copiar / Recortar / Colar
   - `z` / `Z`: Compactar / Descompactar arquivos (Zip, Tar.gz, Tar.bz2, Tar.xz)
   - `l` / `h`: Entrar no diretório selecionado (`ChDir("{=}") + Reload`) / Subir diretório (`ChDir("..") + Reload`)
+  - `Ctrl+l` / `Ctrl+h` (**Seamless Traversal**): Entrar ou subir diretórios instantaneamente a partir de **ambos os focos** (Input ou Results), limpando a busca e recarregando o diretório sem necessidade de alternar com `Tab`.
+  - `Ctrl+u` / `u` (**Ancestor Jump**): Gera e carrega a árvore hierárquica ascendente de pastas (do diretório atual até `/`) para salto direto em 1 passo:
+    - *Onde brilha*: Monorepos profundos (subir 5 níveis instantaneamente para a raiz), alternância rápida entre projetos irmãos sob uma pasta mãe comum (`~/dev/github/`), e auditoria contextual com o painel de preview ativo.
 
 ---
 
