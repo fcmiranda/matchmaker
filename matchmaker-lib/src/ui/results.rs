@@ -339,7 +339,7 @@ impl ResultsUI {
 
     // ------- RENDERING ----------
     pub fn indentation(&self) -> usize {
-        self.config.multi_prefix.width() + if self.config.icons { 2 } else { 0 }
+        self.config.multi_prefix.width() + if self.config.icons { 3 } else { 0 }
     }
     pub fn col(&self) -> Option<usize> {
         self.col
@@ -1877,7 +1877,7 @@ fn insert_icon_span(
     } else {
         ratatui::style::Style::default().fg(color)
     };
-    let icon_span = ratatui::text::Span::styled(format!("{icon} "), style);
+    let icon_span = ratatui::text::Span::styled(format!(" {icon} "), style);
     let index = if has_nav_bar { 2 } else { 1 };
     for line in col.lines.iter_mut() {
         line.spans
