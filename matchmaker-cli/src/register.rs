@@ -38,7 +38,9 @@ impl<T: SSS, S: Selection + 'static> Matchmaker<T, S> {
 
                 if let Some(mut child) = Command::from_script(&cmd)
                     .envs(vars)
-                    .stdin(maybe_tty())
+                    .stdin(maybe_tty_in())
+                    .stdout(maybe_tty_out())
+                    .stderr(maybe_tty_out())
                     ._spawn()
                 {
                     match child.wait() {
@@ -92,7 +94,9 @@ impl<T: SSS, S: Selection + 'static> Matchmaker<T, S> {
 
                 if let Some(mut _child) = Command::from_script(&cmd)
                     .envs(vars)
-                    .stdin(maybe_tty())
+                    .stdin(maybe_tty_in())
+                    .stdout(maybe_tty_out())
+                    .stderr(maybe_tty_out())
                     ._spawn()
                 {
                     // match child.wait() {
@@ -109,12 +113,20 @@ impl<T: SSS, S: Selection + 'static> Matchmaker<T, S> {
     }
 }
 
-fn maybe_tty() -> Stdio {
+fn maybe_tty_in() -> Stdio {
     if let Ok(tty) = std::fs::File::open("/dev/tty") {
-        // let _ = std::io::Write::flush(&mut tty); // does nothing but seems logical
         Stdio::from(tty)
     } else {
-        log::error!("Failed to open /dev/tty");
+        log::error!("Failed to open /dev/tty for stdin");
+        Stdio::inherit()
+    }
+}
+
+fn maybe_tty_out() -> Stdio {
+    if let Ok(tty) = std::fs::OpenOptions::new().write(true).open("/dev/tty") {
+        Stdio::from(tty)
+    } else {
+        log::error!("Failed to open /dev/tty for stdout");
         Stdio::inherit()
     }
 }
