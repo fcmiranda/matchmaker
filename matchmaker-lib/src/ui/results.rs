@@ -1877,11 +1877,13 @@ fn insert_icon_span(
     } else {
         ratatui::style::Style::default().fg(color)
     };
-    let icon_span = ratatui::text::Span::styled(format!(" {icon} "), style);
+    let icon_span = ratatui::text::Span::styled(format!("{icon}"), style);
     let index = if has_nav_bar { 2 } else { 1 };
     for line in col.lines.iter_mut() {
-        line.spans
-            .insert(index.min(line.spans.len()), icon_span.clone());
+        let at = index.min(line.spans.len());
+        line.spans.insert(at, ratatui::text::Span::raw(" "));
+        line.spans.insert(at + 1, icon_span.clone());
+        line.spans.insert(at + 2, ratatui::text::Span::raw(" "));
     }
 }
 
