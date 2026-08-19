@@ -441,46 +441,16 @@ impl ResultsUI {
         let end = self.bottom + self.height as u32;
         let as_cols = !self.config.stacked_columns;
 
-        let get_border_char = |is_first: bool,
-                               is_last: bool,
+        let get_border_char = |_is_first: bool,
+                               _is_last: bool,
                                border_type: ratatui::widgets::BorderType|
          -> &'static str {
             match border_type {
-                ratatui::widgets::BorderType::Plain | ratatui::widgets::BorderType::Rounded => {
-                    if is_first && is_last {
-                        "│"
-                    } else if is_first {
-                        "╷"
-                    } else if is_last {
-                        "╵"
-                    } else {
-                        "│"
-                    }
-                }
+                ratatui::widgets::BorderType::Plain | ratatui::widgets::BorderType::Rounded => "│",
                 ratatui::widgets::BorderType::Double => "║",
-                ratatui::widgets::BorderType::Thick
-                | ratatui::widgets::BorderType::QuadrantOutside => {
-                    if is_first && is_last {
-                        "▌"
-                    } else if is_first {
-                        "▖"
-                    } else if is_last {
-                        "▘"
-                    } else {
-                        "▌"
-                    }
-                }
-                ratatui::widgets::BorderType::QuadrantInside => {
-                    if is_first && is_last {
-                        "▐"
-                    } else if is_first {
-                        "▗"
-                    } else if is_last {
-                        "▝"
-                    } else {
-                        "▐"
-                    }
-                }
+                ratatui::widgets::BorderType::Thick => "█",
+                ratatui::widgets::BorderType::QuadrantOutside => "▌",
+                ratatui::widgets::BorderType::QuadrantInside => "▐",
                 _ => "│",
             }
         };
