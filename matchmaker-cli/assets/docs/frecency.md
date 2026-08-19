@@ -39,12 +39,14 @@ Setting `frecency_half_life_days = 0` re-enables the legacy discrete 5-bucket we
 
 ---
 
-## 3. Automatic Recording on Selection & Navigation
+## 3. Automatic Recording on Selection, Execution & Navigation
 
-When `frecency = true` (or `--frecency` / `-f`) is enabled (such as in **Jump Mode** `mm -o jump` or shell integration `j` / `z`):
-- **Automatic Selection Tracking**: Whenever you select/accept a directory or file in navigation mode (`nav_mode = true`) or hit `Enter`/`@accept` to pick a path, Matchmaker automatically records access via `FrecencyStore::add()`.
-- **Dynamic Score Growth**: Every selection increases the path's access count, updates its `last_accessed` timestamp, and boosts its frecency score, making frequently visited directories naturally climb to the top of future searches.
-- **Intentional vs Transient Selection**: Navigation hops (`ChDir` with `l`/`h`) do not pollute intermediate paths; only deliberate selection actions commit access.
+When `frecency = true` (or `--frecency` / `-f`) is enabled (such as in **Jump Mode** `mm -o jump`, the default config, or shell integrations `j` / `z`):
+- **Automatic Selection & Accept Tracking**: Whenever you select/accept a directory or file in navigation mode (`nav_mode = true`) or hit `Enter`/`@accept` to pick a path, Matchmaker automatically records access via `FrecencyStore::add()`.
+- **Automatic Execution & Editor Tracking**: Whenever items are opened or executed via `Execute` (e.g. `e` / `Ctrl+E` with `Execute(nvim {+})`), `ExecuteAndQuit`, or `Become`, Matchmaker automatically registers all opened files/directories into the frecency database.
+- **Multi-Selection Tracking**: When multiple items are selected (using <kbd>Tab</kbd>), every selected path is automatically tracked and boosted in the frecency database.
+- **Dynamic Score Growth**: Every access increases the path's access count, updates its `last_accessed` timestamp, and boosts its frecency score, making frequently visited and edited files and directories naturally climb to the top of future searches.
+- **Intentional vs Transient Selection**: Navigation hops (`ChDir` with `l`/`h`) do not pollute intermediate paths; only deliberate selection and execution actions commit access.
 
 ---
 

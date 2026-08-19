@@ -189,6 +189,14 @@ All colors and modifiers come from ratatui:
 - `unselected_prefix_style`, `unselected_prefix`: [Style Settings](#style-settings) for the unselected prefix marker.
 - `spinner_style`: [Style Settings](#style-settings) for the animated spinner.
 - `row_connection`: `Disjoint`, `Capped`, or `Full`. Controls how current item styles apply across the row.
+- `icons`: (bool) Prepend file-type Nerd Font icons before the first column text.
+- `uncolor_current_icon`: (bool) Whether file icons on the cursor/focused row lose individual color to match the line selection style (Yazi parity).
+- `invert_current_icon`: (bool) Whether file icons on the cursor/focused row invert their colors (e.g. Blue <-> Yellow, Red <-> Cyan).
+- `current_icon_style`: [Style Settings](#style-settings) Custom style override for the icon glyph on the focused row.
+- `current_nav_bar`: `Plain` (│), `Thick` (█), `Double` (║), `Rounded` (│), `QuadrantOutside` (▌), `QuadrantInside` (▐). Independent border thickness/character override for the navigation bar cell on the focused row.
+- `current_nav_bar_style`: [Style Settings](#style-settings) Custom style (fg, bg, modifier) override for the navigation bar cell on the focused row.
+- `symlink_target`: (bool) Append symlink target text (`-> destination`) to the first column.
+- `symlink_target_style`: [Style Settings](#style-settings) for the appended symlink target text.
 - `scroll_wrap`: (bool) Wrap selection when reaching the end of the list.
 - `scroll_padding`: (number) Number of items to keep visible above/below the selection.
 - `r`, `reverse`: (When) When to reverse the list order (`Always`, `Never`, `Auto`).

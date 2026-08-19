@@ -1,3 +1,17 @@
+## [Unreleased]
+
+### 🚀 Features
+
+- Add `current_nav_bar` and `current_nav_bar_style` for independent focused navbar cell styling
+- Render full solid block (`█`) for `Thick` navbar border and eliminate partial half-height cuts across all rows
+- Add `invert_current_icon` and `uncolor_current_icon` options for fine-grained icon highlights on cursor focus
+- Attach interactive child process streams (`stdin`, `stdout`, `stderr`) to `/dev/tty` for flawless editor execution (`nvim`, `$EDITOR`) in subshells
+- Record frecency ranking automatically for all opened files/directories when invoking `Execute` or `Become`
+
+### 📚 Documentation
+
+- Document new results styling options, TTY execution handling, and frecency tracking across all markdown guides
+
 ## [0.0.42] - 2026-05-29
 
 ### 🚀 Features

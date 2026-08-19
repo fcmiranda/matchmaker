@@ -90,8 +90,19 @@ dir_first = true
 [results]
 reverse = false
 icons = true
+uncolor_current_icon = true
+row_connection = "Full"
 symlink_target = true
 symlink_target_style.fg = "cyan"
+current_nav_bar = "QuadrantInside"
+
+[results.current_nav_bar_style]
+fg = "yellow"
+
+[results.current_style]
+fg = "black"
+bg = "lightblue"
+modifier = "BOLD"
 
 [previewer]
 debounce_ms = 25
@@ -116,14 +127,17 @@ percentage = 80
 "ctrl-j" = "Down"
 "ctrl-k" = "Up"
 "ctrl-p" = "SwitchPreview"
+"ctrl-e" = "Execute(nvim {+})"
 "ctrl-l" = ["ChDir({=})", "Cancel", "Reload", "Pos(0)"]
 "ctrl-h" = ["ChDir(..)", "Cancel", "Reload", "Pos(0)"]
 "ctrl-u" = ["Reload(curr=\"$(pwd)\"; while [ \"$curr\" != \"/\" ] && [ -n \"$curr\" ]; do curr=\"$(dirname \"$curr\")\"; echo \"$curr\"; done)", "Cancel", "Pos(0)"]
 
 [ui.nav_binds]
 "f" = "@reloadnext"
+"e" = "Execute(nvim {+})"
 "l" = ["ChDir({=})", "Cancel", "Reload", "Pos(0)"]
 "h" = ["ChDir(..)", "Cancel", "Reload", "Pos(0)"]
+"ctrl-e" = "Execute(nvim {+})"
 "ctrl-l" = ["ChDir({=})", "Cancel", "Reload", "Pos(0)"]
 "ctrl-h" = ["ChDir(..)", "Cancel", "Reload", "Pos(0)"]
 "p" = "SwitchPreview"

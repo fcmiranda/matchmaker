@@ -223,15 +223,15 @@ Actions are the operations performed when a trigger is activated.
 
 | Action                 | Description                                                                                                                         |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `Execute(cmd)`         | Run a shell command.                                                                                                                |
+| `Execute(cmd)`         | Run a shell command interactively with full TTY (`stdin`, `stdout`, `stderr` connected to `/dev/tty`), pause TUI, and return to matchmaker on exit. Also records frecency for targeted items. |
 | `ExecuteSilent(c)`     | Run and detach a shell command silently.                                                                                            |
 | `ExecuteAsync(cmd)`    | Run asynchronously; subsequent actions in the same batch execute after its completion.                                              |
 | `ExecuteThen(cmd)`     | Run asynchronously; subsequent actions execute after completion and only if it succeeds.                                            |
 | `CopyAsync(cmd)`       | Run a command asynchronously and copy its output to the clipboard (works across ssh: see `tui.osc52`).                              |
 | `Copy(cmd)`            | Same as CopyAsync but run synchronously. Use in chained actions which exit on completion                                            |
 | `ExecuteOrConfirm(c)`  | Run a shell command (replaces TUI), but ask for confirmation if it fails.                                                           |
-| `ExecuteAndQuit(cmd)`  | Run a shell command (replaces TUI) and then quit.                                                                                   |
-| `Become(cmd)`          | Transform the process into the command.                                                                                             |
+| `ExecuteAndQuit(cmd)`  | Run a shell command interactively (replaces TUI), record frecency, and then quit.                                                    |
+| `Become(cmd)`          | Transform the process into the command (replaces process via `exec`, records frecency for targeted items).                          |
 | `BecomeSilent(cmd)`    | Transform the process into the command without clearing the screen (useful for transitioning between different matchmaker presets). |
 | `BecomeOr(cmd)`        | Execute the command, ask for confirmation on failure, quit on success, resume on interrupt.                                         |
 | `Reload(cmd)`          | Rerun the initial command or a new one.                                                                                             |
