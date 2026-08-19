@@ -271,6 +271,11 @@ impl Previewer {
                             } else if path.to_lowercase().ends_with(".mp4")
                                 || path.to_lowercase().ends_with(".mkv")
                                 || path.to_lowercase().ends_with(".webm")
+                                || path.to_lowercase().ends_with(".mov")
+                                || path.to_lowercase().ends_with(".avi")
+                                || path.to_lowercase().ends_with(".flv")
+                                || path.to_lowercase().ends_with(".m4v")
+                                || path.to_lowercase().ends_with(".wmv")
                             {
                                 // Video support
                                 let media_size_str = self.config.media_size.to_string();

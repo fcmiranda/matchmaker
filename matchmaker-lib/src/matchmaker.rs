@@ -1200,7 +1200,23 @@ pub fn make_previewer<T: SSS, S: Selection + 'static>(
                         if let Some(ext) = p.extension().and_then(|e| e.to_str()) {
                             if matches!(
                                 ext.to_lowercase().as_str(),
-                                "png" | "jpg" | "jpeg" | "gif" | "webp" | "bmp" | "ico" | "tiff"
+                                "png"
+                                    | "jpg"
+                                    | "jpeg"
+                                    | "gif"
+                                    | "webp"
+                                    | "bmp"
+                                    | "ico"
+                                    | "tiff"
+                                    | "pdf"
+                                    | "mp4"
+                                    | "mkv"
+                                    | "webm"
+                                    | "mov"
+                                    | "avi"
+                                    | "flv"
+                                    | "m4v"
+                                    | "wmv"
                             ) {
                                 msg = Some(PreviewMessage::Media(p.to_string_lossy().to_string()));
                             }
