@@ -862,7 +862,7 @@ impl ResultsUI {
                                         } else {
                                             None
                                         },
-                                        self.config.current_style.bg,
+                                        self.config.current_style,
                                     );
                                     if self.config.icons {
                                         insert_icon_span(
@@ -934,7 +934,7 @@ impl ResultsUI {
                                 } else {
                                     None
                                 },
-                                self.config.current_style.bg,
+                                self.config.current_style,
                             );
                             if self.config.icons && col_idx == 0 {
                                 insert_icon_span(
@@ -1032,7 +1032,7 @@ impl ResultsUI {
                                 } else {
                                     None
                                 },
-                                self.config.current_style.bg,
+                                self.config.current_style,
                             );
                             if self.config.icons {
                                 insert_icon_span(
@@ -1096,7 +1096,7 @@ impl ResultsUI {
                         } else {
                             None
                         },
-                        self.config.current_style.bg,
+                        self.config.current_style,
                     );
                     if self.config.icons && col_idx == 0 {
                         insert_icon_span(
@@ -1291,7 +1291,7 @@ impl ResultsUI {
                                 } else {
                                     None
                                 },
-                                self.config.current_style.bg,
+                                self.config.current_style,
                             );
                             if self.config.icons {
                                 insert_icon_span(
@@ -1385,7 +1385,7 @@ impl ResultsUI {
                         } else {
                             None
                         },
-                        self.config.current_style.bg,
+                        self.config.current_style,
                     );
                     if self.config.icons && x == 0 {
                         insert_icon_span(

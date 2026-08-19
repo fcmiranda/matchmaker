@@ -77,12 +77,17 @@ pub fn prefix_span<'a, 'b: 'a>(
     inactive_style: StyleSetting,
     is_current: bool,
     nav_bar_span: Option<Span<'static>>,
-    current_row_bg: Option<Color>,
+    current_row_style: StyleSetting,
 ) {
     let style = if is_current { style } else { inactive_style };
     let mut override_style = style.r#override(Style::reset());
-    if is_current && override_style.bg.is_none() && current_row_bg.is_some() {
-        override_style.bg = current_row_bg;
+    if is_current {
+        if override_style.bg.is_none() && current_row_style.bg.is_some() {
+            override_style.bg = current_row_style.bg;
+        }
+        if override_style.fg.is_none() && current_row_style.fg.is_some() {
+            override_style.fg = current_row_style.fg;
+        }
     }
 
     for line in original.lines.iter_mut() {
@@ -92,7 +97,10 @@ pub fn prefix_span<'a, 'b: 'a>(
             let rest: String = chars.collect();
             let nav_span = if is_current {
                 let mut s = nav.style;
-                if let Some(bg) = override_style.bg.or(current_row_bg) {
+                if let Some(fg) = override_style.fg.or(current_row_style.fg) {
+                    s = s.fg(fg);
+                }
+                if let Some(bg) = override_style.bg.or(current_row_style.bg) {
                     s = s.bg(bg);
                 }
                 Span::styled(nav.content.clone(), s)
