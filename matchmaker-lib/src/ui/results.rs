@@ -1865,7 +1865,12 @@ fn insert_icon_span(
     current_icon_style: StyleSetting,
 ) {
     let (icon, color) = icon_for_name(name);
-    let style = if is_current_row && uncolor_current {
+    let style = if is_current_row
+        && (uncolor_current
+            || current_icon_style.fg.is_some()
+            || current_icon_style.bg.is_some()
+            || !current_icon_style.modifier.is_empty())
+    {
         if current_icon_style.fg.is_some()
             || current_icon_style.bg.is_some()
             || !current_icon_style.modifier.is_empty()

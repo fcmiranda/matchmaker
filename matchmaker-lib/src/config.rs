@@ -829,7 +829,7 @@ pub struct ResultsConfig {
     /// Requires a Nerd Font in the terminal. Defaults to false.
     pub icons: bool,
     /// Whether file icons on the focused/cursor row should lose their individual color
-    /// to match the cursor line highlight (similar to Yazi). Defaults to true.
+    /// to match the cursor line highlight (similar to Yazi). Defaults to false.
     pub uncolor_current_icon: bool,
     /// Optional custom style override for the icon on the focused/cursor row.
     #[partial(recurse)]
@@ -920,7 +920,7 @@ impl Default for ResultsConfig {
             show_skipped: true,
             vscroll_current_only: true,
             icons: false,
-            uncolor_current_icon: true,
+            uncolor_current_icon: false,
             current_icon_style: Default::default(),
             symlink_target: false,
             symlink_target_style: StyleSetting {
