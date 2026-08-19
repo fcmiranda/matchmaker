@@ -873,6 +873,7 @@ impl ResultsUI {
                                                 && nav_bar_span.is_some(),
                                             is_current_row,
                                             self.config.uncolor_current_icon,
+                                            self.config.invert_current_icon,
                                             self.config.current_icon_style,
                                         );
                                     }
@@ -940,6 +941,7 @@ impl ResultsUI {
                                     !is_selected && !is_yanked && !is_cut && nav_bar_span.is_some(),
                                     is_current_row,
                                     self.config.uncolor_current_icon,
+                                    self.config.invert_current_icon,
                                     self.config.current_icon_style,
                                 );
                             }
@@ -1036,6 +1038,7 @@ impl ResultsUI {
                                     !is_selected && !is_yanked && !is_cut && nav_bar_span.is_some(),
                                     is_current_row,
                                     self.config.uncolor_current_icon,
+                                    self.config.invert_current_icon,
                                     self.config.current_icon_style,
                                 );
                             }
@@ -1098,6 +1101,7 @@ impl ResultsUI {
                             !is_selected && !is_yanked && !is_cut && nav_bar_span.is_some(),
                             is_current_row,
                             self.config.uncolor_current_icon,
+                            self.config.invert_current_icon,
                             self.config.current_icon_style,
                         );
                     }
@@ -1291,6 +1295,7 @@ impl ResultsUI {
                                     !is_selected && !is_yanked && !is_cut && nav_bar_span.is_some(),
                                     is_current_row,
                                     self.config.uncolor_current_icon,
+                                    self.config.invert_current_icon,
                                     self.config.current_icon_style,
                                 );
                             }
@@ -1383,6 +1388,7 @@ impl ResultsUI {
                             !is_selected && !is_yanked && !is_cut && nav_bar_span.is_some(),
                             is_current_row,
                             self.config.uncolor_current_icon,
+                            self.config.invert_current_icon,
                             self.config.current_icon_style,
                         );
                     }
@@ -1852,32 +1858,59 @@ fn extract_col0_name(col: &ratatui::text::Text<'_>) -> String {
         .unwrap_or_default()
 }
 
+fn invert_color(c: Color) -> Color {
+    match c {
+        Color::Reset => Color::Reset,
+        Color::Black => Color::White,
+        Color::White => Color::Black,
+        Color::Red => Color::Cyan,
+        Color::Green => Color::Magenta,
+        Color::Yellow => Color::Blue,
+        Color::Blue => Color::Yellow,
+        Color::Magenta => Color::Green,
+        Color::Cyan => Color::Red,
+        Color::Gray => Color::DarkGray,
+        Color::DarkGray => Color::Gray,
+        Color::LightRed => Color::LightCyan,
+        Color::LightGreen => Color::LightMagenta,
+        Color::LightYellow => Color::LightBlue,
+        Color::LightBlue => Color::LightYellow,
+        Color::LightMagenta => Color::LightGreen,
+        Color::LightCyan => Color::LightRed,
+        Color::Rgb(r, g, b) => Color::Rgb(255 - r, 255 - g, 255 - b),
+        Color::Indexed(i) => Color::Indexed(255 - i),
+    }
+}
+
 /// Insert a Nerd-Font icon span after the prefix in every line of `col`.
 /// Callers must ensure `prefix_span` has already been called.
-/// When `is_current_row && uncolor_current` is true, the icon adopts uncolored/default
-/// or `current_icon_style` to match the focused cursor line highlight (similar to Yazi).
+/// When `is_current_row` is true:
+/// - `current_icon_style` takes precedence if specified.
+/// - `invert_current` inverts the icon's natural color (e.g. Blue <-> Yellow).
+/// - `uncolor_current` drops the color so it inherits line text highlight.
+/// - Otherwise, natural icon color is preserved.
 fn insert_icon_span(
     col: &mut ratatui::text::Text<'_>,
     name: &str,
     has_nav_bar: bool,
     is_current_row: bool,
     uncolor_current: bool,
+    invert_current: bool,
     current_icon_style: StyleSetting,
 ) {
     let (icon, color) = icon_for_name(name);
-    let style = if is_current_row
-        && (uncolor_current
-            || current_icon_style.fg.is_some()
-            || current_icon_style.bg.is_some()
-            || !current_icon_style.modifier.is_empty())
-    {
+    let style = if is_current_row {
         if current_icon_style.fg.is_some()
             || current_icon_style.bg.is_some()
             || !current_icon_style.modifier.is_empty()
         {
             ratatui::style::Style::from(current_icon_style)
-        } else {
+        } else if invert_current {
+            ratatui::style::Style::default().fg(invert_color(color))
+        } else if uncolor_current {
             ratatui::style::Style::default()
+        } else {
+            ratatui::style::Style::default().fg(color)
         }
     } else {
         ratatui::style::Style::default().fg(color)

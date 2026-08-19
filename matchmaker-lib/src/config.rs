@@ -831,6 +831,9 @@ pub struct ResultsConfig {
     /// Whether file icons on the focused/cursor row should lose their individual color
     /// to match the cursor line highlight (similar to Yazi). Defaults to false.
     pub uncolor_current_icon: bool,
+    /// Whether file icons on the focused/cursor row should invert their color
+    /// (e.g. Blue <-> Yellow, Red <-> Cyan, Green <-> Magenta). Defaults to false.
+    pub invert_current_icon: bool,
     /// Optional custom style override for the icon on the focused/cursor row.
     #[partial(recurse)]
     pub current_icon_style: StyleSetting,
@@ -921,6 +924,7 @@ impl Default for ResultsConfig {
             vscroll_current_only: true,
             icons: false,
             uncolor_current_icon: false,
+            invert_current_icon: false,
             current_icon_style: Default::default(),
             symlink_target: false,
             symlink_target_style: StyleSetting {
