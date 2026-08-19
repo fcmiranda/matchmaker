@@ -838,6 +838,13 @@ pub struct ResultsConfig {
     #[partial(recurse)]
     pub current_icon_style: StyleSetting,
 
+    /// Border type / thickness override for the navigation bar on the focused/cursor row
+    /// (e.g. "Thick", "Plain", "Double", "Rounded", "QuadrantOutside"). Defaults to None.
+    pub current_nav_bar: Option<BorderType>,
+    /// Optional custom style override for the navigation bar cell on the focused/cursor row.
+    #[partial(recurse)]
+    pub current_nav_bar_style: StyleSetting,
+
     /// Show symlink targets appended to the first column text.
     /// Defaults to false.
     pub symlink_target: bool,
@@ -926,6 +933,8 @@ impl Default for ResultsConfig {
             uncolor_current_icon: false,
             invert_current_icon: false,
             current_icon_style: Default::default(),
+            current_nav_bar: None,
+            current_nav_bar_style: Default::default(),
             symlink_target: false,
             symlink_target_style: StyleSetting {
                 fg: Some(Color::DarkGray),

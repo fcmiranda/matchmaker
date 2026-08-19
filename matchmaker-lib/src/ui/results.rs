@@ -485,26 +485,16 @@ impl ResultsUI {
             }
         };
 
-        let nav_bar_spans = nav_bar_style.as_ref().map(|(border_type, style)| {
-            (
-                ratatui::text::Span::styled(get_border_char(true, true, *border_type), *style),
-                ratatui::text::Span::styled(get_border_char(true, false, *border_type), *style),
-                ratatui::text::Span::styled(get_border_char(false, true, *border_type), *style),
-                ratatui::text::Span::styled(get_border_char(false, false, *border_type), *style),
-            )
-        });
-
-        let get_nav_bar_span = |is_first: bool, is_last: bool| -> Option<ratatui::text::Span<'static>> {
-            nav_bar_spans.as_ref().map(|(both, first, last, mid)| {
-                if is_first && is_last {
-                    both.clone()
-                } else if is_first {
-                    first.clone()
-                } else if is_last {
-                    last.clone()
+        let current_nav_bar = self.config.current_nav_bar;
+        let get_nav_bar_span = |is_first: bool, is_last: bool, is_current: bool| -> Option<ratatui::text::Span<'static>> {
+            nav_bar_style.as_ref().map(|(border_type, style)| {
+                let bt = if is_current {
+                    current_nav_bar.unwrap_or(*border_type)
                 } else {
-                    mid.clone()
-                }
+                    *border_type
+                };
+                let ch = get_border_char(is_first, is_last, bt);
+                ratatui::text::Span::styled(ch, *style)
             })
         };
 
@@ -811,7 +801,7 @@ impl ResultsUI {
                     let is_first = rows.is_empty();
                     let is_last = (self.height <= total_height + remaining_height)
                         || (start_index as usize >= results_len);
-                    let nav_bar_span = get_nav_bar_span(is_first, is_last);
+                    let nav_bar_span = get_nav_bar_span(is_first, is_last, is_current_row);
                     let (prefix, icon_name, is_spinner, spinner_col_idx, is_yanked, is_cut) =
                         get_prefix!(row, is_selected, 0, item, columns, is_first, is_last);
 
@@ -863,6 +853,7 @@ impl ResultsUI {
                                             None
                                         },
                                         self.config.current_style,
+                                        self.config.current_nav_bar_style,
                                     );
                                     if self.config.icons {
                                         insert_icon_span(
@@ -935,6 +926,7 @@ impl ResultsUI {
                                     None
                                 },
                                 self.config.current_style,
+                                self.config.current_nav_bar_style,
                             );
                             if self.config.icons && col_idx == 0 {
                                 insert_icon_span(
@@ -989,7 +981,7 @@ impl ResultsUI {
             let is_first = rows.is_empty();
             let is_last = (self.height <= total_height + remaining_height)
                 || (start_index as usize >= results_len);
-            let nav_bar_span = get_nav_bar_span(is_first, is_last);
+            let nav_bar_span = get_nav_bar_span(is_first, is_last, is_current_row);
             let (prefix, icon_name, is_spinner, spinner_col_idx, is_yanked, is_cut) =
                 get_prefix!(row, is_selected, 0, item, columns, is_first, is_last);
 
@@ -1033,6 +1025,7 @@ impl ResultsUI {
                                     None
                                 },
                                 self.config.current_style,
+                                self.config.current_nav_bar_style,
                             );
                             if self.config.icons {
                                 insert_icon_span(
@@ -1097,6 +1090,7 @@ impl ResultsUI {
                             None
                         },
                         self.config.current_style,
+                        self.config.current_nav_bar_style,
                     );
                     if self.config.icons && col_idx == 0 {
                         insert_icon_span(
@@ -1137,7 +1131,6 @@ impl ResultsUI {
 
         let mut drain_iter = results.drain(start_index as usize..).peekable();
         while let Some((group, mut row, item)) = drain_iter.next() {
-            let is_current_row = self.is_current(i);
             // note that the index changes *next* frame
             if let Click::ResultPos(c) = click {
                 let c = if self.reverse() {
@@ -1217,7 +1210,8 @@ impl ResultsUI {
                 row.iter().map(|t| t.height() as u16).sum::<u16>()
             };
             let is_last = is_last_in_results || (remaining_height <= h);
-            let nav_bar_span = get_nav_bar_span(is_first, is_last);
+            let is_current_row = self.is_current(i);
+            let nav_bar_span = get_nav_bar_span(is_first, is_last, is_current_row);
             let (prefix, icon_name_hz, is_spinner, spinner_col_idx, is_yanked, is_cut) =
                 get_prefix!(row, is_selected, i, item, columns, is_first, is_last);
 
@@ -1292,6 +1286,7 @@ impl ResultsUI {
                                     None
                                 },
                                 self.config.current_style,
+                                self.config.current_nav_bar_style,
                             );
                             if self.config.icons {
                                 insert_icon_span(
@@ -1386,6 +1381,7 @@ impl ResultsUI {
                             None
                         },
                         self.config.current_style,
+                        self.config.current_nav_bar_style,
                     );
                     if self.config.icons && x == 0 {
                         insert_icon_span(

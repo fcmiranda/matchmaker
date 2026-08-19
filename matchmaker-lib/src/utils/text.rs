@@ -78,6 +78,7 @@ pub fn prefix_span<'a, 'b: 'a>(
     is_current: bool,
     nav_bar_span: Option<Span<'static>>,
     current_row_style: StyleSetting,
+    current_nav_bar_style: StyleSetting,
 ) {
     let style = if is_current { style } else { inactive_style };
     let mut override_style = style.r#override(Style::reset());
@@ -97,11 +98,30 @@ pub fn prefix_span<'a, 'b: 'a>(
             let rest: String = chars.collect();
             let nav_span = if is_current {
                 let mut s = nav.style;
-                if let Some(fg) = override_style.fg.or(current_row_style.fg) {
-                    s = s.fg(fg);
-                }
-                if let Some(bg) = override_style.bg.or(current_row_style.bg) {
-                    s = s.bg(bg);
+                let has_nav_style = current_nav_bar_style.fg.is_some()
+                    || current_nav_bar_style.bg.is_some()
+                    || !current_nav_bar_style.modifier.is_empty();
+                if has_nav_style {
+                    if let Some(fg) = current_nav_bar_style.fg {
+                        s = s.fg(fg);
+                    }
+                    if let Some(bg) = current_nav_bar_style
+                        .bg
+                        .or(override_style.bg)
+                        .or(current_row_style.bg)
+                    {
+                        s = s.bg(bg);
+                    }
+                    if !current_nav_bar_style.modifier.is_empty() {
+                        s = s.add_modifier(current_nav_bar_style.modifier);
+                    }
+                } else {
+                    if let Some(fg) = override_style.fg.or(current_row_style.fg) {
+                        s = s.fg(fg);
+                    }
+                    if let Some(bg) = override_style.bg.or(current_row_style.bg) {
+                        s = s.bg(bg);
+                    }
                 }
                 Span::styled(nav.content.clone(), s)
             } else {
