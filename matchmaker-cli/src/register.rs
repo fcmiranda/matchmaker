@@ -3,22 +3,34 @@ use std::process::{Command, Stdio};
 use cba::{broc::CommandExt, env_vars};
 use log::info;
 use matchmaker::{
-    AttachmentFormatter, Matchmaker, SSS, Selection, message::Interrupt, use_formatter,
+    AttachmentFormatter, ConfigMMInnerItem, ConfigMMItem, Matchmaker, message::Interrupt,
+    use_formatter,
 };
 
 #[easy_ext::ext(MMExt)]
-impl<T: SSS, S: Selection + 'static> Matchmaker<T, S> {
+impl Matchmaker<ConfigMMItem, ConfigMMInnerItem> {
     /// Causes [`Action::Execute`] to cause the program to execute the program specified by its payload.
     /// Note:
     /// - not intended for direct use.
     /// - Assumes preview and cmd formatter are the same.
-    pub fn register_execute_handler(&mut self, formatter: AttachmentFormatter<T, S>) {
+    pub fn register_execute_handler(
+        &mut self,
+        formatter: AttachmentFormatter<ConfigMMItem, ConfigMMInnerItem>,
+    ) {
         let formatter_ = formatter.clone();
         self.register_interrupt_handler(Interrupt::Execute, move |state| {
             let discriminant = state.discriminant_payload.take();
             let template = state.payload();
 
             if !template.is_empty() {
+                let selected_items = state.map_selected_to_vec(|_, x| x.to_cow().to_string());
+                if state.picker_ui.worker.frecency {
+                    let store = matchmaker::frecency::FrecencyStore::open();
+                    for item in &selected_items {
+                        let _ = store.add(item);
+                    }
+                }
+
                 let cmd = use_formatter(&formatter, state, template, None);
                 if cmd.is_empty() {
                     return;
