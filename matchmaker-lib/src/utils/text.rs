@@ -77,17 +77,30 @@ pub fn prefix_span<'a, 'b: 'a>(
     inactive_style: StyleSetting,
     is_current: bool,
     nav_bar_span: Option<Span<'static>>,
+    current_row_bg: Option<Color>,
 ) {
     let style = if is_current { style } else { inactive_style };
-    let override_style = style.r#override(Style::reset());
+    let mut override_style = style.r#override(Style::reset());
+    if is_current && override_style.bg.is_none() && current_row_bg.is_some() {
+        override_style.bg = current_row_bg;
+    }
 
     for line in original.lines.iter_mut() {
         if let Some(nav) = &nav_bar_span {
             let mut chars = prefix.chars();
             chars.next(); // skip first char
             let rest: String = chars.collect();
+            let nav_span = if is_current {
+                let mut s = nav.style;
+                if let Some(bg) = override_style.bg.or(current_row_bg) {
+                    s = s.bg(bg);
+                }
+                Span::styled(nav.content.clone(), s)
+            } else {
+                nav.clone()
+            };
             line.spans.insert(0, Span::styled(rest, override_style));
-            line.spans.insert(0, nav.clone());
+            line.spans.insert(0, nav_span);
         } else {
             line.spans
                 .insert(0, Span::styled(prefix.clone(), override_style));
