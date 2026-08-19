@@ -828,6 +828,12 @@ pub struct ResultsConfig {
     /// Prepend a file-type icon (Nerd Font) before the first column text.
     /// Requires a Nerd Font in the terminal. Defaults to false.
     pub icons: bool,
+    /// Whether file icons on the focused/cursor row should lose their individual color
+    /// to match the cursor line highlight (similar to Yazi). Defaults to true.
+    pub uncolor_current_icon: bool,
+    /// Optional custom style override for the icon on the focused/cursor row.
+    #[partial(recurse)]
+    pub current_icon_style: StyleSetting,
 
     /// Show symlink targets appended to the first column text.
     /// Defaults to false.
@@ -914,6 +920,8 @@ impl Default for ResultsConfig {
             show_skipped: true,
             vscroll_current_only: true,
             icons: false,
+            uncolor_current_icon: true,
+            current_icon_style: Default::default(),
             symlink_target: false,
             symlink_target_style: StyleSetting {
                 fg: Some(Color::DarkGray),

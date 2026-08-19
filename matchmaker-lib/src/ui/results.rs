@@ -11,7 +11,7 @@ use unicode_width::UnicodeWidthStr;
 
 use crate::{
     SSS, Selection, Selector,
-    config::{HorizontalSeparator, ResultsConfig, RowConnectionStyle, StatusConfig},
+    config::{HorizontalSeparator, ResultsConfig, RowConnectionStyle, StatusConfig, StyleSetting},
     nucleo::{Status, Worker},
     render::Click,
     utils::{
@@ -871,6 +871,9 @@ impl ResultsUI {
                                                 && !is_yanked
                                                 && !is_cut
                                                 && nav_bar_span.is_some(),
+                                            is_current_row,
+                                            self.config.uncolor_current_icon,
+                                            self.config.current_icon_style,
                                         );
                                     }
                                     if self.config.symlink_target {
@@ -935,6 +938,9 @@ impl ResultsUI {
                                     &mut col,
                                     &icon_name,
                                     !is_selected && !is_yanked && !is_cut && nav_bar_span.is_some(),
+                                    is_current_row,
+                                    self.config.uncolor_current_icon,
+                                    self.config.current_icon_style,
                                 );
                             }
                             if self.config.symlink_target && col_idx == 0 {
@@ -1028,6 +1034,9 @@ impl ResultsUI {
                                     &mut t,
                                     &icon_name,
                                     !is_selected && !is_yanked && !is_cut && nav_bar_span.is_some(),
+                                    is_current_row,
+                                    self.config.uncolor_current_icon,
+                                    self.config.current_icon_style,
                                 );
                             }
                             if self.config.symlink_target {
@@ -1087,6 +1096,9 @@ impl ResultsUI {
                             &mut col,
                             &icon_name,
                             !is_selected && !is_yanked && !is_cut && nav_bar_span.is_some(),
+                            is_current_row,
+                            self.config.uncolor_current_icon,
+                            self.config.current_icon_style,
                         );
                     }
                     if self.config.symlink_target && col_idx == 0 {
@@ -1277,6 +1289,9 @@ impl ResultsUI {
                                     &mut t,
                                     &icon_name_hz,
                                     !is_selected && !is_yanked && !is_cut && nav_bar_span.is_some(),
+                                    is_current_row,
+                                    self.config.uncolor_current_icon,
+                                    self.config.current_icon_style,
                                 );
                             }
                             if self.config.symlink_target {
@@ -1366,6 +1381,9 @@ impl ResultsUI {
                             &mut col,
                             &icon_name_hz,
                             !is_selected && !is_yanked && !is_cut && nav_bar_span.is_some(),
+                            is_current_row,
+                            self.config.uncolor_current_icon,
+                            self.config.current_icon_style,
                         );
                     }
                     if self.config.symlink_target && x == 0 {
@@ -1836,12 +1854,30 @@ fn extract_col0_name(col: &ratatui::text::Text<'_>) -> String {
 
 /// Insert a Nerd-Font icon span after the prefix in every line of `col`.
 /// Callers must ensure `prefix_span` has already been called.
-fn insert_icon_span(col: &mut ratatui::text::Text<'_>, name: &str, has_nav_bar: bool) {
+/// When `is_current_row && uncolor_current` is true, the icon adopts uncolored/default
+/// or `current_icon_style` to match the focused cursor line highlight (similar to Yazi).
+fn insert_icon_span(
+    col: &mut ratatui::text::Text<'_>,
+    name: &str,
+    has_nav_bar: bool,
+    is_current_row: bool,
+    uncolor_current: bool,
+    current_icon_style: StyleSetting,
+) {
     let (icon, color) = icon_for_name(name);
-    let icon_span = ratatui::text::Span::styled(
-        format!("{icon} "),
-        ratatui::style::Style::default().fg(color),
-    );
+    let style = if is_current_row && uncolor_current {
+        if current_icon_style.fg.is_some()
+            || current_icon_style.bg.is_some()
+            || !current_icon_style.modifier.is_empty()
+        {
+            ratatui::style::Style::from(current_icon_style)
+        } else {
+            ratatui::style::Style::default()
+        }
+    } else {
+        ratatui::style::Style::default().fg(color)
+    };
+    let icon_span = ratatui::text::Span::styled(format!("{icon} "), style);
     let index = if has_nav_bar { 2 } else { 1 };
     for line in col.lines.iter_mut() {
         line.spans
