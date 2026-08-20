@@ -956,7 +956,7 @@ fn show_action_box(state: &mut MMState<'_, '_>, prompt: &str, initial: &str) {
     state
         .picker_ui
         .action
-        .set(Some(initial.to_string()), u16::MAX);
+        .set(Some(initial.to_string()), 0);
     state
         .picker_ui
         .action
@@ -969,7 +969,7 @@ fn show_styled_action_box(state: &mut MMState<'_, '_>, prompt: &str, initial: &s
     state
         .picker_ui
         .action
-        .set(Some(initial.to_string()), u16::MAX);
+        .set(Some(initial.to_string()), 0);
     state
         .picker_ui
         .action
