@@ -43,6 +43,8 @@ fn action_from_null<A: ActionExt>(action: Action<NullActionExt>) -> Option<Actio
         Action::ToggleActionBox => Action::ToggleActionBox,
         Action::ToggleFocus => Action::ToggleFocus,
         Action::ToggleParentPeek => Action::ToggleParentPeek,
+        Action::ToggleFooter => Action::ToggleFooter,
+        Action::ToggleHeader => Action::ToggleHeader,
         Action::Up(x) => Action::Up(x),
         Action::Down(x) => Action::Down(x),
         Action::Pos(x) => Action::Pos(x),
@@ -715,6 +717,12 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                         }
                         Action::ToggleParentPeek => {
                             ui.config.parent_peek.enabled = !ui.config.parent_peek.enabled;
+                        }
+                        Action::ToggleFooter => {
+                            footer_ui.show = !footer_ui.show;
+                        }
+                        Action::ToggleHeader => {
+                            picker_ui.header.show = !picker_ui.header.show;
                         }
                         Action::Up(x) | Action::Down(x) => {
                             let next = matches!(action, Action::Down(_)) ^ results.reverse();

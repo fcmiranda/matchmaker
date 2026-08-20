@@ -41,6 +41,10 @@ pub enum Action<A: ActionExt = NullActionExt> {
     ToggleFocus,
     /// Toggle parent directory peek 3-pane layout
     ToggleParentPeek,
+    /// Toggle footer visibility
+    ToggleFooter,
+    /// Toggle header visibility
+    ToggleHeader,
 
     // Results Navigation
     /// Move selection index up
@@ -382,7 +386,7 @@ enum_from_str_display!(
 
     HalfPageDown, HalfPageUp,
 
-    ToggleWrap, TogglePreviewWrap, ToggleActionBox, ToggleFocus, ToggleParentPeek, CyclePreview, PreviewJump,
+    ToggleWrap, TogglePreviewWrap, ToggleActionBox, ToggleFocus, ToggleParentPeek, ToggleFooter, ToggleHeader, CyclePreview, PreviewJump,
     PreviewZoomIn, PreviewZoomOut,
 
     PreviewHalfPageUp, PreviewHalfPageDown,

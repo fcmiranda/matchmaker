@@ -160,9 +160,13 @@ Actions are the operations performed when a trigger is activated.
 | `Pos(idx)`     | Move selection cursor to absolute index `idx`. `-1` for end.         |
 | `HalfPageUp`   | Scroll the results list up by half the height of the results pane.   |
 | `HalfPageDown` | Scroll the results list down by half the height of the results pane. |
-| `HScroll(n)`   | Horizontally scroll the active column by `n`. `0` to reset.          |
-| `VScroll(n)`   | Vertically scroll down the current result by `n`. `0` to reset.      |
-| `ToggleWrap`   | Toggle line wrapping for the results list.                           |
+| `HScroll(n)`        | Horizontally scroll the active column by `n`. `0` to reset.          |
+| `VScroll(n)`        | Vertically scroll down the current result by `n`. `0` to reset.      |
+| `ToggleWrap`        | Toggle line wrapping for the results list.                           |
+| `ToggleFooter`      | Toggle footer row visibility.                                        |
+| `ToggleHeader`      | Toggle header row visibility.                                        |
+| `ToggleParentPeek`  | Toggle 3-pane parent directory peek layout.                          |
+| `ToggleActionBox`   | Toggle the action dialog box.                                        |
 
 ### Preview
 
