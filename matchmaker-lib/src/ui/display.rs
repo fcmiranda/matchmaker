@@ -38,12 +38,12 @@ impl DisplayUI {
     pub fn init(&mut self) {
         let (text, height) = match &self.config.content {
             Some(StringOrVec::String(s)) => {
-                let text = Text::from(s.clone());
+                let text = parse_content_to_text(s);
                 let height = text.height() as u16;
                 (vec![text], height)
             }
             Some(StringOrVec::Vec(s)) => {
-                let text: Vec<_> = s.iter().map(|s| Text::from(s.clone())).collect();
+                let text: Vec<_> = s.iter().map(|s| parse_content_to_text(s)).collect();
                 let height = text.iter().map(|t| t.height()).max().unwrap_or_default() as u16;
                 (text, height)
             }
@@ -245,3 +245,12 @@ impl DisplayUI {
             .style(self.config.style)
     }
 }
+
+fn parse_content_to_text(s: &str) -> Text<'static> {
+    let lines: Vec<Line<'static>> = s
+        .lines()
+        .map(crate::ui::StatusUI::parse_template_to_status_line)
+        .collect();
+    Text::from(lines)
+}
+
