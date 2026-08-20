@@ -179,6 +179,13 @@ impl Previewer {
                     continue;
                 }
 
+                if !self.config.delay_clear {
+                    self.clear_image();
+                    self.clear_string();
+                    self.lines.clear();
+                    self.changed.store(true, Ordering::Release);
+                }
+
                 if self.config.debounce_ms > 0 {
                     tokio::time::sleep(Duration::from_millis(self.config.debounce_ms)).await;
                 }
@@ -235,6 +242,9 @@ impl Previewer {
                         continue;
                     }
                     PreviewMessage::Media(ref path) => {
+                        if !self.config.delay_clear {
+                            self.clear_image();
+                        }
                         self.clear_string();
                         self.lines.clear();
                         self.dispatch_kill();

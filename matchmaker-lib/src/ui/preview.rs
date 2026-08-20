@@ -556,6 +556,14 @@ impl PreviewUI {
             .changed
             .swap(false, std::sync::atomic::Ordering::Acquire);
 
+        if has_changed {
+            if let Ok(guard) = self.view.image.lock() {
+                if guard.is_none() {
+                    self.image_state = None;
+                }
+            }
+        }
+
         let is_generating = self
             .is_generating_protocol
             .load(std::sync::atomic::Ordering::Acquire);
