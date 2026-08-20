@@ -1729,6 +1729,22 @@ impl StatusUI {
     }
 }
 
+#[cfg(test)]
+mod template_tests {
+    use super::*;
+    use ratatui::style::{Color, Modifier};
+
+    #[test]
+    fn test_parse_template_to_status_line() {
+        let input = " {cyan,bold:[Enter]} {darkgray:Switch Window}  •  {yellow,bold:[Space]} {dark_gray:Select}  •  {red,bold:[d]} {darkgray:Kill Window}  •  {blue,bold:[Esc]} {darkgray:Cancel}";
+        let line = StatusUI::parse_template_to_status_line(input);
+        println!("Spans: {:?}", line.spans);
+        assert_eq!(line.spans[1].style.fg, Some(Color::Cyan));
+        assert!(line.spans[1].style.add_modifier.contains(Modifier::BOLD));
+        assert_eq!(line.spans[3].style.fg, Some(Color::DarkGray));
+    }
+}
+
 // ---------- icon helpers ----------
 
 thread_local! {
