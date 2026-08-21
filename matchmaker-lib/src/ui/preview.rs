@@ -114,25 +114,27 @@ impl PreviewUI {
             let mut p = if config.media_protocol.is_some() {
                 ratatui_image::picker::Picker::halfblocks()
             } else {
-                ratatui_image::picker::Picker::from_query_stdio().unwrap_or_else(|_| {
-                    let mut fallback = ratatui_image::picker::Picker::halfblocks();
-                    if std::env::var("GHOSTTY_RESOURCES_DIR").is_ok()
-                        || std::env::var("KITTY_WINDOW_ID").is_ok()
-                        || std::env::var("KITTY_PID").is_ok()
-                        || std::env::var("WEZTERM_PANE").is_ok()
-                        || std::env::var("TERM")
-                            .is_ok_and(|t| t.contains("kitty") || t.contains("ghostty"))
-                    {
-                        fallback.set_protocol_type(ratatui_image::picker::ProtocolType::Kitty);
-                    } else if std::env::var("TERM_PROGRAM")
-                        .is_ok_and(|tp| tp.contains("iTerm"))
-                    {
-                        fallback.set_protocol_type(ratatui_image::picker::ProtocolType::Iterm2);
-                    } else if std::env::var("TERM").is_ok_and(|t| t.contains("foot")) {
-                        fallback.set_protocol_type(ratatui_image::picker::ProtocolType::Sixel);
-                    }
-                    fallback
-                })
+                ratatui_image::picker::Picker::from_query_stdio()
+                    .or_else(|_| query_tty_capabilities(std::time::Duration::from_millis(60)))
+                    .unwrap_or_else(|_| {
+                        let mut fallback = ratatui_image::picker::Picker::halfblocks();
+                        if std::env::var("GHOSTTY_RESOURCES_DIR").is_ok()
+                            || std::env::var("KITTY_WINDOW_ID").is_ok()
+                            || std::env::var("KITTY_PID").is_ok()
+                            || std::env::var("WEZTERM_PANE").is_ok()
+                            || std::env::var("TERM")
+                                .is_ok_and(|t| t.contains("kitty") || t.contains("ghostty"))
+                        {
+                            fallback.set_protocol_type(ratatui_image::picker::ProtocolType::Kitty);
+                        } else if std::env::var("TERM_PROGRAM")
+                            .is_ok_and(|tp| tp.contains("iTerm"))
+                        {
+                            fallback.set_protocol_type(ratatui_image::picker::ProtocolType::Iterm2);
+                        } else if std::env::var("TERM").is_ok_and(|t| t.contains("foot")) {
+                            fallback.set_protocol_type(ratatui_image::picker::ProtocolType::Sixel);
+                        }
+                        fallback
+                    })
             };
             if let Some(ref protocol_str) = config.media_protocol {
                 let protocol_type = match protocol_str.to_ascii_lowercase().as_str() {
@@ -768,3 +770,116 @@ impl PreviewUI {
         preview
     }
 }
+
+#[cfg(not(windows))]
+fn query_tty_capabilities(timeout: std::time::Duration) -> anyhow::Result<ratatui_image::picker::Picker> {
+    use nix::sys::{
+        select::{select, FdSet},
+        time::{TimeVal, TimeValLike},
+    };
+    use std::os::fd::AsFd;
+    use std::fs::OpenOptions;
+    use std::io::{Read, Write};
+
+    let mut tty = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open("/dev/tty")?;
+
+    let _ = crossterm::terminal::enable_raw_mode();
+    struct RawModeGuard;
+    impl Drop for RawModeGuard {
+        fn drop(&mut self) {
+            let _ = crossterm::terminal::disable_raw_mode();
+        }
+    }
+    let _guard = RawModeGuard;
+
+    // Send query escape codes:
+    // 1) Kitty graphics support query: \x1b_Gi=1,s=1,v=1,a=q,t=d,f=24;AAAA\x1b\\
+    // 2) Cell size query: \x1b[16t
+    // 3) Primary DA (sixel): \x1b[c
+    tty.write_all(b"\x1b_Gi=1,s=1,v=1,a=q,t=d,f=24;AAAA\x1b\\\x1b[16t\x1b[c")?;
+    tty.flush()?;
+
+    let mut timeout = TimeVal::milliseconds(timeout.as_millis() as i64);
+
+    let mut full_buf = Vec::new();
+    loop {
+        let mut fds = FdSet::new();
+        fds.insert(tty.as_fd());
+        let ready = select(None, &mut fds, None, None, Some(&mut timeout))?;
+        if ready == 0 {
+            break;
+        }
+        let mut chunk = [0u8; 256];
+        let n = tty.read(&mut chunk)?;
+        if n == 0 {
+            break;
+        }
+        full_buf.extend_from_slice(&chunk[..n]);
+        // Give a tiny window to finish draining remaining responses
+        timeout = TimeVal::milliseconds(10);
+    }
+
+    if full_buf.is_empty() {
+        anyhow::bail!("No response from /dev/tty");
+    }
+
+    let resp = String::from_utf8_lossy(&full_buf);
+    let is_kitty = resp.contains("_Gi=1;OK") || resp.contains("_Gi=1;EINVAL");
+    let is_sixel = resp.contains(";4;") || resp.contains(";4c") || resp.contains("?4;");
+
+    // Check font size from \x1b[6;{h};{w}t
+    let mut font_size = None;
+    if let Some(pos) = resp.find("\x1b[6;") {
+        let rest = &resp[pos + 4..];
+        if let Some(end) = rest.find('t') {
+            let part = &rest[..end];
+            let mut nums = part.split(';');
+            if let (Some(h_str), Some(w_str)) = (nums.next(), nums.next()) {
+                if let (Ok(h), Ok(w)) = (h_str.parse::<u16>(), w_str.parse::<u16>()) {
+                    if w > 0 && h > 0 {
+                        font_size = Some(ratatui_image::FontSize::new(w, h));
+                    }
+                }
+            }
+        }
+    }
+
+    let font_size = font_size.unwrap_or_else(|| {
+        if let Ok(ws) = crossterm::terminal::window_size() {
+            if ws.columns > 0 && ws.rows > 0 && ws.width > 0 && ws.height > 0 {
+                return ratatui_image::FontSize::new(ws.width / ws.columns, ws.height / ws.rows);
+            }
+        }
+        ratatui_image::FontSize::new(10, 20)
+    });
+
+    let proto = if is_kitty
+        || std::env::var("GHOSTTY_RESOURCES_DIR").is_ok()
+        || std::env::var("KITTY_WINDOW_ID").is_ok()
+        || std::env::var("KITTY_PID").is_ok()
+        || std::env::var("WEZTERM_PANE").is_ok()
+        || std::env::var("TERM").is_ok_and(|t| t.contains("kitty") || t.contains("ghostty"))
+    {
+        ratatui_image::picker::ProtocolType::Kitty
+    } else if is_sixel {
+        ratatui_image::picker::ProtocolType::Sixel
+    } else if std::env::var("TERM_PROGRAM").is_ok_and(|tp| tp.contains("iTerm")) {
+        ratatui_image::picker::ProtocolType::Iterm2
+    } else {
+        ratatui_image::picker::ProtocolType::Halfblocks
+    };
+
+    #[allow(deprecated)]
+    let mut picker = ratatui_image::picker::Picker::from_fontsize(font_size);
+    picker.set_protocol_type(proto);
+    Ok(picker)
+}
+
+#[cfg(windows)]
+fn query_tty_capabilities(_timeout: std::time::Duration) -> anyhow::Result<ratatui_image::picker::Picker> {
+    anyhow::bail!("TTY querying is not supported on Windows")
+}
+
