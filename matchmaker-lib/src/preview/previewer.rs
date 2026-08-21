@@ -261,6 +261,7 @@ impl Previewer {
 
                             let img_result = if path.to_lowercase().ends_with(".pdf") {
                                 // PDF support using pdftoppm if available
+                                let pdf_scale = self.config.media_size.max(1200).to_string();
                                 let output = std::process::Command::new("pdftoppm")
                                     .args([
                                         "-jpeg",
@@ -269,7 +270,7 @@ impl Previewer {
                                         "-l",
                                         "1",
                                         "-scale-to",
-                                        "800",
+                                        &pdf_scale,
                                         &path,
                                     ])
                                     .output();
