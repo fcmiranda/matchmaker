@@ -417,9 +417,20 @@ pub struct QueryConfig {
     #[partial(recurse)]
     pub prompt_style: StyleSetting,
 
+    /// Style for the query prompt when in filter mode (focused).
+    #[partial(recurse)]
+    pub filter_prompt_style: StyleSetting,
+
+    /// Style for the query text when in filter mode (focused).
+    #[partial(recurse)]
+    pub filter_style: StyleSetting,
+
     /// The prompt prefix.
     #[serde(deserialize_with = "deserialize_string_or_char_as_double_width")]
     pub prompt: String,
+
+    /// Prompt prefix when in filter mode (focused).
+    pub filter_prompt: Option<String>,
 
     /// Cursor style.
     pub cursor: CursorSetting,
@@ -448,7 +459,16 @@ impl Default for QueryConfig {
                 modifier: Modifier::empty(),
                 ..Default::default()
             },
+            filter_prompt_style: StyleSetting {
+                modifier: Modifier::empty(),
+                ..Default::default()
+            },
+            filter_style: StyleSetting {
+                modifier: Modifier::empty(),
+                ..Default::default()
+            },
             prompt: "> ".to_string(),
+            filter_prompt: None,
             cursor: Default::default(),
             initial: Default::default(),
 

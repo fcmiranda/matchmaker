@@ -352,8 +352,47 @@ impl QueryUI {
         ui
     }
 
+    pub fn active_prompt(&self, focused: bool, nav_prompt: Option<&str>) -> Line<'static> {
+        if focused {
+            let prompt_text = self
+                .config
+                .filter_prompt
+                .as_deref()
+                .unwrap_or(&self.config.prompt);
+            let style = if !self.config.filter_prompt_style.is_empty() {
+                self.config.filter_prompt_style
+            } else {
+                self.config.prompt_style
+            };
+            Line::styled(prompt_text.to_string(), style)
+        } else {
+            let prompt_text = if let Some(np) = nav_prompt {
+                if !np.is_empty() {
+                    np
+                } else {
+                    &self.config.prompt
+                }
+            } else {
+                &self.config.prompt
+            };
+            Line::styled(prompt_text.to_string(), self.config.prompt_style)
+        }
+    }
+
+    pub fn active_text_style(&self, focused: bool) -> Style {
+        if focused && !self.config.filter_style.is_empty() {
+            self.config.filter_style.r#override(Style::reset())
+        } else {
+            self.config.style.r#override(Style::reset())
+        }
+    }
+
     pub fn left(&self) -> u16 {
         self.config.border.left() + self.prompt.width() as u16
+    }
+
+    pub fn left_for_prompt(&self, prompt: &Line<'_>) -> u16 {
+        self.config.border.left() + prompt.width() as u16
     }
 
     /// Given a rect the widget is rendered with, produce the absolute position the cursor is rendered at.
@@ -361,6 +400,14 @@ impl QueryUI {
         let top = self.config.border.top();
         Position::new(
             rect.x + self.left() + self.cursor_rel_offset(),
+            rect.y + top,
+        )
+    }
+
+    pub fn cursor_offset_for_prompt(&self, rect: &Rect, prompt: &Line<'_>) -> Position {
+        let top = self.config.border.top();
+        Position::new(
+            rect.x + self.left_for_prompt(prompt) + self.cursor_rel_offset(),
             rect.y + top,
         )
     }
@@ -384,10 +431,14 @@ impl QueryUI {
     // remember to call scroll_to_cursor beforehand
 
     pub fn make_input(&self) -> Paragraph<'_> {
-        let mut line = self.prompt.clone();
+        self.make_input_focused(true, None)
+    }
+
+    pub fn make_input_focused(&self, focused: bool, nav_prompt: Option<&str>) -> Paragraph<'_> {
+        let mut line = self.active_prompt(focused, nav_prompt);
         line.push_span(Span::styled(
             self.state.render(),
-            self.config.style.r#override(Style::reset()),
+            self.active_text_style(focused),
         ));
 
         Paragraph::new(line).block(self.config.border.as_block())
@@ -401,12 +452,22 @@ impl QueryUI {
         right_label: Line<'a>,
         area_width: u16,
     ) -> Paragraph<'a> {
+        self.make_input_with_status_focused(right_label, area_width, true, None)
+    }
+
+    pub fn make_input_with_status_focused<'a>(
+        &'a self,
+        right_label: Line<'a>,
+        area_width: u16,
+        focused: bool,
+        nav_prompt: Option<&str>,
+    ) -> Paragraph<'a> {
         use unicode_width::UnicodeWidthStr;
 
-        let mut line = self.prompt.clone();
+        let mut line = self.active_prompt(focused, nav_prompt);
         line.push_span(Span::styled(
             self.state.render(),
-            self.config.style.r#override(Style::reset()),
+            self.active_text_style(focused),
         ));
 
         // Calculate how much of area_width the left part already consumes.

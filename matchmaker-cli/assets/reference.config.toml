@@ -182,8 +182,14 @@ type = "Plain"
 show = true
 
 # Prefixo da barra de busca.
+# Prefixo da barra de busca padrão (ou quando a lista está em foco no modo navegação).
 # Valores: string (ex: "> ", " ", "🔍 ") | Default: "> "
 prompt = "> "
+
+# Prefixo customizado da barra de busca quando estiver focado no modo filtro (digitando).
+# Se omitido ou None, utiliza o valor de `prompt`.
+# Valores: string (ex: " ", "FILTER > "), None | Default: None
+# filter_prompt = " "
 
 # Texto inicial preenchido na barra de busca.
 # Valores: string | Default: ""
@@ -201,15 +207,25 @@ scroll_padding = true
 # Valores: true, false | Default: false
 status_inline = false
 
-# Estilo do texto digitado pelo usuário.
+# Estilo do texto padrão digitado pelo usuário.
 [query.style]
 # fg = "White"
 # bg = "Reset"
 # modifier = "None"
 
-# Estilo do símbolo de prompt ("> ").
+# Estilo do texto digitado especificamente quando focado no modo filtro.
+[query.filter_style]
+# fg = "White"
+# modifier = "BOLD"
+
+# Estilo do símbolo de prompt padrão ("> ").
 [query.prompt_style]
 fg = "Gray"
+# modifier = "BOLD"
+
+# Estilo do símbolo de prompt especificamente quando focado no modo filtro.
+[query.filter_prompt_style]
+# fg = "Yellow"
 # modifier = "BOLD"
 
 # Borda ao redor da barra de busca.

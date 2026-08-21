@@ -1595,6 +1595,7 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                     bar: None,
                     marker: String::new(),
                     nav_char: nav_char.clone(),
+                    nav_prompt: ui.config.nav_prompt.clone(),
                 });
                 let results_focus_info = nav_mode.then_some(FocusInfo {
                     focused: state.focus == Focus::Results,
@@ -1605,6 +1606,7 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                     bar: nav_bar,
                     marker: nav_marker,
                     nav_char,
+                    nav_prompt: ui.config.nav_prompt.clone(),
                 });
 
                 if picker_ui.action_visible {
@@ -1874,6 +1876,7 @@ struct FocusInfo {
     bar: Option<ratatui::widgets::BorderType>,
     marker: String,
     nav_char: String,
+    nav_prompt: String,
 }
 
 impl FocusInfo {
@@ -2026,14 +2029,18 @@ fn render_input(
     focus_info: Option<FocusInfo>,
 ) -> Position {
     ui.scroll_to_cursor();
-    let widget = if let Some(label) = status {
-        ui.make_input_with_status(label, area.width)
-    } else {
-        ui.make_input()
-    };
-    let p = ui.cursor_offset(&area);
+    let focused = focus_info.as_ref().map_or(true, |f| f.focused);
+    let nav_prompt = focus_info.as_ref().map(|f| f.nav_prompt.as_str());
 
-    let show_cursor = focus_info.as_ref().map_or(true, |f| f.focused);
+    let active_prompt = ui.active_prompt(focused, nav_prompt);
+    let widget = if let Some(label) = status {
+        ui.make_input_with_status_focused(label, area.width, focused, nav_prompt)
+    } else {
+        ui.make_input_focused(focused, nav_prompt)
+    };
+    let p = ui.cursor_offset_for_prompt(&area, &active_prompt);
+
+    let show_cursor = focused;
     if let CursorSetting::Default = ui.config.cursor {
         if show_cursor {
             frame.set_cursor_position(p)

@@ -43,6 +43,10 @@ impl From<StyleSetting> for Style {
 }
 
 impl StyleSetting {
+    pub fn is_empty(&self) -> bool {
+        self.fg.is_none() && self.bg.is_none() && self.modifier.is_empty()
+    }
+
     pub fn r#override(&self, base: Style) -> Style {
         let mut style = base;
 
