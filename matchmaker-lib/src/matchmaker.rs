@@ -441,15 +441,6 @@ impl<T: SSS, S: Selection> Matchmaker<T, S> {
         tui.enter()
             .map_err(|e| MatchError::TUIError(e.to_string()))?;
 
-        // important to start after tui
-        let event_controller = event_loop.controller();
-        let event_controller_ = event_controller.clone();
-        let bind_controller = event_loop.bind_controller();
-        let event_loop_handle = tokio::spawn(async move {
-            let _ = event_loop.run().await;
-        });
-        log::debug!("event loop started");
-
         let overlay_ui = if builder.overlays.is_empty() {
             None
         } else {
@@ -468,6 +459,8 @@ impl<T: SSS, S: Selection> Matchmaker<T, S> {
             &mut nucleo::Matcher::new(nucleo::Config::DEFAULT)
         };
 
+        // Initialize UI and PreviewUI (queries terminal stdio for capabilities/font-size)
+        // MUST happen before event_loop starts reading crossterm events from stdin!
         let (ui, picker, footer, preview) = UI::new(
             self.render_config,
             matcher,
@@ -477,6 +470,15 @@ impl<T: SSS, S: Selection> Matchmaker<T, S> {
             &mut tui,
             hidden_columns,
         );
+
+        // Start event loop after UI initialization and terminal query complete
+        let event_controller = event_loop.controller();
+        let event_controller_ = event_controller.clone();
+        let bind_controller = event_loop.bind_controller();
+        let event_loop_handle = tokio::spawn(async move {
+            let _ = event_loop.run().await;
+        });
+        log::debug!("event loop started");
 
         let ret = render::render_loop(
             ui,
