@@ -730,19 +730,49 @@ impl PreviewUI {
 
         if self.active_border().is_none() {
             if let Some(title) = &title_text {
-                let fg = if self.config.border.title_fg == ratatui::style::Color::Reset {
-                    self.config.border.color
-                } else {
-                    self.config.border.title_fg
+                let is_media = self.config.media && {
+                    let p = std::path::Path::new(title);
+                    if let Some(ext) = p.extension().and_then(|e| e.to_str()) {
+                        matches!(
+                            ext.to_ascii_lowercase().as_str(),
+                            "png"
+                                | "jpg"
+                                | "jpeg"
+                                | "gif"
+                                | "webp"
+                                | "bmp"
+                                | "ico"
+                                | "tiff"
+                                | "pdf"
+                                | "mp4"
+                                | "mkv"
+                                | "webm"
+                                | "mov"
+                                | "avi"
+                                | "flv"
+                                | "m4v"
+                                | "wmv"
+                        )
+                    } else {
+                        false
+                    }
                 };
-                let title_line = Line::from(Span::styled(
-                    title.clone(),
-                    Style::default()
-                        .fg(fg)
-                        .add_modifier(self.config.border.title_modifier),
-                ));
-                lines.insert(0, title_line);
-                lines.truncate(height);
+
+                if !is_media {
+                    let fg = if self.config.border.title_fg == ratatui::style::Color::Reset {
+                        self.config.border.color
+                    } else {
+                        self.config.border.title_fg
+                    };
+                    let title_line = Line::from(Span::styled(
+                        title.clone(),
+                        Style::default()
+                            .fg(fg)
+                            .add_modifier(self.config.border.title_modifier),
+                    ));
+                    lines.insert(0, title_line);
+                    lines.truncate(height);
+                }
             }
         }
 
