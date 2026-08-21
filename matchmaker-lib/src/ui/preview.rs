@@ -113,9 +113,11 @@ impl PreviewUI {
         if config.media {
             let mut p = if atty::is(atty::Stream::Stdout) {
                 ratatui_image::picker::Picker::from_query_stdio()
+                    .or_else(|_| query_tty_picker(std::time::Duration::from_millis(100)))
                     .unwrap_or_else(|_| ratatui_image::picker::Picker::halfblocks())
             } else {
-                ratatui_image::picker::Picker::halfblocks()
+                query_tty_picker(std::time::Duration::from_millis(100))
+                    .unwrap_or_else(|_| ratatui_image::picker::Picker::halfblocks())
             };
 
             if let Some(ref protocol_str) = config.media_protocol {
@@ -756,4 +758,97 @@ impl PreviewUI {
         preview
     }
 }
+
+#[cfg(unix)]
+fn query_tty_picker(timeout: std::time::Duration) -> anyhow::Result<ratatui_image::picker::Picker> {
+    use nix::sys::{
+        select::{select, FdSet},
+        time::{TimeVal, TimeValLike},
+    };
+    use std::fs::OpenOptions;
+    use std::io::{Read, Write};
+    use std::os::fd::AsFd;
+
+    let mut tty = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open("/dev/tty")?;
+
+    let is_tmux = std::env::var("TERM_PROGRAM").is_ok_and(|v| v == "tmux")
+        || std::env::var("TERM").is_ok_and(|t| t.starts_with("tmux"));
+
+    if is_tmux {
+        let _ = std::process::Command::new("tmux")
+            .args(["set", "-p", "allow-passthrough", "on"])
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status();
+
+        let query = b"\x1bPtmux;\x1b\x1b_Gi=1,s=1,v=1,a=q,t=d,f=24;AAAA\x1b\\\x1b\\\x1bPtmux;\x1b\x1b[16t\x1b\\";
+        tty.write_all(query)?;
+    } else {
+        tty.write_all(b"\x1b_Gi=1,s=1,v=1,a=q,t=d,f=24;AAAA\x1b\\\x1b[16t")?;
+    }
+    tty.flush()?;
+
+    let mut timeout = TimeVal::milliseconds(timeout.as_millis() as i64);
+    let mut full_buf = Vec::new();
+    loop {
+        let mut fds = FdSet::new();
+        fds.insert(tty.as_fd());
+        let ready = select(None, &mut fds, None, None, Some(&mut timeout))?;
+        if ready == 0 {
+            break;
+        }
+        let mut chunk = [0u8; 256];
+        let n = tty.read(&mut chunk)?;
+        if n == 0 {
+            break;
+        }
+        full_buf.extend_from_slice(&chunk[..n]);
+        timeout = TimeVal::milliseconds(15);
+    }
+
+    if full_buf.is_empty() {
+        anyhow::bail!("No response from /dev/tty");
+    }
+
+    let resp = String::from_utf8_lossy(&full_buf);
+    let is_kitty = resp.contains("_Gi=1;OK") || resp.contains("_Gi=1;EINVAL");
+
+    let mut font_size = None;
+    if let Some(pos) = resp.find("\x1b[6;") {
+        let rest = &resp[pos + 4..];
+        if let Some(end) = rest.find('t') {
+            let part = &rest[..end];
+            let mut nums = part.split(';');
+            if let (Some(h_str), Some(w_str)) = (nums.next(), nums.next()) {
+                if let (Ok(h), Ok(w)) = (h_str.parse::<u16>(), w_str.parse::<u16>()) {
+                    if w > 0 && h > 0 {
+                        font_size = Some(ratatui_image::FontSize::new(w, h));
+                    }
+                }
+            }
+        }
+    }
+
+    let font_size = font_size.unwrap_or_else(|| ratatui_image::FontSize::new(10, 20));
+    let proto = if is_kitty || is_tmux || std::env::var("GHOSTTY_RESOURCES_DIR").is_ok() {
+        ratatui_image::picker::ProtocolType::Kitty
+    } else {
+        ratatui_image::picker::ProtocolType::Halfblocks
+    };
+
+    #[allow(deprecated)]
+    let mut picker = ratatui_image::picker::Picker::from_fontsize(font_size);
+    picker.set_protocol_type(proto);
+    Ok(picker)
+}
+
+#[cfg(windows)]
+fn query_tty_picker(_timeout: std::time::Duration) -> anyhow::Result<ratatui_image::picker::Picker> {
+    anyhow::bail!("TTY querying is not supported on Windows")
+}
+
 
