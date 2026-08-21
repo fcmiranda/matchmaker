@@ -1790,8 +1790,24 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                 if let Some(x) = overlay_ui_ref {
                     x.draw(frame);
                 }
+
+                // Explicitly anchor the cursor at the input prompt when cursor is None or hidden.
+                // This prevents terminal cursor shaders (such as Ghostty's custom cursor shaders)
+                // from tracking or flickering on the preview area/first letter of the filename.
+                if let CursorSetting::None = picker_ui.query.config.cursor {
+                    frame.set_cursor_position(Position::new(input.x, input.y));
+                }
             })
             .map_err(|e| MatchError::TUIError(e.to_string()))?;
+
+        if let CursorSetting::None = picker_ui.query.config.cursor {
+            crossterm::execute!(
+                tui.terminal.backend_mut(),
+                crossterm::cursor::MoveTo(0, cursor_y_offset),
+                crossterm::cursor::Hide
+            )
+            ._elog();
+        }
 
         if did_resize {
             // useful to clear artifacts
