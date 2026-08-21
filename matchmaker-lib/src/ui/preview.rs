@@ -114,8 +114,25 @@ impl PreviewUI {
             let mut p = if config.media_protocol.is_some() {
                 ratatui_image::picker::Picker::halfblocks()
             } else {
-                ratatui_image::picker::Picker::from_query_stdio()
-                    .unwrap_or_else(|_| ratatui_image::picker::Picker::halfblocks())
+                ratatui_image::picker::Picker::from_query_stdio().unwrap_or_else(|_| {
+                    let mut fallback = ratatui_image::picker::Picker::halfblocks();
+                    if std::env::var("GHOSTTY_RESOURCES_DIR").is_ok()
+                        || std::env::var("KITTY_WINDOW_ID").is_ok()
+                        || std::env::var("KITTY_PID").is_ok()
+                        || std::env::var("WEZTERM_PANE").is_ok()
+                        || std::env::var("TERM")
+                            .is_ok_and(|t| t.contains("kitty") || t.contains("ghostty"))
+                    {
+                        fallback.set_protocol_type(ratatui_image::picker::ProtocolType::Kitty);
+                    } else if std::env::var("TERM_PROGRAM")
+                        .is_ok_and(|tp| tp.contains("iTerm"))
+                    {
+                        fallback.set_protocol_type(ratatui_image::picker::ProtocolType::Iterm2);
+                    } else if std::env::var("TERM").is_ok_and(|t| t.contains("foot")) {
+                        fallback.set_protocol_type(ratatui_image::picker::ProtocolType::Sixel);
+                    }
+                    fallback
+                })
             };
             if let Some(ref protocol_str) = config.media_protocol {
                 let protocol_type = match protocol_str.to_ascii_lowercase().as_str() {
