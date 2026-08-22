@@ -238,6 +238,10 @@ type = "None"
 # 4. TABELA DE RESULTADOS ([results])
 # ==============================================================================
 [results]
+# Posição inicial do cursor na lista (índice 0-based ou negativo para contar do final, ex: -1 para o último item).
+# Valores: inteiros (positivo ou negativo) | Default: None (inicia em 0)
+# pos = 0
+
 # Permite seleção múltipla de itens (com Tab / multi-select).
 # Valores: true, false | Default: true
 multi = true

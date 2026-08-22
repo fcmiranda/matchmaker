@@ -44,6 +44,7 @@ pub struct ResultsUI {
     pub status_config: StatusConfig,
 
     pub config: ResultsConfig,
+    pub initial_pos: Option<i32>,
 
     bottom_clip: Option<u16>,
     cursor_above: u16,
@@ -76,6 +77,7 @@ impl ResultsUI {
             status: Default::default(),
             status_template: Line::from(status_config.template.clone()).style(status_config.style),
             status_config,
+            initial_pos: config.pos,
             config,
 
             cursor_disabled: false,
@@ -436,6 +438,29 @@ impl ResultsUI {
         nav_bar_style: Option<(ratatui::widgets::BorderType, ratatui::style::Style)>,
         freeze_snapshot: bool,
     ) -> Table<'a> {
+        if let Some(pos) = self.initial_pos {
+            let (_, status) = Worker::new_snapshot(&mut worker.nucleo);
+            self.status = status;
+            let total = self.status.matched_count;
+            if total > 0 {
+                let target = if pos >= 0 {
+                    (pos as u32).min(total.saturating_sub(1))
+                } else {
+                    total.saturating_sub((-pos) as u32)
+                };
+                self.cursor_jump(target);
+                if pos >= 0 {
+                    if total > pos as u32 || !self.status.running {
+                        self.initial_pos = None;
+                    }
+                } else if total >= (-pos) as u32 || !self.status.running {
+                    self.initial_pos = None;
+                }
+            } else if !self.status.running {
+                self.initial_pos = None;
+            }
+        }
+
         let cwd = std::env::current_dir().unwrap_or_default();
         let offset = self.bottom as u32;
         let end = self.bottom + self.height as u32;

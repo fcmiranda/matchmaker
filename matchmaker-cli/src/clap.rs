@@ -51,6 +51,10 @@ pub struct Cli {
     #[arg(long)]
     pub sort: bool,
 
+    /// Initial cursor position (0-based index or negative for from-the-end).
+    #[arg(long, value_name = "INDEX", allow_hyphen_values = true)]
+    pub pos: Option<i32>,
+
     /// Enable frecency tracking and re-ranking for search results.
     #[arg(long)]
     pub frecency: bool,
@@ -211,6 +215,7 @@ impl Cli {
             try_parse!("nav-bind", "--");
             try_parse!("group-prefix", "--");
             try_parse!("parent-peek-pct", "--");
+            try_parse!("pos", "--");
 
             // Flags
             if [

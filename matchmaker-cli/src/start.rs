@@ -205,6 +205,10 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
         config.render.results.symlink_target = true;
     }
 
+    if let Some(pos) = cli.pos {
+        config.render.results.pos = Some(pos);
+    }
+
     if let Some(props) = &cli.media {
         apply_media_props(props, &mut config);
     }

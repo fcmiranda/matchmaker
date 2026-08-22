@@ -888,11 +888,15 @@ pub struct ResultsConfig {
     /// Style for group header rows (set via --color group-header:…)
     #[partial(recurse)]
     pub group_header_style: StyleSetting,
+
+    /// Initial cursor position (0-based index or negative for from-the-end).
+    pub pos: Option<i32>,
 }
 
 impl Default for ResultsConfig {
     fn default() -> Self {
         ResultsConfig {
+            pos: None,
             border: Default::default(),
 
             multi_prefix: "▌ ".to_string(),
