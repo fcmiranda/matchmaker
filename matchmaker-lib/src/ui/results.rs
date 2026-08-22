@@ -668,11 +668,15 @@ impl ResultsUI {
 
         self.status = status.clone();
         self.medians = medians;
-        widths[0] += self.indentation() as u16;
+        if let Some(first_vis) = widths.iter().position(|&w| w != 0) {
+            widths[first_vis] += self.indentation() as u16;
+        } else if !widths.is_empty() {
+            widths[0] += self.indentation() as u16;
+        }
 
         // When symlink targets are enabled, expand column 0 to use all
         // remaining horizontal space so the annotation has room to display.
-        if self.config.symlink_target {
+        if self.config.symlink_target && !widths.is_empty() && widths[0] != 0 {
             let other_cols: u16 = widths[1..].iter().sum();
             let col0_max = self
                 .width
@@ -718,8 +722,14 @@ impl ResultsUI {
                 }
         };
 
+        let effective_active_col = if widths.get(active_column).copied().unwrap_or(0) == 0 {
+            widths.iter().position(|&w| w != 0).unwrap_or(active_column)
+        } else {
+            active_column
+        };
+
         let style_text = |mut t: ratatui::text::Text<'a>, x: usize, is_current_row: bool| {
-            let is_active_col = active_column == x;
+            let is_active_col = effective_active_col == x;
             match self.config.row_connection {
                 RowConnectionStyle::Disjoint => {
                     if is_active_col {
@@ -812,6 +822,13 @@ impl ResultsUI {
                             }
                         }
 
+                        let first_visible = widths.iter().position(|&w| w != 0).unwrap_or(0);
+                        let target_prefix_col = if is_spinner && widths.get(spinner_col_idx).copied().unwrap_or(0) != 0 {
+                            spinner_col_idx
+                        } else {
+                            first_visible
+                        };
+
                         let last_visible = widths
                             .iter()
                             .enumerate()
@@ -825,7 +842,7 @@ impl ResultsUI {
                             .enumerate()
                             .map(|(x, mut t)| {
                                 t = style_text(t, x, is_current_row);
-                                if x == spinner_col_idx {
+                                if x == target_prefix_col {
                                     prefix_span(
                                         &mut t,
                                         prefix.clone(),
@@ -869,7 +886,7 @@ impl ResultsUI {
                                             &mut t,
                                             &icon_name,
                                             self.config.symlink_target_style.into(),
-                                            widths[spinner_col_idx],
+                                            widths[target_prefix_col],
                                         );
                                     }
                                 }
@@ -989,6 +1006,13 @@ impl ResultsUI {
                     }
                 }
 
+                let first_visible = widths.iter().position(|&w| w != 0).unwrap_or(0);
+                let target_prefix_col = if is_spinner && widths.get(spinner_col_idx).copied().unwrap_or(0) != 0 {
+                    spinner_col_idx
+                } else {
+                    first_visible
+                };
+
                 let last_visible = widths
                     .iter()
                     .enumerate()
@@ -1002,7 +1026,7 @@ impl ResultsUI {
                     .enumerate()
                     .map(|(x, mut t)| {
                         t = style_text(t, x, is_current_row);
-                        if x == spinner_col_idx {
+                        if x == target_prefix_col {
                             prefix_span(
                                 &mut t,
                                 prefix.clone(),
@@ -1038,7 +1062,7 @@ impl ResultsUI {
                                     &mut t,
                                     &icon_name,
                                     self.config.symlink_target_style.into(),
-                                    widths[spinner_col_idx],
+                                    widths[target_prefix_col],
                                 );
                             }
                         }
@@ -1242,6 +1266,13 @@ impl ResultsUI {
                 remaining_height -= height;
 
                 // same as above
+                let first_visible = widths.iter().position(|&w| w != 0).unwrap_or(0);
+                let target_prefix_col = if is_spinner && widths.get(spinner_col_idx).copied().unwrap_or(0) != 0 {
+                    spinner_col_idx
+                } else {
+                    first_visible
+                };
+
                 let last_visible = widths
                     .iter()
                     .enumerate()
@@ -1258,7 +1289,7 @@ impl ResultsUI {
                         t = style_text(t, x, self.is_current(i));
 
                         // prefix after hscroll
-                        if x == spinner_col_idx {
+                        if x == target_prefix_col {
                             prefix_span(
                                 &mut t,
                                 prefix.clone(),
@@ -1299,7 +1330,7 @@ impl ResultsUI {
                                     &mut t,
                                     &icon_name_hz,
                                     self.config.symlink_target_style.into(),
-                                    widths[spinner_col_idx],
+                                    widths[target_prefix_col],
                                 );
                             }
                         };
