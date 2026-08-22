@@ -247,7 +247,7 @@ impl ResultsUI {
         if self.cursor_disabled {
             None
         } else {
-            Some(self.cursor)
+            Some(self.cursor_above)
         }
     }
 
@@ -1142,10 +1142,6 @@ impl ResultsUI {
                 }
             }
 
-            if self.is_current(i) {
-                self.cursor_above = self.height - remaining_height;
-            }
-
             // insert group header
             if let Some(group) = group {
                 if remaining_height > 0 {
@@ -1190,6 +1186,10 @@ impl ResultsUI {
             }
             if remaining_height == 0 {
                 break;
+            }
+
+            if self.is_current(i) {
+                self.cursor_above = self.height - remaining_height;
             }
 
             // determine prefix
