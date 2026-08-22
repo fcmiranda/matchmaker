@@ -735,8 +735,11 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                             }
                         }
                         Action::Pos(pos) => {
+                            let (_, status) =
+                                crate::nucleo::Worker::new_snapshot(&mut worker.nucleo);
+                            results.status = status;
                             let pos = if pos >= 0 {
-                                pos as u32
+                                (pos as u32).min(results.end())
                             } else {
                                 results.status.matched_count.saturating_sub((-pos) as u32)
                             };

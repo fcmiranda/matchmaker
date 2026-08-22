@@ -177,7 +177,19 @@ impl ResultsUI {
     pub fn update_dimensions(&mut self, area: &Rect) {
         let [bw, bh] = [self.config.border.height(), self.config.border.width()];
         self.width = area.width.saturating_sub(bw);
+        let old_height = self.height;
         self.height = area.height.saturating_sub(bh);
+        if old_height == 0 && self.height > 0 {
+            let abs_index = self.bottom + self.cursor as u32;
+            let end = self.end();
+            let index = abs_index.min(end);
+            if index < self.bottom as u32 || index >= self.bottom + self.height as u32 {
+                self.bottom = (end + 1)
+                    .saturating_sub(self.height as u32)
+                    .min(index);
+            }
+            self.cursor = (index - self.bottom) as u16;
+        }
         log::debug!("Updated results dimensions: {}x{}", self.width, self.height);
     }
 
@@ -307,12 +319,17 @@ impl ResultsUI {
         let end = self.end();
         let index = index.min(end);
 
-        if index < self.bottom as u32 || index >= self.bottom + self.height as u32 {
-            self.bottom = (end + 1)
-                .saturating_sub(self.height as u32) // don't exceed the first item of the last self.height items
-                .min(index);
+        if self.height == 0 {
+            self.bottom = 0;
+            self.cursor = index as u16;
+        } else {
+            if index < self.bottom as u32 || index >= self.bottom + self.height as u32 {
+                self.bottom = (end + 1)
+                    .saturating_sub(self.height as u32) // don't exceed the first item of the last self.height items
+                    .min(index);
+            }
+            self.cursor = (index - self.bottom) as u16;
         }
-        self.cursor = (index - self.bottom) as u16;
         log::debug!("cursor jumped to {}: {index}, end: {end}", self.cursor);
     }
 
