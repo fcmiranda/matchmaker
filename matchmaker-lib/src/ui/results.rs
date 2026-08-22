@@ -668,10 +668,12 @@ impl ResultsUI {
 
         self.status = status.clone();
         self.medians = medians;
-        if let Some(first_vis) = widths.iter().position(|&w| w != 0) {
-            widths[first_vis] += self.indentation() as u16;
-        } else if !widths.is_empty() {
-            widths[0] += self.indentation() as u16;
+        if self.indentation() > 0 {
+            if let Some(first_vis) = widths.iter().position(|&w| w != 0) {
+                widths[first_vis] += self.indentation() as u16;
+            } else if !widths.is_empty() {
+                widths[0] += self.indentation() as u16;
+            }
         }
 
         // When symlink targets are enabled, expand column 0 to use all
@@ -696,7 +698,9 @@ impl ResultsUI {
         let match_count = status.matched_count;
 
         if match_count < self.bottom + self.cursor as u32 && !self.cursor_disabled {
-            self.cursor_jump(match_count);
+            if !status.running && match_count > 0 {
+                self.cursor_jump(match_count);
+            }
         } else {
             self.cursor = self.cursor.min(results.len().saturating_sub(1) as u16)
         }
