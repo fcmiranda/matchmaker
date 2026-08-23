@@ -693,6 +693,18 @@ impl ResultsUI {
             }
         }
 
+        // Ensure visible column is at least wide enough for any group headers in results
+        let max_group_width = results
+            .iter()
+            .filter_map(|(g, _, _)| g.as_ref().map(|s| UnicodeWidthStr::width(&**s) as u16 + 2))
+            .max()
+            .unwrap_or(0);
+        if max_group_width > 0 {
+            if let Some(first_vis) = widths.iter().position(|&w| w != 0) {
+                widths[first_vis] = widths[first_vis].max(max_group_width);
+            }
+        }
+
         // When symlink targets are enabled, expand column 0 to use all
         // remaining horizontal space so the annotation has room to display.
         if self.config.symlink_target && !widths.is_empty() && widths[0] != 0 {
@@ -1527,11 +1539,13 @@ impl ResultsUI {
 
             if surplus > 0 {
                 // occupy full row
+                let is_single_col = widths.iter().filter(|&&w| w != 0).count() <= 1;
                 if matches!(self.config.row_connection, RowConnectionStyle::Full)
+                    || is_single_col
                     || (matches!(self.config.row_connection, RowConnectionStyle::Disjoint)
                         && self.config.right_align_last)
                 {
-                    if let Some(s) = widths.last_mut() {
+                    if let Some(s) = widths.iter_mut().rfind(|w| **w != 0) {
                         *s += surplus;
                     }
                 }
