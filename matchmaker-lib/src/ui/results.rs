@@ -1191,20 +1191,23 @@ impl ResultsUI {
             if let Some(group) = group {
                 if remaining_height > 0 {
                     let group_style: Style = self.config.group_header_style.into();
-                    let line = ratatui::text::Line::from(vec![
-                        Span::raw(" "),
-                        Span::styled(group.to_string(), group_style),
-                    ]);
+                    let is_first = rows.is_empty();
+                    let is_last = remaining_height <= 1;
+                    let nav_bar_span = get_nav_bar_span(is_first, is_last, false);
+
+                    let mut line_spans = vec![];
+                    if let Some(nav_span) = nav_bar_span {
+                        line_spans.push(nav_span);
+                    }
+                    line_spans.push(Span::raw(" "));
+                    line_spans.push(Span::styled(group.to_string(), group_style));
+
+                    let line = ratatui::text::Line::from(line_spans);
                     let row = if as_cols {
-                        let last_visible = widths
-                            .iter()
-                            .enumerate()
-                            .rev()
-                            .find_map(|(i, w)| (*w != 0).then_some(i))
-                            .unwrap_or(0);
+                        let first_visible = widths.iter().position(|&w| w != 0).unwrap_or(0);
                         let mut cells = vec![];
                         for i in 0..widths.len() {
-                            if i == last_visible {
+                            if i == first_visible {
                                 cells.push(ratatui::widgets::Cell::from(line.clone()));
                             } else {
                                 cells.push(ratatui::widgets::Cell::from(""));
