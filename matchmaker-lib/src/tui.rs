@@ -289,7 +289,8 @@ where
         // crossterm uses stdout to determine cursor position
         // todo: workarounds?
         // #[cfg(not(target_os = "windows"))]
-        Ok(if !atty::is(atty::Stream::Stdout) {
+        use std::io::IsTerminal;
+        Ok(if !std::io::stdout().is_terminal() {
             utils::query_cursor_position(timeout)
                 .map_err(io::Error::other)?
                 .1

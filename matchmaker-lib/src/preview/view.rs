@@ -25,12 +25,29 @@ impl Preview {
         }
     }
 
+    pub fn get_line(&self, index: usize) -> Option<Line<'static>> {
+        if let Some(s) = unwrap!(self.string.lock().prefix("Previewer panicked")._elog()).as_ref() {
+            s.lines.get(index).cloned()
+        } else {
+            let output = self.lines.read();
+            output.get(index).cloned()
+        }
+    }
+
+    pub fn results_window(&self, skip: usize, take: usize) -> Vec<Line<'static>> {
+        if let Some(s) = unwrap!(self.string.lock().prefix("Previewer panicked")._elog()).as_ref() {
+            s.lines.iter().skip(skip).take(take).cloned().collect()
+        } else {
+            let output = self.lines.read();
+            output.iter().skip(skip).take(take).map(|(_, line)| line.clone()).collect()
+        }
+    }
+
     pub fn len(&self) -> usize {
         if let Some(s) = unwrap!(self.string.lock().prefix("Previewer panicked")._elog()).as_ref() {
             s.height()
         } else {
-            let output = self.lines.read();
-            output.iter().count()
+            self.lines.len()
         }
     }
 

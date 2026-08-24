@@ -160,7 +160,8 @@ pub fn action_handler(
             }
 
             let repeat = |s: String| {
-                if atty::is(atty::Stream::Stdout) {
+                use std::io::IsTerminal;
+                if std::io::stdout().is_terminal() {
                     print_handle.push(s);
                 } else {
                     print!("{}{}", s, output_separator);

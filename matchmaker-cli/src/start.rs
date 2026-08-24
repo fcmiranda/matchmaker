@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     env::set_current_dir,
-    io::Read,
+    io::{IsTerminal, Read},
     path::Path,
     process::{Command, Stdio, exit},
     sync::{Arc, Mutex},
@@ -55,7 +55,7 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
         default_config_path()
     };
 
-    if cli.dump_config && atty::is(atty::Stream::Stdout) {
+    if cli.dump_config && std::io::stdout().is_terminal() {
         // if stdout: dump the default cfg with comments
         write_str(cfg_path, crate::config::DEFAULT_CONFIG)?;
         ibog!("Config written to {cfg_path:?}");
@@ -157,7 +157,7 @@ pub fn enter(cli: Cli, partial: PartialConfig) -> anyhow::Result<Config> {
     config.apply(partial); // resolve config.exit first
 
     if !cli.args.is_empty() {
-        if !atty::is(atty::Stream::Stdin) && !cli.no_read {
+        if !std::io::stdin().is_terminal() && !cli.no_read {
             eprintln!(
                 "warning: trailing arguments provided but input is piped. ignoring trailing arguments."
             );
@@ -715,7 +715,7 @@ pub async fn start(
         command
     };
 
-    let initial_cmd = (!command.is_empty() && atty::is(atty::Stream::Stdin) || no_read)
+    let initial_cmd = (!command.is_empty() && std::io::stdin().is_terminal() || no_read)
         .then_some(command.clone())
         .unwrap_or_default();
 
@@ -784,7 +784,7 @@ pub async fn start(
     } else {
         match (
             !initial_cmd.is_empty(), // has command => t0
-            atty::is(atty::Stream::Stdout),
+            std::io::stdout().is_terminal(),
         ) {
             (true, true) => "tty",
             (true, false) => "t0",
@@ -1381,7 +1381,7 @@ pub async fn start(
     let handle = if sort {
         // Collect all input, sort alphabetically, then inject in sorted order.
         let sep = separator.or(input_separator).unwrap_or('\n');
-        let raw: Vec<u8> = if !atty::is(atty::Stream::Stdin) && !no_read {
+        let raw: Vec<u8> = if !std::io::stdin().is_terminal() && !no_read {
             let mut buf = Vec::new();
             std::io::stdin().read_to_end(&mut buf).ok();
             buf
@@ -1416,7 +1416,7 @@ pub async fn start(
             None, // already newline-separated after join
             abort_empty.then_some(render_tx),
         )
-    } else if !atty::is(atty::Stream::Stdin) && !no_read {
+    } else if !std::io::stdin().is_terminal() && !no_read {
         let stdin = std::io::stdin();
         map_reader(
             stdin,

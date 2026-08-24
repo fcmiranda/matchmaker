@@ -381,7 +381,7 @@ impl Default for UiConfig {
 
         Self {
             border: BorderSetting::default(),
-            tick_rate: 60,
+            tick_rate: 15,
             nav_mode: false,
             nav_color: Color::Yellow,
             nav_blink: false,
@@ -1256,7 +1256,7 @@ impl Default for PreviewerConfig {
             try_lossy: false,
             delay_clear: true,
             cache: 0,
-            debounce_ms: 0,
+            debounce_ms: 25,
             max_procs: 4,
             always_trigger: true,
             help: Default::default(),

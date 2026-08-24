@@ -283,6 +283,11 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
     while render_rx.recv_many(&mut buffer, 256).await > 0 {
         if state.iterations == 0 {
             log::debug!("Render loop started");
+            state.needs_redraw = true;
+        }
+        let has_non_tick = buffer.iter().any(|cmd| !matches!(cmd, RenderCommand::Tick));
+        if has_non_tick {
+            state.needs_redraw = true;
         }
         let (mut did_pause, mut did_reload, mut did_exit, mut did_resize, mut did_cursor_wrap) =
             (false, false, None, false, false);
@@ -1292,23 +1297,49 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
             tui.return_execute(clear)
                 .map_err(|e| MatchError::TUIError(e.to_string()))?;
             tui.redraw();
+            state.needs_redraw = true;
+        }
+
+        if did_reload || did_resize {
+            state.needs_redraw = true;
+        }
+
+        if picker_ui.worker.matcher_dirty.swap(false, std::sync::atomic::Ordering::AcqRel) {
+            state.needs_redraw = true;
+        }
+
+        if picker_ui.results.status.changed || picker_ui.results.status.running {
+            state.needs_redraw = true;
+        }
+
+        if preview_ui.as_ref().map_or(false, |p| p.view.changed()) {
+            state.needs_redraw = true;
+        }
+
+        if !picker_ui.results.config.spinner_prefix.is_empty() {
+            state.needs_redraw = true;
         }
 
         if ui.config.nav_mode {
             let blink_ticks = ui.config.nav_blink_rate.ticks();
+            let prev_blink = state.focus_blink;
             state.focus_tick = state.focus_tick.wrapping_add(1);
             if state.focus_tick >= blink_ticks {
                 state.focus_tick = 0;
                 state.focus_blink = !state.focus_blink;
             }
+            if prev_blink != state.focus_blink {
+                state.needs_redraw = true;
+            }
         }
 
-        let mut overlay_ui_ref = overlay_ui.as_mut();
-        let mut cursor_y_offset = 0;
+        if state.needs_redraw {
+            let mut overlay_ui_ref = overlay_ui.as_mut();
+            let mut cursor_y_offset = 0;
 
-        tui.terminal
-            .draw(|frame| {
-                let mut area = frame.area();
+            tui.terminal
+                .draw(|frame| {
+                    let mut area = frame.area();
 
                 // mutates area!
                 render_ui(frame, &mut area, &ui);
@@ -1797,6 +1828,8 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                 }
             })
             .map_err(|e| MatchError::TUIError(e.to_string()))?;
+            state.needs_redraw = false;
+        }
 
         if did_resize {
             // useful to clear artifacts

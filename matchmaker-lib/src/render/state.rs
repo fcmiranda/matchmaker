@@ -57,6 +57,7 @@ pub struct State {
     pub(crate) overlay_index: Option<usize>,
     pub(crate) synced: [bool; 2], // ran, synced
     pub reloading: bool,
+    pub needs_redraw: bool,
 
     /// Current focus pane (used when `nav_mode` is enabled).
     pub focus: Focus,
@@ -148,6 +149,7 @@ impl State {
             iterations: 0,
             synced: [false; 2],
             reloading: false,
+            needs_redraw: true,
 
             events: Event::empty(),
             should_quit: false,
@@ -159,6 +161,10 @@ impl State {
         }
     }
     // ------ properties -----------
+
+    pub fn request_redraw(&mut self) {
+        self.needs_redraw = true;
+    }
 
     pub fn contains(&self, event: Event) -> bool {
         self.events.contains(event)
@@ -231,6 +237,9 @@ impl State {
 
     // ------- updates --------------
     pub(crate) fn update_input(&mut self, new_input: &str) -> bool {
+        if self.input == new_input {
+            return false;
+        }
         let changed = self.input.cmp_replace(new_input.to_string());
         if changed {
             self.insert(Event::QueryChange);
@@ -328,7 +337,7 @@ impl State {
         }
 
         let new_id = get_current(picker_ui).map(|x| x.0);
-        let changed = self.last_id != get_current(picker_ui).map(|x| x.0);
+        let changed = self.last_id != new_id;
         if changed {
             self.last_id = new_id;
             self.insert(Event::CursorChange);

@@ -585,30 +585,22 @@ impl ResultsUI {
                         );
                     }
                 }
-                let is_yanked = if !self.yank_paths.is_empty() && !icon_name.is_empty() {
+                let (is_yanked, is_cut) = if (!self.yank_paths.is_empty() || !self.cut_paths.is_empty())
+                    && !icon_name.is_empty()
+                {
                     let path = std::path::Path::new(&icon_name);
                     let abs_path = if path.is_absolute() {
                         path.to_path_buf()
                     } else {
                         cwd.join(path)
                     };
-                    self.yank_paths
-                        .contains(&abs_path.to_string_lossy().to_string())
+                    let abs_str = abs_path.to_string_lossy();
+                    (
+                        !self.yank_paths.is_empty() && self.yank_paths.contains(abs_str.as_ref()),
+                        !self.cut_paths.is_empty() && self.cut_paths.contains(abs_str.as_ref()),
+                    )
                 } else {
-                    false
-                };
-
-                let is_cut = if !self.cut_paths.is_empty() && !icon_name.is_empty() {
-                    let path = std::path::Path::new(&icon_name);
-                    let abs_path = if path.is_absolute() {
-                        path.to_path_buf()
-                    } else {
-                        cwd.join(path)
-                    };
-                    self.cut_paths
-                        .contains(&abs_path.to_string_lossy().to_string())
-                } else {
-                    false
+                    (false, false)
                 };
 
                 let prefix = if is_spinner && !self.config.spinner_inline {

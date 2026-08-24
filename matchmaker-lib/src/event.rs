@@ -138,6 +138,35 @@ impl<A: ActionExt> EventLoop<A> {
             .cloned()
     }
 
+    fn dispatch_fallback_key(&mut self, key: KeyCombination) {
+        let mut matched = true;
+        // a basic set of keys to ensure basic usability
+        match key {
+            key!(ctrl-c) | key!(esc) => {
+                self.send(RenderCommand::quit());
+            }
+            key!(up) => self.send_action(Action::Up(1)),
+            key!(down) => self.send_action(Action::Down(1)),
+            key!(enter) => self.send_action(Action::Accept),
+            key!(right) => self.send_action(Action::ForwardChar),
+            key!(left) => self.send_action(Action::BackwardChar),
+            key!(ctrl-right) => self.send_action(Action::ForwardWord),
+            key!(ctrl-left) => self.send_action(Action::BackwardWord),
+            key!(backspace) => self.send_action(Action::DeleteChar),
+            key!(ctrl-h) => self.send_action(Action::DeleteWord),
+            key!(ctrl-u) => self.send_action(Action::Cancel),
+            key!(alt-h) => self.send_action(Action::Help("".to_string())),
+            key!(ctrl-'[') => self.send_action(Action::ToggleWrap),
+            key!(ctrl-']') => self.send_action(Action::TogglePreviewWrap),
+            _ => {
+                matched = false;
+            }
+        }
+        if matched {
+            self.record_key(key.to_string());
+        }
+    }
+
     fn handle_event(&mut self, e: Event) {
         debug!("Received: {e}");
 
@@ -199,6 +228,8 @@ impl<A: ActionExt> EventLoop<A> {
         log::trace!("{:?}", self.binds);
         self.event_stream = Some(EventStream::new());
         let mut interval = time::interval(self.tick_interval);
+        interval.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
+        let mut ctrl_c = std::pin::pin!(tokio::signal::ctrl_c());
 
         if let Some(path) = self.key_file.clone() {
             log::debug!("Cleaning up temp files @ {path:?}");
@@ -248,7 +279,7 @@ impl<A: ActionExt> EventLoop<A> {
                 }
 
                 // In case ctrl-c manifests as a signal instead of a key
-                _ = tokio::signal::ctrl_c() => {
+                _ = &mut ctrl_c => {
                     self.record_key("ctrl-c".into());
                     if let Some(actions) = self.get_bind(TriggerKind::Key(key!(ctrl-c))) {
                         self.send_actions(actions, Some("ctrl-c".into()));
@@ -256,6 +287,7 @@ impl<A: ActionExt> EventLoop<A> {
                         self.send(RenderCommand::quit());
                         info!("Received ctrl-c");
                     }
+                    ctrl_c.set(tokio::signal::ctrl_c());
                 }
 
                 Some(event) = self.rx.recv() => {
@@ -293,34 +325,10 @@ impl<A: ActionExt> EventLoop<A> {
                                             if let Some(actions) = self.get_bind(TriggerKind::Key(key)) {
                                                 self.record_key(key.to_string());
                                                 self.send_actions(actions, Some(key.to_string()));
-                                            } else if let Some(c) = key_code_as_letter(key) {                                            self.send(RenderCommand::Action(Action::Char(c)));
+                                            } else if let Some(c) = key_code_as_letter(key) {
+                                                self.send(RenderCommand::Action(Action::Char(c)));
                                             } else {
-                                                let mut matched = true;
-                                                // a basic set of keys to ensure basic usability
-                                                match key {
-                                                    key!(ctrl-c) | key!(esc) => {
-                                                        self.send(RenderCommand::quit())
-                                                    },
-                                                    key!(up) => self.send_action(Action::Up(1)),
-                                                    key!(down) => self.send_action(Action::Down(1)),
-                                                    key!(enter) => self.send_action(Action::Accept),
-                                                    key!(right) => self.send_action(Action::ForwardChar),
-                                                    key!(left) => self.send_action(Action::BackwardChar),
-                                                    key!(ctrl-right) => self.send_action(Action::ForwardWord),
-                                                    key!(ctrl-left) => self.send_action(Action::BackwardWord),
-                                                    key!(backspace) => self.send_action(Action::DeleteChar),
-                                                    key!(ctrl-h) => self.send_action(Action::DeleteWord),
-                                                    key!(ctrl-u) => self.send_action(Action::Cancel),
-                                                    key!(alt-h) => self.send_action(Action::Help("".to_string())),
-                                                    key!(ctrl-'[') => self.send_action(Action::ToggleWrap),
-                                                    key!(ctrl-']') => self.send_action(Action::TogglePreviewWrap),
-                                                    _ => {
-                                                        matched = false
-                                                    }
-                                                }
-                                                if matched {
-                                                    self.record_key(key.to_string());
-                                                }
+                                                self.dispatch_fallback_key(key);
                                             }
                                         } else if let Some(c) = key_code_as_letter(key) {
                                             // Action box is active: plain chars always go to input.
@@ -331,32 +339,7 @@ impl<A: ActionExt> EventLoop<A> {
                                             self.record_key(key.to_string());
                                             self.send_actions(actions, Some(key.to_string()));
                                         } else {
-                                                let mut matched = true;
-                                                // a basic set of keys to ensure basic usability
-                                                match key {
-                                                    key!(ctrl-c) | key!(esc) => {
-                                                        self.send(RenderCommand::quit())
-                                                    },
-                                                    key!(up) => self.send_action(Action::Up(1)),
-                                                    key!(down) => self.send_action(Action::Down(1)),
-                                                    key!(enter) => self.send_action(Action::Accept),
-                                                    key!(right) => self.send_action(Action::ForwardChar),
-                                                    key!(left) => self.send_action(Action::BackwardChar),
-                                                    key!(ctrl-right) => self.send_action(Action::ForwardWord),
-                                                    key!(ctrl-left) => self.send_action(Action::BackwardWord),
-                                                    key!(backspace) => self.send_action(Action::DeleteChar),
-                                                    key!(ctrl-h) => self.send_action(Action::DeleteWord),
-                                                    key!(ctrl-u) => self.send_action(Action::Cancel),
-                                                    key!(alt-h) => self.send_action(Action::Help("".to_string())),
-                                                    key!(ctrl-'[') => self.send_action(Action::ToggleWrap),
-                                                    key!(ctrl-']') => self.send_action(Action::TogglePreviewWrap),
-                                                    _ => {
-                                                        matched = false
-                                                    }
-                                                }
-                                                if matched {
-                                                    self.record_key(key.to_string());
-                                                }
+                                            self.dispatch_fallback_key(key);
                                         }
                                     }
                                 }

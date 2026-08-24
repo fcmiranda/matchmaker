@@ -436,6 +436,11 @@ impl<T: SSS, S: Selection> Matchmaker<T, S> {
             .unwrap_or_else(tokio::sync::mpsc::unbounded_channel);
         event_loop.add_tx(render_tx.clone());
 
+        let tx_notify = render_tx.clone();
+        self.worker.set_notify(move || {
+            let _ = tx_notify.send(crate::message::RenderCommand::Tick);
+        });
+
         let mut tui =
             tui::Tui::new(self.tui_config).map_err(|e| MatchError::TUIError(e.to_string()))?;
         tui.enter()
@@ -751,7 +756,8 @@ impl<T: SSS, S: Selection + 'static> Matchmaker<T, S> {
         self.register_interrupt_handler(Interrupt::Print, move |state| {
             let template = state.payload().clone();
             let repeat = |s: String| {
-                if atty::is(atty::Stream::Stdout) {
+                use std::io::IsTerminal;
+                if std::io::stdout().is_terminal() {
                     print_handle.push(s);
                 } else {
                     print!("{}{}", s, output_separator);

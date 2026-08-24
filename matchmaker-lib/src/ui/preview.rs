@@ -111,7 +111,8 @@ impl PreviewUI {
 
         let mut picker = None;
         if config.media {
-            let mut p = if atty::is(atty::Stream::Stdout) {
+            use std::io::IsTerminal;
+            let mut p = if std::io::stdout().is_terminal() {
                 ratatui_image::picker::Picker::from_query_stdio()
                     .or_else(|_| query_tty_picker(std::time::Duration::from_millis(100)))
                     .unwrap_or_else(|_| ratatui_image::picker::Picker::halfblocks())
@@ -384,8 +385,7 @@ impl PreviewUI {
             return;
         }
 
-        let results = self.view.results().lines;
-        let line_count = results.len();
+        let line_count = self.view.len();
 
         let Some(mut target) = target else {
             self.target = None;
@@ -403,12 +403,12 @@ impl PreviewUI {
 
         let index = self.target.unwrap();
 
-        self.offset = if index >= results.len() {
+        self.offset = if index >= line_count {
             self.attained_target = false;
-            results.len().saturating_sub(self.area.height as usize / 2)
+            line_count.saturating_sub(self.area.height as usize / 2)
         } else {
             self.attained_target = true;
-            self.target_to_offset(index, &results)
+            self.target_to_offset(index)
         };
 
         log::trace!("Preview initial offset: {}, index: {}", self.offset, index);
@@ -456,8 +456,7 @@ impl PreviewUI {
         self.attained_target = false;
     }
     pub fn scroll_end(&mut self) {
-        let results = self.view.results();
-        let rl = results.lines.len();
+        let rl = self.view.len();
         let height = self.area.height as usize;
 
         let header_count = self.initial().header_lines.min(height);
@@ -466,7 +465,7 @@ impl PreviewUI {
         self.offset = remaining_lines.saturating_sub(height);
     }
 
-    fn target_to_offset(&self, mut target: usize, results: &Vec<Line>) -> usize {
+    fn target_to_offset(&self, mut target: usize) -> usize {
         // decrement the index to put the target lower on the page.
         // The resulting height up to the top of target should >= p% of height.
         let mut lines_above =
@@ -478,9 +477,10 @@ impl PreviewUI {
 
         // shoddy approximation to how Paragraph wraps lines
         while target > 0 && lines_above > 0 {
-            let prev = results
-                .get(target)
-                .map(|x| wrapped_line_height(x, self.area.width))
+            let prev = self
+                .view
+                .get_line(target)
+                .map(|x| wrapped_line_height(&x, self.area.width))
                 .unwrap_or(1);
             if prev > lines_above {
                 break;
@@ -659,8 +659,7 @@ impl PreviewUI {
     }
 
     pub fn make_preview(&mut self) -> Paragraph<'_> {
-        let results = self.view.results();
-        let rl = results.lines.len();
+        let rl = self.view.len();
         let height = self.area.height as usize;
         let mut offset = self.offset;
 
@@ -698,11 +697,9 @@ impl PreviewUI {
             && !self.attained_target
             && target < rl
         {
-            self.offset = self.target_to_offset(target, &results.lines);
+            self.offset = self.target_to_offset(target);
             self.attained_target = true;
         };
-
-        let mut results = results.into_iter();
 
         if height == 0 {
             return Paragraph::new(Vec::new());
@@ -710,20 +707,17 @@ impl PreviewUI {
 
         let mut lines = Vec::with_capacity(height);
 
-        for _ in 0..self.initial().header_lines.min(height) {
-            if let Some(line) = results.next() {
-                lines.push(line);
-            } else {
-                break;
-            };
+        let header_count = self.initial().header_lines.min(height);
+        if header_count > 0 {
+            lines.extend(self.view.results_window(0, header_count));
         }
 
-        let mut results = results.skip(offset);
-
-        for _ in self.initial().header_lines..height {
-            if let Some(line) = results.next() {
-                lines.push(line);
-            }
+        let remaining_height = height.saturating_sub(header_count);
+        if remaining_height > 0 {
+            lines.extend(
+                self.view
+                    .results_window(self.initial().header_lines + offset, remaining_height),
+            );
         }
 
         let title_text = self.title_text();

@@ -8,7 +8,7 @@ use std::{
     mem::take,
     sync::{
         Arc,
-        atomic::{self, AtomicU32},
+        atomic::{self, AtomicBool, AtomicU32, Ordering},
     },
 };
 use unicode_segmentation::UnicodeSegmentation;
@@ -190,6 +190,8 @@ where
     pub frecency_snapshot: Option<crate::frecency::FrecencySnapshot>,
     pub typo_tolerance: bool,
     pub dir_first: bool,
+    pub matcher_dirty: Arc<AtomicBool>,
+    notify_callback: Arc<arc_swap::ArcSwapOption<NotifyFn>>,
 
     // Background tasks which push to the injector check their version matches this or exit
     pub(super) version: Arc<AtomicU32>,
@@ -197,6 +199,8 @@ where
     pub group_header: Option<Box<dyn for<'a> Fn(&'a T) -> Option<Arc<str>> + Send + Sync>>,
     column_options: Vec<ColumnOptions>,
 }
+
+struct NotifyFn(Box<dyn Fn() + Send + Sync>);
 
 // #[derive(Debug, Default)]
 // pub struct WorkerSettings {
@@ -217,15 +221,29 @@ impl<T: SSS> Worker<T> {
         let columns: Arc<[_]> = columns.into_iter().collect();
         let matcher_columns = columns.iter().filter(|col| col.filter).count() as u32;
 
+        let matcher_dirty = Arc::new(AtomicBool::new(false));
+        let notify_callback: Arc<arc_swap::ArcSwapOption<NotifyFn>> =
+            Arc::new(arc_swap::ArcSwapOption::empty());
+
+        let dirty_ref = matcher_dirty.clone();
+        let cb_ref = notify_callback.clone();
+
         let inner = nucleo::Nucleo::new(
             nucleo::Config::DEFAULT,
-            Arc::new(|| {}),
+            Arc::new(move || {
+                dirty_ref.store(true, Ordering::Release);
+                if let Some(cb) = cb_ref.load().as_ref() {
+                    (cb.0)();
+                }
+            }),
             None,
             matcher_columns,
         );
 
         Self {
             nucleo: inner,
+            matcher_dirty,
+            notify_callback,
             col_indices_buffer: Vec::with_capacity(128),
             query: PickerQuery::new(columns.iter().map(|col| &col.name).cloned(), default_column),
             column_options: vec![ColumnOptions::default(); columns.len()],
@@ -243,6 +261,13 @@ impl<T: SSS> Worker<T> {
             dir_first: false,
             version: Arc::new(AtomicU32::new(0)),
         }
+    }
+
+    pub fn set_notify<F>(&self, f: F)
+    where
+        F: Fn() + Send + Sync + 'static,
+    {
+        self.notify_callback.store(Some(Arc::new(NotifyFn(Box::new(f)))));
     }
 
     pub fn set_column_options(&mut self, index: usize, options: ColumnOptions) {
@@ -376,7 +401,15 @@ impl<T: SSS> Worker<T> {
                 item: nucleo::Item<'a, T>,
                 tier: u8,
                 raw_path: Cow<'a, str>,
+                clean_range: (usize, usize),
                 score: u64,
+            }
+
+            impl<'a, T> DecoratedItem<'a, T> {
+                #[inline]
+                fn clean(&self) -> &str {
+                    &self.raw_path[self.clean_range.0..self.clean_range.1]
+                }
             }
 
             let mut decorated: Vec<DecoratedItem<'_, T>> = items
@@ -394,26 +427,27 @@ impl<T: SSS> Worker<T> {
                         self.location_bias,
                         penalty,
                     );
-                    let (tier, _) =
+                    let (tier, clean) =
                         get_item_tier_and_clean_path(raw_path.as_ref(), self.dir_first);
+                    let clean_start = clean.as_ptr() as usize - raw_path.as_ref().as_ptr() as usize;
+                    let clean_range = (clean_start, clean_start + clean.len());
                     DecoratedItem {
                         item,
                         tier,
                         raw_path,
+                        clean_range,
                         score,
                     }
                 })
                 .collect();
 
-            decorated.sort_by(|a, b| {
+            decorated.sort_unstable_by(|a, b| {
                 if a.tier != b.tier {
                     return a.tier.cmp(&b.tier);
                 }
 
                 if a.tier < 2 {
-                    let (_, clean_a) = get_item_tier_and_clean_path(a.raw_path.as_ref(), true);
-                    let (_, clean_b) = get_item_tier_and_clean_path(b.raw_path.as_ref(), true);
-                    let cmp = cmp_ascii_case_insensitive(clean_a, clean_b);
+                    let cmp = cmp_ascii_case_insensitive(a.clean(), b.clean());
                     if cmp != std::cmp::Ordering::Equal {
                         return cmp;
                     }
@@ -432,7 +466,7 @@ impl<T: SSS> Worker<T> {
     }
 
     pub fn new_snapshot(nucleo: &mut nucleo::Nucleo<T>) -> (&nucleo::Snapshot<T>, Status) {
-        let nucleo::Status { changed, running } = nucleo.tick(10);
+        let nucleo::Status { changed, running } = nucleo.tick(0);
         let snapshot = nucleo.snapshot();
         (
             snapshot,
@@ -578,7 +612,15 @@ impl<T: SSS> Worker<T> {
                 item: nucleo::Item<'a, T>,
                 tier: u8,
                 raw_path: Cow<'a, str>,
+                clean_range: (usize, usize),
                 score: u64,
+            }
+
+            impl<'a, T> DecoratedItem<'a, T> {
+                #[inline]
+                fn clean(&self) -> &str {
+                    &self.raw_path[self.clean_range.0..self.clean_range.1]
+                }
             }
 
             let mut decorated: Vec<DecoratedItem<'_, T>> = items
@@ -596,26 +638,27 @@ impl<T: SSS> Worker<T> {
                         self.location_bias,
                         penalty,
                     );
-                    let (tier, _) =
+                    let (tier, clean) =
                         get_item_tier_and_clean_path(raw_path.as_ref(), self.dir_first);
+                    let clean_start = clean.as_ptr() as usize - raw_path.as_ref().as_ptr() as usize;
+                    let clean_range = (clean_start, clean_start + clean.len());
                     DecoratedItem {
                         item,
                         tier,
                         raw_path,
+                        clean_range,
                         score,
                     }
                 })
                 .collect();
 
-            decorated.sort_by(|a, b| {
+            decorated.sort_unstable_by(|a, b| {
                 if a.tier != b.tier {
                     return a.tier.cmp(&b.tier);
                 }
 
                 if a.tier < 2 {
-                    let (_, clean_a) = get_item_tier_and_clean_path(a.raw_path.as_ref(), true);
-                    let (_, clean_b) = get_item_tier_and_clean_path(b.raw_path.as_ref(), true);
-                    let cmp = cmp_ascii_case_insensitive(clean_a, clean_b);
+                    let cmp = cmp_ascii_case_insensitive(a.clean(), b.clean());
                     if cmp != std::cmp::Ordering::Equal {
                         return cmp;
                     }
