@@ -246,21 +246,29 @@ A auditoria revelou fricções que impactam a fluidez absoluta (*Zero-Friction M
           fi
       fi
 
-      # 2. Resolução canônica com compressão de tilde (~)
+      # 2. Resolução inteligente: caminho relativo local ($PWD) ou canônico (~)
       local -a formatted_items=()
       for line in "${valid_lines[@]}"; do
           local full_path
           full_path=$(realpath "$line" 2>/dev/null || echo "$line")
-          if [[ "$full_path" == "$HOME"* ]]; then
+          local formatted=""
+          if [[ "$full_path" == "$PWD/"* ]]; then
+              local rel="${full_path#$PWD/}"
+              formatted="${(q-)rel}"
+          elif [[ "$full_path" == "$PWD" ]]; then
+              formatted="."
+          elif [[ "$full_path" == "$HOME"* ]]; then
               local rest="${full_path#$HOME/}"
               if [[ "$rest" != "$full_path" ]]; then
                   rest="${(q-)rest}"
-                  full_path="~/$rest"
+                  formatted="~/$rest"
+              else
+                  formatted="~"
               fi
           else
-              full_path="${(q-)full_path}"
+              formatted="${(q-)full_path}"
           fi
-          formatted_items+=("$full_path")
+          formatted_items+=("$formatted")
       done
 
       local formatted_result="${(j: :)formatted_items}"
@@ -476,21 +484,29 @@ _mm_jump_widget() {
         fi
     fi
 
-    # 2. Resolução canônica com compressão de tilde (~)
+    # 2. Resolução inteligente: caminho relativo local ($PWD) ou canônico (~)
     local -a formatted_items=()
     for line in "${valid_lines[@]}"; do
         local full_path
         full_path=$(realpath "$line" 2>/dev/null || echo "$line")
-        if [[ "$full_path" == "$HOME"* ]]; then
+        local formatted=""
+        if [[ "$full_path" == "$PWD/"* ]]; then
+            local rel="${full_path#$PWD/}"
+            formatted="${(q-)rel}"
+        elif [[ "$full_path" == "$PWD" ]]; then
+            formatted="."
+        elif [[ "$full_path" == "$HOME"* ]]; then
             local rest="${full_path#$HOME/}"
             if [[ "$rest" != "$full_path" ]]; then
                 rest="${(q-)rest}"
-                full_path="~/$rest"
+                formatted="~/$rest"
+            else
+                formatted="~"
             fi
         else
-            full_path="${(q-)full_path}"
+            formatted="${(q-)full_path}"
         fi
-        formatted_items+=("$full_path")
+        formatted_items+=("$formatted")
     done
 
     local formatted_result="${(j: :)formatted_items}"

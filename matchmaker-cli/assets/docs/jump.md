@@ -181,9 +181,12 @@ When Matchmaker Jump Mode is paired with shell widgets (e.g. `_mm_jump_widget` i
 ### Object-First Command Composition (`CURSOR=0` on Empty Prompt)
 When invoked from an empty prompt (e.g. `<Tab>` or `Ctrl+T`):
 1. Selecting a **directory** performs an immediate `cd` into that directory.
-2. Selecting **file(s)** resolves their canonical paths, applies tilde compression (`~/.dotfiles/...`), prefixes a leading space, and sets `CURSOR=0`:
+2. Selecting **file(s)** formats them intelligently:
+   - **Inside `$PWD`**: Clean relative path (e.g. `completion.md` or `docs/shell/completion.md`).
+   - **Outside `$PWD`**: Canonical path with tilde compression (`~/.dotfiles/...`).
+   Prefixes a leading space and sets `CURSOR=0`:
    ```zsh
-   ❯ █ ~/.dotfiles/main/docs/shell/completion.md
+   ❯ █ completion.md
    ```
 3. Type the command (`nvim`, `bat`, `cat`, `rm`) and press `Enter` — no cursor navigation keystrokes required!
 
