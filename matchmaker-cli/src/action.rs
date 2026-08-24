@@ -167,7 +167,20 @@ pub fn action_handler(
                 }
             };
 
-            let selected_items = state.map_selected_to_vec(|_, x| x.to_cow().to_string());
+            let cwd = std::env::current_dir().ok();
+            let selected_items = state.map_selected_to_vec(|_, x| {
+                let s = x.to_cow().to_string();
+                if let Some(ref dir) = cwd {
+                    let p = std::path::Path::new(&s);
+                    if p.is_relative() {
+                        let full = dir.join(p);
+                        if full.exists() {
+                            return full.to_string_lossy().to_string();
+                        }
+                    }
+                }
+                s
+            });
             if state.picker_ui.worker.frecency {
                 let store = matchmaker::frecency::FrecencyStore::open();
                 for item in &selected_items {
