@@ -171,3 +171,21 @@ else
 fi
 '''
 ```
+
+---
+
+## 5. Shell Integration & Object-First Buffer Ergonomics
+
+When Matchmaker Jump Mode is paired with shell widgets (e.g. `_mm_jump_widget` in Zsh via `eval "$(mm init zsh)"`), it uses **Context-Aware Buffer Placement** and **Canonical Path Resolution**:
+
+### Object-First Command Composition (`CURSOR=0` on Empty Prompt)
+When invoked from an empty prompt (e.g. `<Tab>` or `Ctrl+T`):
+1. Selecting a **directory** performs an immediate `cd` into that directory.
+2. Selecting **file(s)** resolves their canonical paths, applies tilde compression (`~/.dotfiles/...`), prefixes a leading space, and sets `CURSOR=0`:
+   ```zsh
+   ❯ █ ~/.dotfiles/main/docs/shell/completion.md
+   ```
+3. Type the command (`nvim`, `bat`, `cat`, `rm`) and press `Enter` — no cursor navigation keystrokes required!
+
+### Mid-Command Argument Insertion
+When invoked while typing a command (e.g. `git add ` or `cp `), the selected files are appended at the active cursor position with trailing spaces, preserving the existing command without side effects.

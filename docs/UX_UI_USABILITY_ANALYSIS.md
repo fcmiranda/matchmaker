@@ -220,20 +220,64 @@ A auditoria revelou fricções que impactam a fluidez absoluta (*Zero-Friction M
   ```zsh
   # Trecho de ~/.dotfiles/main/zsh/.zsh/utils/binds.zsh
   _jump_widget() {
-      zle -I 2>/dev/null || true
-      local result
-      result=$(mm --no-read -o jump)
-      local exit_code=$?
+      local initial_buf="$BUFFER"
+      local raw_result
+      raw_result=$(mm --no-read -o jump)
+      [[ -z "$raw_result" ]] && { zle reset-prompt; return 0; }
 
-      if [[ -n "$result" ]]; then
-          if [[ $exit_code -eq 2 ]]; then
-              LBUFFER+="$result"
-          elif [[ -d "$result" ]]; then
-              cd "$result"
-          else
-              LBUFFER+="$result"
+      local -a lines=("${(@f)raw_result}")
+      local -a valid_lines=()
+      for l in "${lines[@]}"; do
+          [[ -n "$l" ]] && valid_lines+=("$l")
+      done
+
+      (( ${#valid_lines} == 0 )) && { zle reset-prompt; return 0; }
+
+      # 1. Navegação direta se for uma pasta única e prompt vazio
+      if (( ${#valid_lines} == 1 )) && [[ -z "${initial_buf// /}" ]]; then
+          local target="${valid_lines[1]}"
+          target="${target/#\~/$HOME}"
+          target=$(realpath "$target" 2>/dev/null || echo "$target")
+          if [[ -d "$target" ]]; then
+              cd "$target" || cd "${valid_lines[1]}"
+              BUFFER=""
+              zle reset-prompt
+              return 0
           fi
       fi
+
+      # 2. Resolução canônica com compressão de tilde (~)
+      local -a formatted_items=()
+      for line in "${valid_lines[@]}"; do
+          local full_path
+          full_path=$(realpath "$line" 2>/dev/null || echo "$line")
+          if [[ "$full_path" == "$HOME"* ]]; then
+              local rest="${full_path#$HOME/}"
+              if [[ "$rest" != "$full_path" ]]; then
+                  rest="${(q-)rest}"
+                  full_path="~/$rest"
+              fi
+          else
+              full_path="${(q-)full_path}"
+          fi
+          formatted_items+=("$full_path")
+      done
+
+      local formatted_result="${(j: :)formatted_items}"
+      [[ -z "$formatted_result" ]] && { zle reset-prompt; return 0; }
+
+      # 3. Ergonomia Object-First no buffer
+      if [[ -z "${initial_buf// /}" ]]; then
+          BUFFER=" $formatted_result"
+          CURSOR=0 # Cursor no início para digitar o comando imediatamente
+      else
+          if [[ "$LBUFFER" == *" " || -z "$LBUFFER" ]]; then
+              LBUFFER+="$formatted_result "
+          else
+              LBUFFER+=" $formatted_result "
+          fi
+      fi
+
       zle reset-prompt
   }
   zle -N _jump_widget
@@ -252,8 +296,8 @@ A auditoria revelou fricções que impactam a fluidez absoluta (*Zero-Friction M
   ```
 - **Avaliação de UX deste Padrão:** Trata-se do **estado da arte em Zero Friction**:
   1. *Zero Mental Overload:* Pressionar `Tab` com o prompt vazio entra instantaneamente no Matchmaker sem digitar nenhum comando ou prefixo (`j`, `z`, `mm`).
-  2. *Retorno Automático:* Selecionar uma pasta faz o `cd` imediatamente; selecionar um arquivo insere o caminho no `LBUFFER` para composição de comandos.
-- **Oportunidade para o Projeto:** Padronizar e oficializar este snippet exato no comando `mm --init zsh` para que todos os usuários do ecossistema Matchmaker tenham essa mesma experiência de fricção zero por padrão.
+  2. *Retorno Automático & Object-First:* Selecionar uma pasta faz o `cd` imediatamente; selecionar um arquivo formata o caminho canônico (`~`), prefixa um espaço e posiciona o `CURSOR=0` para composição imediata do comando executável (ex: `nvim`, `cat`, `rm`).
+- **Oportunidade para o Projeto:** Padronizar e oficializar este snippet exato no comando `mm init zsh` para que todos os usuários do ecossistema Matchmaker tenham essa mesma experiência de fricção zero por padrão.
 
 ---
 
@@ -396,29 +440,74 @@ percentage = 45
 
 ---
 
-### Proposta 4: Integração Nativa de Shell (`mm --init zsh/bash/fish`) com Padrão Smart Tab
-Oficializar e disponibilizar no binário `matchmaker-cli` uma flag de inicialização transparente que injete o padrão ZLE `_smart_tab` com fallback automático de autossugestão e complementação:
+### Proposta 4: Integração Nativa de Shell (`mm init zsh/bash/fish`) com Padrão Smart Tab & Object-First Ergonomics
+Oficializar e disponibilizar no binário `matchmaker-cli` uma flag de inicialização transparente que injete o padrão ZLE `_smart_tab` com fallback automático de autossugestão e ergonomia Object-First:
 
 ```bash
 # Adicionar ao ~/.zshrc:
-eval "$(mm --init zsh)"
+eval "$(mm init zsh)"
 
 # Script gerado automaticamente pelo mm:
 _mm_jump_widget() {
     zle -I 2>/dev/null || true
-    local result
-    result=$(mm --no-read -o jump)
-    local exit_code=$?
+    local initial_buf="$BUFFER"
+    local raw_result
+    raw_result=$(mm --no-read -o jump)
+    [[ -z "$raw_result" ]] && { zle reset-prompt; return 0; }
 
-    if [[ -n "$result" ]]; then
-        if [[ $exit_code -eq 2 ]]; then
-            LBUFFER+="$result"
-        elif [[ -d "$result" ]]; then
-            cd "$result"
-        else
-            LBUFFER+="$result"
+    local -a lines=("${(@f)raw_result}")
+    local -a valid_lines=()
+    for l in "${lines[@]}"; do
+        [[ -n "$l" ]] && valid_lines+=("$l")
+    done
+
+    (( ${#valid_lines} == 0 )) && { zle reset-prompt; return 0; }
+
+    # 1. Navegação direta se for uma pasta única e prompt vazio
+    if (( ${#valid_lines} == 1 )) && [[ -z "${initial_buf// /}" ]]; then
+        local target="${valid_lines[1]}"
+        target="${target/#\~/$HOME}"
+        target=$(realpath "$target" 2>/dev/null || echo "$target")
+        if [[ -d "$target" ]]; then
+            cd "$target" || cd "${valid_lines[1]}"
+            BUFFER=""
+            zle reset-prompt
+            return 0
         fi
     fi
+
+    # 2. Resolução canônica com compressão de tilde (~)
+    local -a formatted_items=()
+    for line in "${valid_lines[@]}"; do
+        local full_path
+        full_path=$(realpath "$line" 2>/dev/null || echo "$line")
+        if [[ "$full_path" == "$HOME"* ]]; then
+            local rest="${full_path#$HOME/}"
+            if [[ "$rest" != "$full_path" ]]; then
+                rest="${(q-)rest}"
+                full_path="~/$rest"
+            fi
+        else
+            full_path="${(q-)full_path}"
+        fi
+        formatted_items+=("$full_path")
+    done
+
+    local formatted_result="${(j: :)formatted_items}"
+    [[ -z "$formatted_result" ]] && { zle reset-prompt; return 0; }
+
+    # 3. Ergonomia Object-First no buffer
+    if [[ -z "${initial_buf// /}" ]]; then
+        BUFFER=" $formatted_result"
+        CURSOR=0 # Cursor no início para digitar o comando imediatamente
+    else
+        if [[ "$LBUFFER" == *" " || -z "$LBUFFER" ]]; then
+            LBUFFER+="$formatted_result "
+        else
+            LBUFFER+=" $formatted_result "
+        fi
+    fi
+
     zle reset-prompt
 }
 zle -N _mm_jump_widget
