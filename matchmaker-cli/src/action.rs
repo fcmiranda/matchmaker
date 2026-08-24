@@ -155,7 +155,7 @@ pub fn action_handler(
     match a {
         MMAction::Accept => {
             if state.picker_ui.action_visible {
-                commit_fm_action(state, render_tx, undo_stack, redo_stack, fm_action);
+                commit_fm_action(state, render_tx, undo_stack, redo_stack, fm_action, *fm_notify);
                 return;
             }
 
@@ -974,7 +974,7 @@ fn show_action_box(state: &mut MMState<'_, '_>, prompt: &str, initial: &str) {
     state
         .picker_ui
         .action
-        .set_prompt(Some(Line::raw(prompt.to_string())));
+        .set_prompt_line(StatusUI::parse_template_to_status_line(prompt));
 }
 
 fn show_styled_action_box(state: &mut MMState<'_, '_>, prompt: &str, initial: &str) {
@@ -1004,6 +1004,7 @@ fn commit_fm_action(
     undo_stack: &crate::fm::UndoStack,
     _redo_stack: &crate::fm::UndoStack,
     fm_action: &mut Option<FmActionMode>,
+    fm_notify: bool,
 ) {
     let input = state.picker_ui.action.input.trim().to_string();
     let Some(mode) = fm_action.clone() else {
@@ -1026,18 +1027,28 @@ fn commit_fm_action(
                 };
                 if let Err(e) = result {
                     error!("fm create '{input}': {e}");
-                } else if let Ok(mut stack) = undo_stack.lock() {
-                    stack.push(crate::fm::UndoAction::CreatedFile {
-                        path: PathBuf::from(&input),
-                    });
+                } else {
+                    if let Ok(mut stack) = undo_stack.lock() {
+                        stack.push(crate::fm::UndoAction::CreatedFile {
+                            path: PathBuf::from(&input),
+                        });
+                    }
+                    if fm_notify {
+                        let msg = format!("{{green:Created:}} {}", input);
+                        let _ = render_tx.send(RenderCommand::Action(Action::Custom(
+                            MMAction::SetStyledStatus(msg),
+                        )));
+                    }
                 }
             }
         }
         FmActionMode::Delete { paths } => {
-            for path in paths {
-                let path_buf = PathBuf::from(&path);
+            let mut deleted = Vec::new();
+            for path in &paths {
+                let path_buf = PathBuf::from(path);
                 match crate::fm::move_to_trash(&path_buf) {
                     Ok(backup) => {
+                        deleted.push(path.clone());
                         if let Ok(mut stack) = undo_stack.lock() {
                             stack.push(crate::fm::UndoAction::DeletedFile {
                                 original: path_buf,
@@ -1048,6 +1059,12 @@ fn commit_fm_action(
                     Err(e) => error!("fm delete '{}': {e}", path),
                 }
             }
+            if fm_notify && !deleted.is_empty() {
+                let msg = fm_notify_msg("Deleted", &deleted, "{red}");
+                let _ = render_tx.send(RenderCommand::Action(Action::Custom(
+                    MMAction::SetStyledStatus(msg),
+                )));
+            }
         }
         FmActionMode::Rename { from, remaining } => {
             if !input.is_empty() && input != from {
@@ -1055,11 +1072,19 @@ fn commit_fm_action(
                     crate::fm::move_path(std::path::Path::new(&from), std::path::Path::new(&input))
                 {
                     error!("fm rename '{}' -> '{input}': {e}", from);
-                } else if let Ok(mut stack) = undo_stack.lock() {
-                    stack.push(crate::fm::UndoAction::Renamed {
-                        from: PathBuf::from(&from),
-                        to: PathBuf::from(&input),
-                    });
+                } else {
+                    if let Ok(mut stack) = undo_stack.lock() {
+                        stack.push(crate::fm::UndoAction::Renamed {
+                            from: PathBuf::from(&from),
+                            to: PathBuf::from(&input),
+                        });
+                    }
+                    if fm_notify {
+                        let msg = format!("{{cyan:Renamed:}} {} -> {}", from, input);
+                        let _ = render_tx.send(RenderCommand::Action(Action::Custom(
+                            MMAction::SetStyledStatus(msg),
+                        )));
+                    }
                 }
             }
 
@@ -1086,6 +1111,11 @@ fn commit_fm_action(
                     error!("fm unzip: create dir '{input}': {e}");
                 } else if let Err(e) = crate::fm::extract_archive(&src, &input) {
                     error!("fm unzip '{src}' -> '{input}': {e}");
+                } else if fm_notify {
+                    let msg = format!("{{green:Extracted:}} {} -> {}", src, input);
+                    let _ = render_tx.send(RenderCommand::Action(Action::Custom(
+                        MMAction::SetStyledStatus(msg),
+                    )));
                 }
             }
         }
@@ -1093,6 +1123,11 @@ fn commit_fm_action(
             if !input.is_empty() {
                 if let Err(e) = crate::fm::create_archive(&input, &paths) {
                     error!("fm zip '{input}': {e}");
+                } else if fm_notify {
+                    let msg = format!("{{green:Compressed:}} {}", input);
+                    let _ = render_tx.send(RenderCommand::Action(Action::Custom(
+                        MMAction::SetStyledStatus(msg),
+                    )));
                 }
             }
         }

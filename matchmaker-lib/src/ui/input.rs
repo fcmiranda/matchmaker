@@ -315,10 +315,11 @@ impl InputUI {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct QueryUI {
     pub state: InputUI,
     prompt: Line<'static>,
+    pub custom_prompt: Option<Line<'static>>,
     pub config: QueryConfig,
 }
 
@@ -337,9 +338,11 @@ impl DerefMut for QueryUI {
 
 impl QueryUI {
     pub fn new(config: QueryConfig) -> Self {
+        let prompt = Line::styled(config.prompt.clone(), config.prompt_style);
         let mut ui = Self {
             state: InputUI::new(),
-            prompt: Line::styled(config.prompt.clone(), config.prompt_style),
+            prompt,
+            custom_prompt: None,
             config,
         };
 
@@ -353,6 +356,10 @@ impl QueryUI {
     }
 
     pub fn active_prompt(&self, focused: bool, nav_prompt: Option<&str>) -> Line<'static> {
+        if let Some(ref custom) = self.custom_prompt {
+            return custom.clone();
+        }
+
         if focused {
             let prompt_text = self
                 .config
@@ -499,10 +506,23 @@ impl QueryUI {
     /// Set the input ui prefix. The prompt style from the config overrides the Line style (but not the span styles).
     /// None restores the prompt defined in the config.
     pub fn set_prompt(&mut self, template: Option<Line<'static>>) {
-        let line = template
-            .unwrap_or_else(|| self.config.prompt.clone().into())
-            .style(self.config.prompt_style);
-        self.set_prompt_line(line);
+        if let Some(template) = template {
+            let line = template.style(self.config.prompt_style);
+            self.set_prompt_line(line);
+        } else {
+            self.custom_prompt = None;
+            let default_prompt = Line::styled(self.config.prompt.clone(), self.config.prompt_style);
+            let old_width = self.prompt.to_string().width();
+            let new_width = default_prompt.to_string().width();
+
+            if new_width > old_width {
+                self.width = self.width.saturating_sub((new_width - old_width) as u16);
+            } else if old_width > new_width {
+                self.width += (old_width - new_width) as u16;
+            }
+
+            self.prompt = default_prompt;
+        }
     }
 
     /// Set the input ui prefix directly.
@@ -516,6 +536,7 @@ impl QueryUI {
             self.width += (old_width - new_width) as u16;
         }
 
+        self.custom_prompt = Some(prompt.clone());
         self.prompt = prompt;
     }
 }
