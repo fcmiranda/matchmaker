@@ -100,7 +100,8 @@ impl TemplateAST {
                             if !cur_literal.is_empty() {
                                 tokens.push(TemplateToken::Literal(std::mem::take(&mut cur_literal)));
                             }
-                            if !key.starts_with(['+', '-', '$']) {
+                            let k = key.trim_start_matches('=');
+                            if !key.starts_with(['+', '-', '$']) && k != "query" && k != "q" {
                                 needs_current = true;
                             }
                             tokens.push(TemplateToken::Key(key.to_string()));
@@ -259,6 +260,15 @@ fn process_key(
     // Handle ranges
     if key.contains("..") {
         return handle_range(key, state, quote, multi, item_override.map(|x| x.1));
+    }
+
+    if key == "query" || key == "q" {
+        let val = state.picker_ui.query.input.clone();
+        return if quote {
+            Some(shell_quote_impl(&val))
+        } else {
+            Some(val)
+        };
     }
 
     if multi {
