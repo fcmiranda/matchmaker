@@ -818,6 +818,9 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                             if let Some(p) = preview_ui.as_mut() {
                                 p.zoom *= 1.25_f32;
                                 p.view
+                                    .image_id
+                                    .fetch_add(1, std::sync::atomic::Ordering::Release);
+                                p.view
                                     .changed
                                     .store(true, std::sync::atomic::Ordering::Release);
                             }
@@ -828,6 +831,9 @@ pub(crate) async fn render_loop<'a, W: Write, T: SSS, S: Selection, A: ActionExt
                                 if p.zoom < 0.25 {
                                     p.zoom = 0.25;
                                 }
+                                p.view
+                                    .image_id
+                                    .fetch_add(1, std::sync::atomic::Ordering::Release);
                                 p.view
                                     .changed
                                     .store(true, std::sync::atomic::Ordering::Release);

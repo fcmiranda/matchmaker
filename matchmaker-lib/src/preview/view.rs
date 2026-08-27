@@ -1,7 +1,7 @@
 use cba::bait::ResultExt;
 use cba::unwrap;
 use ratatui::text::{Line, Text};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use super::AppendOnly;
@@ -12,6 +12,7 @@ pub struct Preview {
     lines: AppendOnly<Line<'static>>,
     string: Arc<Mutex<Option<Text<'static>>>>,
     pub image: Arc<Mutex<Option<image::DynamicImage>>>,
+    pub image_id: Arc<AtomicU64>,
     pub changed: Arc<AtomicBool>,
 }
 
@@ -68,12 +69,14 @@ impl Preview {
         lines: AppendOnly<Line<'static>>,
         string: Arc<Mutex<Option<Text<'static>>>>,
         image: Arc<Mutex<Option<image::DynamicImage>>>,
+        image_id: Arc<AtomicU64>,
         changed: Arc<AtomicBool>,
     ) -> Self {
         Self {
             lines,
             string,
             image,
+            image_id,
             changed,
         }
     }

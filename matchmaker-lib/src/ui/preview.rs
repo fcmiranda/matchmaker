@@ -42,8 +42,9 @@ pub struct PreviewUI {
     picker: Option<ratatui_image::picker::Picker>,
     pub zoom: f32,
     pub image_state: Option<ratatui_image::protocol::StatefulProtocol>,
-    pending_protocol_rx: Option<tokio::sync::mpsc::UnboundedReceiver<ratatui_image::protocol::StatefulProtocol>>,
-    pending_protocol_tx: tokio::sync::mpsc::UnboundedSender<ratatui_image::protocol::StatefulProtocol>,
+    current_image_id: u64,
+    pending_protocol_rx: Option<tokio::sync::mpsc::UnboundedReceiver<(u64, ratatui_image::protocol::StatefulProtocol)>>,
+    pending_protocol_tx: tokio::sync::mpsc::UnboundedSender<(u64, ratatui_image::protocol::StatefulProtocol)>,
     is_generating_protocol: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 
@@ -162,6 +163,7 @@ impl PreviewUI {
             picker,
             zoom,
             image_state: None,
+            current_image_id: 0,
             pending_protocol_rx: Some(pending_protocol_rx),
             pending_protocol_tx,
             is_generating_protocol: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
@@ -553,64 +555,51 @@ impl PreviewUI {
 
     pub fn get_image_state(&mut self) -> Option<&mut ratatui_image::protocol::StatefulProtocol> {
         if let Some(rx) = self.pending_protocol_rx.as_mut() {
-            while let Ok(protocol) = rx.try_recv() {
-                self.image_state = Some(protocol);
-            }
-        }
-
-        let has_changed = self
-            .view
-            .changed
-            .swap(false, std::sync::atomic::Ordering::Acquire);
-
-        if has_changed {
-            if let Ok(guard) = self.view.image.lock() {
-                if guard.is_none() {
-                    self.image_state = None;
+            while let Ok((id, protocol)) = rx.try_recv() {
+                if id == self.current_image_id {
+                    self.image_state = Some(protocol);
                 }
             }
         }
 
-        let is_generating = self
-            .is_generating_protocol
-            .load(std::sync::atomic::Ordering::Acquire);
+        let live_image_id = self.view.image_id.load(std::sync::atomic::Ordering::Acquire);
 
-        if (has_changed || (self.image_state.is_none() && !is_generating))
-            && let Some(picker) = self.picker.clone()
-        {
-            let zoom = self.zoom;
-            let image_ref = self.view.image.clone();
-            let tx = self.pending_protocol_tx.clone();
-            let is_gen = self.is_generating_protocol.clone();
+        if live_image_id != self.current_image_id {
+            self.current_image_id = live_image_id;
+            self.image_state = None;
 
-            is_gen.store(true, std::sync::atomic::Ordering::Release);
-            tokio::task::spawn_blocking(move || {
-                let new_state = if let Ok(guard) = image_ref.lock() {
-                    if let Some(img) = &*guard {
-                        let mut display_img = img.clone();
-                        if zoom != 1.0 {
-                            let center_x = img.width() / 2;
-                            let center_y = img.height() / 2;
-                            let crop_w = (img.width() as f32 / zoom) as u32;
-                            let crop_h = (img.height() as f32 / zoom) as u32;
-                            let x = center_x.saturating_sub(crop_w / 2);
-                            let y = center_y.saturating_sub(crop_h / 2);
-                            display_img = img.crop_imm(x, y, crop_w, crop_h);
-                        }
-                        let picker = picker;
-                        Some(picker.new_resize_protocol(display_img))
-                    } else {
-                        None
+            let image_opt = if let Ok(guard) = self.view.image.lock() {
+                guard.clone()
+            } else {
+                None
+            };
+
+            if let Some(img) = image_opt
+                && let Some(picker) = self.picker.clone()
+            {
+                let zoom = self.zoom;
+                let tx = self.pending_protocol_tx.clone();
+                let is_gen = self.is_generating_protocol.clone();
+                let changed_signal = self.view.changed.clone();
+
+                is_gen.store(true, std::sync::atomic::Ordering::Release);
+                tokio::task::spawn_blocking(move || {
+                    let mut display_img = img.clone();
+                    if zoom != 1.0 {
+                        let center_x = img.width() / 2;
+                        let center_y = img.height() / 2;
+                        let crop_w = (img.width() as f32 / zoom) as u32;
+                        let crop_h = (img.height() as f32 / zoom) as u32;
+                        let x = center_x.saturating_sub(crop_w / 2);
+                        let y = center_y.saturating_sub(crop_h / 2);
+                        display_img = img.crop_imm(x, y, crop_w, crop_h);
                     }
-                } else {
-                    None
-                };
-
-                if let Some(state) = new_state {
-                    let _ = tx.send(state);
-                }
-                is_gen.store(false, std::sync::atomic::Ordering::Release);
-            });
+                    let state = picker.new_resize_protocol(display_img);
+                    let _ = tx.send((live_image_id, state));
+                    changed_signal.store(true, std::sync::atomic::Ordering::Release);
+                    is_gen.store(false, std::sync::atomic::Ordering::Release);
+                });
+            }
         }
 
         self.image_state.as_mut()

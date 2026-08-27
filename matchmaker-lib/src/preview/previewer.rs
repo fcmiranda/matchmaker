@@ -5,11 +5,11 @@ use log::{debug, error, warn};
 use ratatui::text::{Line, Text};
 use std::io::BufReader;
 use std::process::{Child, Command, Stdio};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
-use tokio::sync::watch::{Receiver, Sender, channel};
+use tokio::sync::watch::{channel, Receiver, Sender};
 use tokio::task::JoinHandle;
 
 use super::AppendOnly;
@@ -40,6 +40,8 @@ pub struct Previewer {
     string: Arc<Mutex<Option<Text<'static>>>>,
     /// storage for preview image override
     image: Arc<Mutex<Option<image::DynamicImage>>>,
+    /// Version ID for image state to detect changes reliably
+    pub image_id: Arc<AtomicU64>,
     /// Flag which is set to true whenever the state changes
     /// and which the viewer can toggle after receiving the current state
     changed: Arc<AtomicBool>,
@@ -105,6 +107,7 @@ impl Previewer {
             lines: AppendOnly::new(),
             string: Default::default(),
             image: Default::default(),
+            image_id: Arc::new(AtomicU64::new(1)),
             changed: Default::default(),
             paused: false,
 
@@ -123,6 +126,7 @@ impl Previewer {
             self.lines.clone(),
             self.string.clone(),
             self.image.clone(),
+            self.image_id.clone(),
             self.changed.clone(),
         )
     }
@@ -149,14 +153,18 @@ impl Previewer {
     pub fn set_image(&self, img: image::DynamicImage) {
         if let Ok(mut guard) = self.image.lock() {
             *guard = Some(img);
+            self.image_id.fetch_add(1, Ordering::Release);
             self.changed.store(true, Ordering::Release);
         }
     }
 
     pub fn clear_image(&self) {
         if let Ok(mut guard) = self.image.lock() {
-            *guard = None;
-            self.changed.store(true, Ordering::Release);
+            if guard.is_some() {
+                *guard = None;
+                self.image_id.fetch_add(1, Ordering::Release);
+                self.changed.store(true, Ordering::Release);
+            }
         }
     }
 
@@ -251,6 +259,7 @@ impl Previewer {
                         self.last = path.clone();
                         let path = path.clone();
                         let image_state = self.image.clone();
+                        let image_id = self.image_id.clone();
                         let changed = self.changed.clone();
 
                         let rx = self.rx.clone();
@@ -332,6 +341,7 @@ impl Previewer {
                             if let Some(img) = img_result {
                                 if let Ok(mut guard) = image_state.lock() {
                                     *guard = Some(img);
+                                    image_id.fetch_add(1, Ordering::Release);
                                     changed.store(true, Ordering::Release);
                                 }
                             }

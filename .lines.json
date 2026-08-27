@@ -1,11 +1,11 @@
 {
   "version": 1,
-  "revision": 1,
+  "revision": 3,
   "session": {
-    "sessionId": "67da238d-819a-4df3-bd6d-cec966ed4baf",
+    "sessionId": "3949369d-f4ee-4681-a6b3-147274f00e52",
     "cli": "antigravity",
     "notifyCommand": "/home/fecavmi/.dotfiles/main/antigravity/.gemini/hooks/lazygit-tmux-injector.sh {{workspace_path}} {{prompt}}"
   },
-  "workspacePath": "/home/fecavmi/dev/github/matchmaker/feature-wtmm",
+  "workspacePath": "/home/fecavmi/dev/github/matchmaker/fecavmi",
   "notes": []
 }

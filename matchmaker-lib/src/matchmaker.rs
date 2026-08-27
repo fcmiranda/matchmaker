@@ -1191,6 +1191,12 @@ pub fn make_previewer<T: SSS, S: Selection + 'static>(
                 if media {
                     let raw_item = use_formatter(&formatter, state, "{=1}", None);
                     let mut trimmed = raw_item.trim();
+                    let raw_all;
+                    if trimmed.is_empty() {
+                        raw_all = use_formatter(&formatter, state, "{=}", None);
+                        trimmed = raw_all.trim();
+                    }
+                    trimmed = trimmed.trim_matches(|c| c == '\'' || c == '"' || c == '`');
                     // Strip leading icon if present (e.g. nerd font / fontawesome icon prefix)
                     if let Some(ch) = trimmed.chars().next() {
                         if (ch as u32) > 127 {
