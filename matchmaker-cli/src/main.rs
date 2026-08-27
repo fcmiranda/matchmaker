@@ -97,7 +97,11 @@ fn get_partial(config_args: Vec<String>) -> anyhow::Result<PartialConfig> {
         }
 
         let parts = {
-            let mut parts = split_on_unescaped_delimiter(&val, "|||");
+            let mut parts = if val.contains("|||") {
+                split_on_unescaped_delimiter(&val, "|||")
+            } else {
+                vec![val.clone()]
+            };
             let is_binds = path.len() == 1 && ["binds", "b"].contains(&path[0].as_ref());
             try_split_kv(&mut parts, is_binds)?;
             parts
