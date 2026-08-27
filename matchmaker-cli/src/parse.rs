@@ -35,12 +35,9 @@ static ALIASES: &[(&str, &str)] = &[
     ("parent-peek-highlight", "ui.parent_peek.highlight"),
     ("parent-peek-highlight-color", "ui.parent_peek.highlight_color"),
     ("parent-peek-border", "ui.parent_peek.border.show"),
-    ("status-inline", "render.query.status_inline"),
-    ("query.status_inline", "render.query.status_inline"),
-    ("query.prompt", "render.query.prompt"),
-    ("prompt", "render.query.prompt"),
-    ("query.initial", "render.query.initial"),
-    ("initial", "render.query.initial"),
+    ("status-inline", "query.status_inline"),
+    ("prompt", "query.prompt"),
+    ("initial", "query.initial"),
     ("fm", "ui.nav_mode"),
     ("ui-fm-color", "ui.nav_color"),
 ];
@@ -68,6 +65,8 @@ pub fn get_pairs(pairs: Vec<String>) -> Result<Vec<(Vec<String>, String)>, Parse
                 .ok_or_else(|| ParseError::MissingValue { path: path.clone() })?;
             (path, val)
         };
+
+        let mut path_str = path_str.trim_start_matches('-').to_string();
 
         // Apply alias to full path string
         if let Some((_, expanded)) = ALIASES.iter().find(|(a, _)| *a == path_str) {
