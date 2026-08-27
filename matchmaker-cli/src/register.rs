@@ -125,7 +125,7 @@ impl Matchmaker<ConfigMMItem, ConfigMMInnerItem> {
     }
 }
 
-fn maybe_tty_in() -> Stdio {
+pub(crate) fn maybe_tty_in() -> Stdio {
     if let Ok(tty) = std::fs::File::open("/dev/tty") {
         Stdio::from(tty)
     } else {
@@ -134,7 +134,7 @@ fn maybe_tty_in() -> Stdio {
     }
 }
 
-fn maybe_tty_out() -> Stdio {
+pub(crate) fn maybe_tty_out() -> Stdio {
     if let Ok(tty) = std::fs::OpenOptions::new().write(true).open("/dev/tty") {
         Stdio::from(tty)
     } else {

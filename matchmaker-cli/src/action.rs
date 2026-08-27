@@ -101,6 +101,7 @@ pub enum MMAction {
     FmRedo,
     FmDragDrop,
     ReloadReady(Vec<String>),
+    Confirm(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -118,6 +119,9 @@ pub enum FmActionMode {
     },
     Zip {
         paths: Vec<String>,
+    },
+    Custom {
+        command: String,
     },
 }
 
@@ -274,6 +278,8 @@ pub fn action_handler(
 
         MMAction::ReloadReady(_) => {
             state.reloading = false;
+            state.picker_ui.update();
+            state.needs_redraw = true;
         }
 
         MMAction::RunPreview(cmd) => {
@@ -550,6 +556,23 @@ pub fn action_handler(
                 *fm_action = Some(FmActionMode::Zip { paths });
                 show_action_box(state, "󰋪 ", &default_name);
             }
+        }
+        MMAction::Confirm(payload) => {
+            let (prompt_tmpl, cmd_tmpl) = if let Some((p, c)) = payload.split_once('|') {
+                (p.trim(), c.trim())
+            } else if let Some((p, c)) = payload.split_once(":::") {
+                (p.trim(), c.trim())
+            } else {
+                (payload.as_str(), "")
+            };
+
+            let formatted_prompt = format_cli(state, prompt_tmpl, None);
+            let formatted_cmd = format_cli(state, cmd_tmpl, None);
+
+            *fm_action = Some(FmActionMode::Custom {
+                command: formatted_cmd,
+            });
+            show_styled_action_box(state, &formatted_prompt, "");
         }
         MMAction::FmYank => {
             let items = fm_current_items(state);
@@ -829,7 +852,7 @@ enum_from_str_display! {
 
 
     tuples:
-    Bind, Unbind, PushBind, PopBind, ExecuteOrConfirm, ExecuteAndQuit, BecomeOr, Transform, TransformConfig, SetStyledPrompt, SetStyledStatus, PushHeader, PushFooter, RunPreview, FmSetYankPaths, FmRemoveYankPaths, FmSetCutPaths, FmRemoveCutPaths;
+    Bind, Unbind, PushBind, PopBind, ExecuteOrConfirm, ExecuteAndQuit, BecomeOr, Transform, TransformConfig, SetStyledPrompt, SetStyledStatus, PushHeader, PushFooter, RunPreview, FmSetYankPaths, FmRemoveYankPaths, FmSetCutPaths, FmRemoveCutPaths, Confirm;
 
     defaults:
     ;
@@ -1128,6 +1151,20 @@ fn commit_fm_action(
                     let _ = render_tx.send(RenderCommand::Action(Action::Custom(
                         MMAction::SetStyledStatus(msg),
                     )));
+                }
+            }
+        }
+        FmActionMode::Custom { command } => {
+            if !command.is_empty() {
+                let vars = state.make_env_vars();
+                if let Some(mut child) = Command::from_script(&command)
+                    .envs(vars)
+                    .stdin(crate::register::maybe_tty_in())
+                    .stdout(crate::register::maybe_tty_out())
+                    .stderr(crate::register::maybe_tty_out())
+                    ._spawn()
+                {
+                    let _ = child.wait();
                 }
             }
         }

@@ -829,21 +829,21 @@ impl<T: SSS, S: Selection + 'static> Matchmaker<T, S> {
                 );
                 vars.extend(extra);
 
-                if let Some(mut _child) = Command::from_script(&cmd)
+                if let Some(mut child) = Command::from_script(&cmd)
                     .envs(vars)
                     .stdin(maybe_tty_in())
                     .stdout(maybe_tty_out())
                     .stderr(maybe_tty_out())
                     ._spawn()
                 {
-                    // match child.wait() {
-                    //     Ok(i) => {
-                    //         info!("Command [{cmd}] exited with {i}")
-                    //     }
-                    //     Err(e) => {
-                    //         info!("Failed to wait on command [{cmd}]: {e}")
-                    //     }
-                    // }
+                    match child.wait() {
+                        Ok(i) => {
+                            log::info!("Command [{cmd}] exited with {i}");
+                        }
+                        Err(e) => {
+                            log::info!("Failed to wait on command [{cmd}]: {e}");
+                        }
+                    }
                 }
             };
         });
