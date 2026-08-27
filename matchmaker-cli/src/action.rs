@@ -102,6 +102,7 @@ pub enum MMAction {
     FmDragDrop,
     ReloadReady(Vec<String>),
     Confirm(String),
+    Prompt(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -574,6 +575,28 @@ pub fn action_handler(
             });
             show_styled_action_box(state, &formatted_prompt, "");
         }
+        MMAction::Prompt(payload) => {
+            let parts: Vec<&str> = payload.split('|').collect();
+            let (prompt_tmpl, cmd_tmpl, initial_tmpl) = match parts.len() {
+                0 => ("", "", ""),
+                1 => (parts[0].trim(), "", ""),
+                2 => (parts[0].trim(), parts[1].trim(), ""),
+                _ => (parts[0].trim(), parts[1].trim(), parts[2].trim()),
+            };
+
+            let formatted_prompt = crate::formatter::format_cli(state, prompt_tmpl, None);
+            let formatted_cmd = crate::formatter::format_cli(state, cmd_tmpl, None);
+            let formatted_initial = if !initial_tmpl.is_empty() {
+                crate::formatter::format_cli(state, initial_tmpl, None)
+            } else {
+                String::new()
+            };
+
+            *fm_action = Some(FmActionMode::Custom {
+                command: formatted_cmd,
+            });
+            show_styled_action_box(state, &formatted_prompt, &formatted_initial);
+        }
         MMAction::FmYank => {
             let items = fm_current_items(state);
             if !items.is_empty() {
@@ -852,7 +875,7 @@ enum_from_str_display! {
 
 
     tuples:
-    Bind, Unbind, PushBind, PopBind, ExecuteOrConfirm, ExecuteAndQuit, BecomeOr, Transform, TransformConfig, SetStyledPrompt, SetStyledStatus, PushHeader, PushFooter, RunPreview, FmSetYankPaths, FmRemoveYankPaths, FmSetCutPaths, FmRemoveCutPaths, Confirm;
+    Bind, Unbind, PushBind, PopBind, ExecuteOrConfirm, ExecuteAndQuit, BecomeOr, Transform, TransformConfig, SetStyledPrompt, SetStyledStatus, PushHeader, PushFooter, RunPreview, FmSetYankPaths, FmRemoveYankPaths, FmSetCutPaths, FmRemoveCutPaths, Confirm, Prompt;
 
     defaults:
     ;
@@ -1156,8 +1179,9 @@ fn commit_fm_action(
         }
         FmActionMode::Custom { command } => {
             if !command.is_empty() {
+                let final_cmd = command.replace("{input}", &input);
                 let vars = state.make_env_vars();
-                if let Some(mut child) = Command::from_script(&command)
+                if let Some(mut child) = Command::from_script(&final_cmd)
                     .envs(vars)
                     .stdin(crate::register::maybe_tty_in())
                     .stdout(crate::register::maybe_tty_out())
