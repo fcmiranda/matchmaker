@@ -688,12 +688,7 @@ impl ResultsUI {
         // Ensure visible column is at least wide enough for any group headers in results
         let max_group_width = results
             .iter()
-            .filter_map(|(g, _, _)| match g.as_ref() {
-                Some(crate::nucleo::GroupHeader::Named(s)) => {
-                    Some(UnicodeWidthStr::width(&**s) as u16 + 2)
-                }
-                _ => None,
-            })
+            .filter_map(|(g, _, _, _)| g.as_ref().map(|s| UnicodeWidthStr::width(&**s) as u16 + 2))
             .max()
             .unwrap_or(0);
         if max_group_width > 0 {
@@ -739,31 +734,26 @@ impl ResultsUI {
         }
 
         let height_of = |t: &(
-            Option<crate::nucleo::GroupHeader>,
+            Option<std::sync::Arc<str>>,
+            bool,
             Vec<ratatui::text::Text<'a>>,
             _,
         )| {
-            let group_h = match &t.0 {
-                Some(crate::nucleo::GroupHeader::Named(_)) => 1,
-                Some(crate::nucleo::GroupHeader::TierSeparator) => {
-                    if !matches!(self.config.tier_separator, HorizontalSeparator::None) {
-                        1
-                    } else {
-                        0
-                    }
-                }
-                None => 0,
+            let group_h = if t.0.is_some() { 1 } else { 0 };
+            let bottom_border_h = if t.1 && !matches!(self.config.tier_separator, HorizontalSeparator::None) {
+                1
+            } else {
+                0
             };
-            group_h
-                + self._hr()
-                + if as_cols {
-                    t.1.iter()
-                        .map(|t| t.height() as u16)
-                        .max()
-                        .unwrap_or_default()
-                } else {
-                    t.1.iter().map(|t| t.height() as u16).sum::<u16>()
-                }
+            let text_h = if as_cols {
+                t.2.iter()
+                    .map(|t| t.height() as u16)
+                    .max()
+                    .unwrap_or_default()
+            } else {
+                t.2.iter().map(|t| t.height() as u16).sum::<u16>()
+            };
+            group_h + self._hr() + text_h + bottom_border_h
         };
 
         let effective_active_col = if widths.get(active_column).copied().unwrap_or(0) == 0 {
@@ -841,7 +831,7 @@ impl ResultsUI {
 
             for r in results[start_index as usize..self.cursor as usize].iter_mut() {
                 let h = height_of(r);
-                let (_, row, item) = r;
+                let (_, _, row, item) = r;
                 start_index += 1; // we always skip at least the first item
 
                 if trunc_height < h {
@@ -1032,7 +1022,7 @@ impl ResultsUI {
             start_index += 1;
             // same as above
             let h = height_of(&results[0]);
-            let (_, row, item) = &mut results[0];
+            let (_, _, row, item) = &mut results[0];
             let is_selected = selector.contains(item);
             let is_first = rows.is_empty();
             let is_last = (self.height <= total_height + remaining_height)
@@ -1193,7 +1183,7 @@ impl ResultsUI {
         let mut i = self.bottom_clip.is_some() as usize;
 
         let mut drain_iter = results.drain(start_index as usize..).peekable();
-        while let Some((group, mut row, item)) = drain_iter.next() {
+        while let Some((group, has_bottom_border, mut row, item)) = drain_iter.next() {
             // note that the index changes *next* frame
             if let Click::ResultPos(c) = click {
                 let c = if self.reverse() {
@@ -1210,88 +1200,38 @@ impl ResultsUI {
                 }
             }
 
-            // insert group header or tier separator
-            if let Some(ref group) = group {
+            // insert group header
+            if let Some(group) = group {
                 if remaining_height > 0 {
+                    let group_style: Style = self.config.group_header_style.into();
                     let is_first = rows.is_empty();
                     let is_last = remaining_height <= 1;
                     let nav_bar_span = get_nav_bar_span(is_first, is_last, false);
 
-                    let row_opt = match group {
-                        crate::nucleo::GroupHeader::Named(group_name) => {
-                            let group_style: Style = self.config.group_header_style.into();
-                            let mut line_spans = vec![];
-                            if let Some(nav_span) = nav_bar_span {
-                                line_spans.push(nav_span);
-                            }
-                            line_spans.push(Span::raw(" "));
-                            line_spans.push(Span::styled(group_name.to_string(), group_style));
-
-                            let line = ratatui::text::Line::from(line_spans);
-                            if as_cols {
-                                let first_visible = widths.iter().position(|&w| w != 0).unwrap_or(0);
-                                let mut cells = vec![];
-                                for i in 0..widths.len() {
-                                    if i == first_visible {
-                                        cells.push(ratatui::widgets::Cell::from(line.clone()));
-                                    } else {
-                                        cells.push(ratatui::widgets::Cell::from(""));
-                                    }
-                                }
-                                Some(Row::new(cells).height(1))
-                            } else {
-                                Some(Row::new(vec![line]).height(1))
-                            }
-                        }
-                        crate::nucleo::GroupHeader::TierSeparator => {
-                            let tier_sep = self.config.tier_separator;
-                            if matches!(tier_sep, HorizontalSeparator::None) {
-                                None
-                            } else {
-                                let sep_char = tier_sep.as_str();
-                                let tier_style: Style = self.config.tier_separator_style.into();
-                                let total_w = self.width as usize;
-
-                                if as_cols {
-                                    let mut cells = vec![];
-                                    let first_visible = widths.iter().position(|&w| w != 0).unwrap_or(0);
-                                    for (col_i, &w) in widths.iter().enumerate() {
-                                        if w == 0 {
-                                            cells.push(ratatui::widgets::Cell::from(""));
-                                            continue;
-                                        }
-                                        let mut spans = vec![];
-                                        let mut fill_w = w as usize;
-                                        if col_i == first_visible {
-                                            if let Some(nav_span) = nav_bar_span.clone() {
-                                                fill_w = fill_w.saturating_sub(nav_span.width());
-                                                spans.push(nav_span);
-                                            }
-                                        }
-                                        let line_str = sep_char.repeat(fill_w);
-                                        spans.push(Span::styled(line_str, tier_style));
-                                        cells.push(ratatui::widgets::Cell::from(ratatui::text::Line::from(spans)));
-                                    }
-                                    Some(Row::new(cells).height(1))
-                                } else {
-                                    let mut spans = vec![];
-                                    let mut fill_w = total_w;
-                                    if let Some(nav_span) = nav_bar_span {
-                                        fill_w = fill_w.saturating_sub(nav_span.width());
-                                        spans.push(nav_span);
-                                    }
-                                    let line_str = sep_char.repeat(fill_w);
-                                    spans.push(Span::styled(line_str, tier_style));
-                                    Some(Row::new(vec![ratatui::text::Line::from(spans)]).height(1))
-                                }
-                            }
-                        }
-                    };
-
-                    if let Some(row) = row_opt {
-                        rows.push(row);
-                        remaining_height = remaining_height.saturating_sub(1);
+                    let mut line_spans = vec![];
+                    if let Some(nav_span) = nav_bar_span {
+                        line_spans.push(nav_span);
                     }
+                    line_spans.push(Span::raw(" "));
+                    line_spans.push(Span::styled(group.to_string(), group_style));
+
+                    let line = ratatui::text::Line::from(line_spans);
+                    let row = if as_cols {
+                        let first_visible = widths.iter().position(|&w| w != 0).unwrap_or(0);
+                        let mut cells = vec![];
+                        for i in 0..widths.len() {
+                            if i == first_visible {
+                                cells.push(ratatui::widgets::Cell::from(line.clone()));
+                            } else {
+                                cells.push(ratatui::widgets::Cell::from(""));
+                            }
+                        }
+                        Row::new(cells).height(1)
+                    } else {
+                        Row::new(vec![line]).height(1)
+                    };
+                    rows.push(row);
+                    remaining_height = remaining_height.saturating_sub(1);
                 }
             }
             if remaining_height == 0 {
@@ -1572,6 +1512,54 @@ impl ResultsUI {
                     push.push(row);
                 }
                 rows.extend(push);
+            }
+
+            // insert tier bottom border
+            if has_bottom_border
+                && remaining_height > 0
+                && !matches!(self.config.tier_separator, HorizontalSeparator::None)
+            {
+                let sep_char = self.config.tier_separator.as_str();
+                let tier_style: Style = self.config.tier_separator_style.into();
+                let is_first = rows.is_empty();
+                let is_last = remaining_height <= 1;
+                let nav_bar_span = get_nav_bar_span(is_first, is_last, false);
+
+                let sep_row = if as_cols {
+                    let mut cells = vec![];
+                    let first_visible = widths.iter().position(|&w| w != 0).unwrap_or(0);
+                    for (col_i, &w) in widths.iter().enumerate() {
+                        if w == 0 {
+                            cells.push(ratatui::widgets::Cell::from(""));
+                            continue;
+                        }
+                        let mut spans = vec![];
+                        let mut fill_w = w as usize;
+                        if col_i == first_visible {
+                            if let Some(nav_span) = nav_bar_span.clone() {
+                                fill_w = fill_w.saturating_sub(nav_span.width());
+                                spans.push(nav_span);
+                            }
+                        }
+                        let line_str = sep_char.repeat(fill_w);
+                        spans.push(Span::styled(line_str, tier_style));
+                        cells.push(ratatui::widgets::Cell::from(ratatui::text::Line::from(spans)));
+                    }
+                    Row::new(cells).height(1)
+                } else {
+                    let mut spans = vec![];
+                    let mut fill_w = self.width as usize;
+                    if let Some(nav_span) = nav_bar_span {
+                        fill_w = fill_w.saturating_sub(nav_span.width());
+                        spans.push(nav_span);
+                    }
+                    let line_str = sep_char.repeat(fill_w);
+                    spans.push(Span::styled(line_str, tier_style));
+                    Row::new(vec![ratatui::text::Line::from(spans)]).height(1)
+                };
+
+                rows.push(sep_row);
+                remaining_height = remaining_height.saturating_sub(1);
             }
             i += 1;
         }

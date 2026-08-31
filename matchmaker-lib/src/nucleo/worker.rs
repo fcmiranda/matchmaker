@@ -522,14 +522,8 @@ pub enum WorkerError {
     Custom(&'static str),
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub enum GroupHeader {
-    Named(Arc<str>),
-    TierSeparator,
-}
-
-/// A vec of ItemResult, each ItemResult being the Group Header (if any), Column Texts of the Item, and Item
-pub type WorkerResults<'a, T> = Vec<(Option<GroupHeader>, Vec<Text<'a>>, &'a T)>;
+/// A vec of ItemResult: (Named Group Header if any, has_bottom_tier_border, Column Texts, Item data)
+pub type WorkerResults<'a, T> = Vec<(Option<Arc<str>>, bool, Vec<Text<'a>>, &'a T)>;
 
 impl<T: SSS> Worker<T> {
     /// Returns:
@@ -580,7 +574,7 @@ impl<T: SSS> Worker<T> {
             && ((self.frecency && self.frecency_snapshot.is_some()) || self.depth_penalty > 0))
             || self.dir_first;
 
-        let (items_buf, initial_prev_tier) = if should_sort {
+        let (items_buf, next_tier_after_buf) = if should_sort {
             let total = status.matched_count;
             let total_sort = if self.sort_cap > 0 {
                 total.min(self.sort_cap as u32)
@@ -674,13 +668,9 @@ impl<T: SSS> Worker<T> {
 
             let range_start = start.min(total) as usize;
             let range_end = end.min(total) as usize;
-            let prev_tier = if range_start > 0 && range_start <= decorated.len() {
-                decorated.get(range_start - 1).map(|d| d.tier)
-            } else {
-                None
-            };
+            let next_tier_after_buf = decorated.get(range_end).map(|d| d.tier);
+            let take_count = range_end.saturating_sub(range_start);
             let items: Vec<_> = if range_start < decorated.len() {
-                let take_count = range_end.saturating_sub(range_start);
                 decorated
                     .into_iter()
                     .skip(range_start)
@@ -702,7 +692,7 @@ impl<T: SSS> Worker<T> {
                     })
                     .collect()
             };
-            (items, prev_tier)
+            (items, next_tier_after_buf)
         } else {
             let col0 = &self.columns[0];
             let items: Vec<_> = snapshot
@@ -725,10 +715,9 @@ impl<T: SSS> Worker<T> {
 
         let mut table = Vec::new();
         let mut last_emitted_group: Option<Arc<str>> = None;
-        let mut last_tier: Option<u8> = initial_prev_tier;
         let group_header = &self.group_header;
 
-        for (item, item_tier) in &items_buf {
+        for (k, (item, item_tier)) in items_buf.iter().enumerate() {
             let mut row = vec![];
 
             let mut to_skip = vscroll_offset as usize;
@@ -828,19 +817,19 @@ impl<T: SSS> Worker<T> {
                 && let Some(group) = f(item.data)
             {
                 if Some(&group) != last_emitted_group.as_ref() {
-                    header_to_emit = Some(GroupHeader::Named(group.clone()));
+                    header_to_emit = Some(group.clone());
                     last_emitted_group = Some(group);
                 }
-            } else if self.dir_first {
-                if let Some(last) = last_tier {
-                    if *item_tier != last {
-                        header_to_emit = Some(GroupHeader::TierSeparator);
-                    }
-                }
-                last_tier = Some(*item_tier);
             }
 
-            table.push((header_to_emit, row, item.data));
+            let next_tier = if k + 1 < items_buf.len() {
+                Some(items_buf[k + 1].1)
+            } else {
+                next_tier_after_buf
+            };
+            let has_bottom_border = self.dir_first && next_tier.map_or(false, |nt| nt > *item_tier);
+
+            table.push((header_to_emit, has_bottom_border, row, item.data));
         }
 
         // Nonempty columns should have width at least their header
@@ -1553,25 +1542,30 @@ mod tests {
         );
 
         assert_eq!(results.len(), 5);
-        // Item 0: Tier 0 ("alpha/") - first item overall -> None
+        // Item 0: Tier 0 ("alpha/") - not the last item of Tier 0 -> bottom_border: false
         assert_eq!(results[0].0, None);
-        assert_eq!(results[0].2, "alpha/");
+        assert_eq!(results[0].1, false);
+        assert_eq!(results[0].3, "alpha/");
 
-        // Item 1: Tier 0 ("beta/") - same tier -> None
+        // Item 1: Tier 0 ("beta/") - last item of Tier 0 before Tier 1 -> bottom_border: true
         assert_eq!(results[1].0, None);
-        assert_eq!(results[1].2, "beta/");
+        assert_eq!(results[1].1, true);
+        assert_eq!(results[1].3, "beta/");
 
-        // Item 2: Tier 1 ("file_a.txt") - tier boundary 0 -> 1 -> Some(TierSeparator)
-        assert_eq!(results[2].0, Some(GroupHeader::TierSeparator));
-        assert_eq!(results[2].2, "file_a.txt");
+        // Item 2: Tier 1 ("file_a.txt") - not the last item of Tier 1 -> bottom_border: false
+        assert_eq!(results[2].0, None);
+        assert_eq!(results[2].1, false);
+        assert_eq!(results[2].3, "file_a.txt");
 
-        // Item 3: Tier 1 ("file_b.txt") - same tier -> None
+        // Item 3: Tier 1 ("file_b.txt") - last item of Tier 1 before Tier 2 -> bottom_border: true
         assert_eq!(results[3].0, None);
-        assert_eq!(results[3].2, "file_b.txt");
+        assert_eq!(results[3].1, true);
+        assert_eq!(results[3].3, "file_b.txt");
 
-        // Item 4: Tier 2 ("sub/deep_file.txt") - tier boundary 1 -> 2 -> Some(TierSeparator)
-        assert_eq!(results[4].0, Some(GroupHeader::TierSeparator));
-        assert_eq!(results[4].2, "sub/deep_file.txt");
+        // Item 4: Tier 2 ("sub/deep_file.txt") - last tier overall -> bottom_border: false
+        assert_eq!(results[4].0, None);
+        assert_eq!(results[4].1, false);
+        assert_eq!(results[4].3, "sub/deep_file.txt");
     }
 
     #[test]
@@ -1610,15 +1604,16 @@ mod tests {
         );
 
         assert_eq!(results.len(), 2);
-        // Item 0 in slice is "file.txt" (Tier 1). Previous item in dataset was "dir/" (Tier 0).
-        // Since tier changed from 0 to 1, TierSeparator must be emitted!
-        assert_eq!(results[0].0, Some(GroupHeader::TierSeparator));
-        assert_eq!(results[0].2, "file.txt");
+        // Item 0 in slice is "file.txt" (Tier 1). Next item is "deep/item.txt" (Tier 2).
+        // Since it's the last item of Tier 1, bottom_border is true!
+        assert_eq!(results[0].0, None);
+        assert_eq!(results[0].1, true);
+        assert_eq!(results[0].3, "file.txt");
 
-        // Item 1 in slice is "deep/item.txt" (Tier 2). Previous item was Tier 1.
-        // TierSeparator must be emitted!
-        assert_eq!(results[1].0, Some(GroupHeader::TierSeparator));
-        assert_eq!(results[1].2, "deep/item.txt");
+        // Item 1 in slice is "deep/item.txt" (Tier 2). Last tier -> bottom_border is false.
+        assert_eq!(results[1].0, None);
+        assert_eq!(results[1].1, false);
+        assert_eq!(results[1].3, "deep/item.txt");
     }
 
     #[test]
@@ -1654,6 +1649,8 @@ mod tests {
 
         assert_eq!(results.len(), 2);
         assert_eq!(results[0].0, None);
+        assert_eq!(results[0].1, false);
         assert_eq!(results[1].0, None);
+        assert_eq!(results[1].1, false);
     }
 }
