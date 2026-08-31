@@ -313,8 +313,8 @@ stacked_columns = false
 separator = "None"
 
 # Separador horizontal entre as 3 camadas ordenadas (diretórios diretos, arquivos diretos, itens profundos).
-# Valores: "None", "Empty", "Light", "Normal", "Heavy", "Dashed" | Default: "Light"
-tier_separator = "Light"
+# Valores: "None", "Empty", "Light", "Normal", "Heavy", "Dashed", "Top", "Bottom" | Default: "Top"
+tier_separator = "Top"
 
 # Como o estilo da linha selecionada se conecta pelas colunas:
 # - "Disjoint": Estilos aplicados por coluna individual.

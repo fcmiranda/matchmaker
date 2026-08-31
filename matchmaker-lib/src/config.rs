@@ -890,7 +890,7 @@ pub struct ResultsConfig {
     pub group_header_style: StyleSetting,
 
     /// Horizontal separator style drawn between the 3 tiers (direct dirs, direct files, deep items)
-    /// when dir_first is enabled. Defaults to Light ("─").
+    /// when dir_first is enabled. Defaults to Top ("▔").
     #[serde(deserialize_with = "camelcase_normalized")]
     pub tier_separator: HorizontalSeparator,
     /// Style override for the tier separator line.
@@ -996,7 +996,7 @@ impl Default for ResultsConfig {
                 modifier: Modifier::BOLD,
                 ..Default::default()
             },
-            tier_separator: HorizontalSeparator::Light,
+            tier_separator: HorizontalSeparator::Top,
             tier_separator_style: StyleSetting {
                 fg: Some(Color::DarkGray),
                 ..Default::default()

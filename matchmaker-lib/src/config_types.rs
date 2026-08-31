@@ -73,6 +73,10 @@ pub enum HorizontalSeparator {
     Normal,
     Heavy,
     Dashed,
+    #[serde(alias = "Upper", alias = "UpperBlock", alias = "upper_block")]
+    Top,
+    #[serde(alias = "Lower", alias = "LowerBlock", alias = "lower_block")]
+    Bottom,
 }
 
 impl HorizontalSeparator {
@@ -84,6 +88,8 @@ impl HorizontalSeparator {
             Self::Normal => "─",
             Self::Heavy => "━",  // U+2501
             Self::Dashed => "╌", // U+254C (box drawings light double dash)
+            Self::Top => "▔",    // U+2594 (upper one eighth block)
+            Self::Bottom => " ", // U+2581 (lower one eighth block)
         }
     }
 }
