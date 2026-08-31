@@ -206,6 +206,8 @@ All colors and modifiers come from ratatui:
 - `right_align_last`: (bool) Right-align the last column.
 - `v`, `vertical`, `stacked_columns`: (bool) Display columns stacked vertically instead of across.
 - `hr`, `horizontal_separator`: (none, empty, light, normal, heavy, dashed): Show a seperator between rows (Currently only limited to one column).
+- `tier_separator`: (none, empty, light, normal, heavy, dashed): Show a separator divider line between the 3 tiers (direct dirs, direct files, deep items) when `dir_first` is enabled (default `Light`).
+- `tier_separator_style`: [Style Settings](#style-settings) Custom style override for the tier separator line (set via `--color tier-separator:<color>`).
 - `autoscroll`: Control how the results table scrolls horizontally to keep matches in view.
   - Alias: `a`.
   - `enabled`: (bool) Enable/disable horizontal autoscroll.

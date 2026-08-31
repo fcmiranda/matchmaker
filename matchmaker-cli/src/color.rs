@@ -34,6 +34,7 @@
 /// | `yank`           | `render.results.yank_prefix_style.fg`         |
 /// | `cut`            | `render.results.cut_prefix_style.fg`          |
 /// | `symlink`        | `render.results.symlink_target_style.fg`      |
+/// | `tier-separator` | `render.results.tier_separator_style.fg`      |
 use std::str::FromStr;
 
 use ratatui::style::Color;
@@ -84,6 +85,7 @@ pub fn apply_color_spec(config: &mut Config, spec: &str) {
             "yank" => config.render.results.yank_prefix_style.fg = Some(color),
             "cut" => config.render.results.cut_prefix_style.fg = Some(color),
             "symlink" => config.render.results.symlink_target_style.fg = Some(color),
+            "tier-separator" => config.render.results.tier_separator_style.fg = Some(color),
             _ => log::warn!("--color: unknown key '{key}'"),
         }
     }

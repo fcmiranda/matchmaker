@@ -522,8 +522,14 @@ pub enum WorkerError {
     Custom(&'static str),
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum GroupHeader {
+    Named(Arc<str>),
+    TierSeparator,
+}
+
 /// A vec of ItemResult, each ItemResult being the Group Header (if any), Column Texts of the Item, and Item
-pub type WorkerResults<'a, T> = Vec<(Option<Arc<str>>, Vec<Text<'a>>, &'a T)>;
+pub type WorkerResults<'a, T> = Vec<(Option<GroupHeader>, Vec<Text<'a>>, &'a T)>;
 
 impl<T: SSS> Worker<T> {
     /// Returns:
@@ -570,12 +576,11 @@ impl<T: SSS> Worker<T> {
         let query_str = self.query.primary_column_query().unwrap_or_default();
         let is_query_empty = query_str.is_empty();
         let query_len = query_str.len();
-
         let should_sort = (!is_query_empty
             && ((self.frecency && self.frecency_snapshot.is_some()) || self.depth_penalty > 0))
             || self.dir_first;
 
-        let items_buf: Vec<_> = if should_sort {
+        let (items_buf, initial_prev_tier) = if should_sort {
             let total = status.matched_count;
             let total_sort = if self.sort_cap > 0 {
                 total.min(self.sort_cap as u32)
@@ -669,32 +674,61 @@ impl<T: SSS> Worker<T> {
 
             let range_start = start.min(total) as usize;
             let range_end = end.min(total) as usize;
-            if range_start < decorated.len() {
+            let prev_tier = if range_start > 0 && range_start <= decorated.len() {
+                decorated.get(range_start - 1).map(|d| d.tier)
+            } else {
+                None
+            };
+            let items: Vec<_> = if range_start < decorated.len() {
                 let take_count = range_end.saturating_sub(range_start);
                 decorated
                     .into_iter()
                     .skip(range_start)
                     .take(take_count)
-                    .map(|d| d.item)
+                    .map(|d| (d.item, d.tier))
                     .collect()
             } else {
                 snapshot
                     .matched_items(start.min(status.matched_count)..end.min(status.matched_count))
+                    .map(|item| {
+                        let tier = if self.dir_first {
+                            let raw_path = col0.raw(item.data);
+                            let (tier, _) = get_item_tier_and_clean_path(raw_path.as_ref(), true);
+                            tier
+                        } else {
+                            2
+                        };
+                        (item, tier)
+                    })
                     .collect()
-            }
+            };
+            (items, prev_tier)
         } else {
-            snapshot
+            let col0 = &self.columns[0];
+            let items: Vec<_> = snapshot
                 .matched_items(start.min(status.matched_count)..end.min(status.matched_count))
-                .collect()
+                .map(|item| {
+                    let tier = if self.dir_first {
+                        let raw_path = col0.raw(item.data);
+                        let (tier, _) = get_item_tier_and_clean_path(raw_path.as_ref(), true);
+                        tier
+                    } else {
+                        2
+                    };
+                    (item, tier)
+                })
+                .collect();
+            (items, None)
         };
 
         let (vscroll_offset, stacked) = vscroll;
 
         let mut table = Vec::new();
         let mut last_emitted_group: Option<Arc<str>> = None;
+        let mut last_tier: Option<u8> = initial_prev_tier;
         let group_header = &self.group_header;
 
-        for item in &items_buf {
+        for (item, item_tier) in &items_buf {
             let mut row = vec![];
 
             let mut to_skip = vscroll_offset as usize;
@@ -758,7 +792,7 @@ impl<T: SSS> Worker<T> {
                             cell,
                             col_idx,
                             snapshot,
-                            &item,
+                            item,
                             matcher,
                             highlight_style,
                             wrap,
@@ -790,13 +824,20 @@ impl<T: SSS> Worker<T> {
                 .collect();
 
             let mut header_to_emit = None;
-            if let Some(f) = group_header {
-                if let Some(group) = f(item.data) {
-                    if Some(&group) != last_emitted_group.as_ref() {
-                        header_to_emit = Some(group.clone());
-                        last_emitted_group = Some(group);
+            if let Some(f) = group_header
+                && let Some(group) = f(item.data)
+            {
+                if Some(&group) != last_emitted_group.as_ref() {
+                    header_to_emit = Some(GroupHeader::Named(group.clone()));
+                    last_emitted_group = Some(group);
+                }
+            } else if self.dir_first {
+                if let Some(last) = last_tier {
+                    if *item_tier != last {
+                        header_to_emit = Some(GroupHeader::TierSeparator);
                     }
                 }
+                last_tier = Some(*item_tier);
             }
 
             table.push((header_to_emit, row, item.data));
@@ -1466,5 +1507,153 @@ mod tests {
         let output_str = result_text.to_string();
         assert_eq!(output_str, "…fghijmatc");
         assert_eq!(width, 10);
+    }
+
+    #[test]
+    fn test_tier_separators_emitted_on_tier_boundaries() {
+        let mut worker = Worker::<String>::new_single_column();
+        worker.dir_first = true;
+
+        let injector = worker.nucleo.injector();
+        // Tier 0: Direct dirs (ends with /)
+        injector.push("alpha/".to_string(), |item, cols| {
+            cols[0] = item.clone().into();
+        });
+        injector.push("beta/".to_string(), |item, cols| {
+            cols[0] = item.clone().into();
+        });
+        // Tier 1: Direct files (no /)
+        injector.push("file_a.txt".to_string(), |item, cols| {
+            cols[0] = item.clone().into();
+        });
+        injector.push("file_b.txt".to_string(), |item, cols| {
+            cols[0] = item.clone().into();
+        });
+        // Tier 2: Deep items (has / in middle)
+        injector.push("sub/deep_file.txt".to_string(), |item, cols| {
+            cols[0] = item.clone().into();
+        });
+
+        worker.nucleo.tick(10);
+
+        let mut matcher = Matcher::default();
+        let (results, _, _, _) = worker.results(
+            0,
+            10,
+            &[100],
+            false,
+            0,
+            Style::default(),
+            &mut matcher,
+            AutoscrollSettings::default(),
+            0,
+            (0, false),
+            true,
+            false,
+        );
+
+        assert_eq!(results.len(), 5);
+        // Item 0: Tier 0 ("alpha/") - first item overall -> None
+        assert_eq!(results[0].0, None);
+        assert_eq!(results[0].2, "alpha/");
+
+        // Item 1: Tier 0 ("beta/") - same tier -> None
+        assert_eq!(results[1].0, None);
+        assert_eq!(results[1].2, "beta/");
+
+        // Item 2: Tier 1 ("file_a.txt") - tier boundary 0 -> 1 -> Some(TierSeparator)
+        assert_eq!(results[2].0, Some(GroupHeader::TierSeparator));
+        assert_eq!(results[2].2, "file_a.txt");
+
+        // Item 3: Tier 1 ("file_b.txt") - same tier -> None
+        assert_eq!(results[3].0, None);
+        assert_eq!(results[3].2, "file_b.txt");
+
+        // Item 4: Tier 2 ("sub/deep_file.txt") - tier boundary 1 -> 2 -> Some(TierSeparator)
+        assert_eq!(results[4].0, Some(GroupHeader::TierSeparator));
+        assert_eq!(results[4].2, "sub/deep_file.txt");
+    }
+
+    #[test]
+    fn test_tier_separators_with_scrolling() {
+        let mut worker = Worker::<String>::new_single_column();
+        worker.dir_first = true;
+
+        let injector = worker.nucleo.injector();
+        injector.push("dir/".to_string(), |item, cols| {
+            cols[0] = item.clone().into();
+        });
+        injector.push("file.txt".to_string(), |item, cols| {
+            cols[0] = item.clone().into();
+        });
+        injector.push("deep/item.txt".to_string(), |item, cols| {
+            cols[0] = item.clone().into();
+        });
+
+        worker.nucleo.tick(10);
+
+        let mut matcher = Matcher::default();
+        // Query window starting at index 1 ("file.txt")
+        let (results, _, _, _) = worker.results(
+            1,
+            3,
+            &[100],
+            false,
+            0,
+            Style::default(),
+            &mut matcher,
+            AutoscrollSettings::default(),
+            0,
+            (0, false),
+            true,
+            false,
+        );
+
+        assert_eq!(results.len(), 2);
+        // Item 0 in slice is "file.txt" (Tier 1). Previous item in dataset was "dir/" (Tier 0).
+        // Since tier changed from 0 to 1, TierSeparator must be emitted!
+        assert_eq!(results[0].0, Some(GroupHeader::TierSeparator));
+        assert_eq!(results[0].2, "file.txt");
+
+        // Item 1 in slice is "deep/item.txt" (Tier 2). Previous item was Tier 1.
+        // TierSeparator must be emitted!
+        assert_eq!(results[1].0, Some(GroupHeader::TierSeparator));
+        assert_eq!(results[1].2, "deep/item.txt");
+    }
+
+    #[test]
+    fn test_tier_separators_disabled_when_dir_first_is_false() {
+        let mut worker = Worker::<String>::new_single_column();
+        worker.dir_first = false;
+
+        let injector = worker.nucleo.injector();
+        injector.push("dir/".to_string(), |item, cols| {
+            cols[0] = item.clone().into();
+        });
+        injector.push("file.txt".to_string(), |item, cols| {
+            cols[0] = item.clone().into();
+        });
+
+        worker.nucleo.tick(10);
+
+        let mut matcher = Matcher::default();
+        let (results, _, _, _) = worker.results(
+            0,
+            10,
+            &[100],
+            false,
+            0,
+            Style::default(),
+            &mut matcher,
+            AutoscrollSettings::default(),
+            0,
+            (0, false),
+            true,
+            false,
+        );
+
+        assert_eq!(results.len(), 2);
+        assert_eq!(results[0].0, None);
+        assert_eq!(results[1].0, None);
     }
 }

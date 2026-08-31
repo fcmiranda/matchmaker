@@ -312,6 +312,10 @@ stacked_columns = false
 # Valores: "None", "Empty", "Light", "Normal", "Heavy", "Dashed" | Default: "None"
 separator = "None"
 
+# Separador horizontal entre as 3 camadas ordenadas (diretórios diretos, arquivos diretos, itens profundos).
+# Valores: "None", "Empty", "Light", "Normal", "Heavy", "Dashed" | Default: "Light"
+tier_separator = "Light"
+
 # Como o estilo da linha selecionada se conecta pelas colunas:
 # - "Disjoint": Estilos aplicados por coluna individual.
 # - "Capped": Estilo inativo na linha toda, estilo ativo na coluna ativa.
@@ -379,6 +383,10 @@ modifier = "BOLD"
 
 # Estilo do texto de destino do link simbólico.
 [results.symlink_target_style]
+fg = "DarkGray"
+
+# Estilo da linha separadora entre camadas (tier separator).
+[results.tier_separator_style]
 fg = "DarkGray"
 
 # Configuração de rolagem horizontal automática (autoscroll).
