@@ -1716,4 +1716,28 @@ mod tests {
         assert_eq!(config.layout[0].command, "echo hello");
         assert_eq!(config.layout[1].command, "ls -la");
     }
+
+    #[test]
+    fn test_results_config_tier_separator_toml() {
+        let toml_str = r#"
+            tier_separator = "dashed"
+            [tier_separator_style]
+            fg = "Cyan"
+        "#;
+        let config: ResultsConfig = toml::from_str(toml_str).unwrap();
+        assert_eq!(config.tier_separator, HorizontalSeparator::Dashed);
+        assert_eq!(config.tier_separator_style.fg, Some(ratatui::style::Color::Cyan));
+
+        let toml_top = r#"
+            tier_separator = "top"
+        "#;
+        let config_top: ResultsConfig = toml::from_str(toml_top).unwrap();
+        assert_eq!(config_top.tier_separator, HorizontalSeparator::Top);
+
+        let toml_bottom = r#"
+            tier_separator = "bottom"
+        "#;
+        let config_bottom: ResultsConfig = toml::from_str(toml_bottom).unwrap();
+        assert_eq!(config_bottom.tier_separator, HorizontalSeparator::Bottom);
+    }
 }
