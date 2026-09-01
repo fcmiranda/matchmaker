@@ -283,13 +283,8 @@ impl<A: ActionExt> EventLoop<A> {
 
                 // Termination signals (SIGINT, SIGTERM, SIGHUP)
                 code = &mut sig => {
-                    self.record_key("ctrl-c".into());
-                    if let Some(actions) = self.get_bind(TriggerKind::Key(key!(ctrl-c))) {
-                        self.send_actions(actions, Some("ctrl-c".into()));
-                    } else {
-                        self.send(RenderCommand::quit_with(code));
-                        info!("Received termination signal with code {code}");
-                    }
+                    info!("Received termination signal with code {code}");
+                    self.send(RenderCommand::quit_with(code));
                     sig = termination_status();
                 }
 
