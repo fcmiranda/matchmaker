@@ -447,3 +447,36 @@ fn import_zoxide() {
         println!("No zoxide entries found to import.");
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use matchmaker::action::Action;
+    use matchmaker::binds::Trigger;
+
+    #[test]
+    fn test_get_partial_binds_override() {
+        let args = vec![
+            "binds.Synced=Pos(2)|||Unbind(Synced)".to_string(),
+            "results.icons=true".to_string(),
+        ];
+        let partial = get_partial(args).expect("get_partial should succeed");
+        assert_eq!(
+            partial.render.results.icons,
+            Some(true),
+            "icons should be true"
+        );
+
+        let trigger: Trigger = "Synced".parse().unwrap();
+        let actions = partial
+            .binds
+            .get(&trigger)
+            .expect("Synced trigger should be present in binds");
+        assert_eq!(actions.len(), 2);
+        assert_eq!(actions[0], Action::Pos(2));
+        assert_eq!(
+            actions[1],
+            Action::Custom(crate::action::MMAction::Unbind("Synced".to_string()))
+        );
+    }
+}

@@ -1,9 +1,10 @@
 use serde::{Deserialize, Serialize};
 
+use indexmap::IndexMap;
+use matchmaker::action::Actions;
+use matchmaker::binds::Trigger;
 use matchmaker::config::*;
 use matchmaker_partial_macros::partial;
-
-use matchmaker::binds::BindMap;
 use std::collections::HashMap;
 
 use crate::action::MMAction;
@@ -29,7 +30,7 @@ pub struct Config {
     #[serde(default)]
     #[partial(alias = "b")]
     #[partial(no_recurse, unwrap)]
-    pub binds: BindMap<MMAction>,
+    pub binds: IndexMap<Trigger, Actions<MMAction>>,
 
     // configure the tui
     #[partial(attr)]
