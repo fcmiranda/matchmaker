@@ -737,7 +737,12 @@ impl ResultsUI {
             if let Some(last_line) = t.lines.last_mut() {
                 let cur_w = last_line.width();
                 if cur_w < target_w {
-                    last_line.spans.push(Span::raw(" ".repeat(target_w - cur_w)));
+                    let pad_style = if let Some(fg) = tier_sep_style.fg {
+                        Style::default().fg(fg).underline_color(fg).add_modifier(Modifier::UNDERLINED)
+                    } else {
+                        Style::default().add_modifier(Modifier::UNDERLINED)
+                    };
+                    last_line.spans.push(Span::styled(" ".repeat(target_w - cur_w), pad_style));
                 }
                 for span in last_line.spans.iter_mut().skip(skip_spans) {
                     span.style = span.style.add_modifier(Modifier::UNDERLINED);
