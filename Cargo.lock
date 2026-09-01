@@ -1693,6 +1693,7 @@ dependencies = [
  "easy-ext",
  "env_logger",
  "glob",
+ "indexmap",
  "log",
  "matchmaker-lib",
  "matchmaker-partial",
@@ -1763,6 +1764,7 @@ dependencies = [
 name = "matchmaker-partial"
 version = "0.0.30"
 dependencies = [
+ "indexmap",
  "matchmaker-partial-macros",
  "serde",
  "thiserror 2.0.18",

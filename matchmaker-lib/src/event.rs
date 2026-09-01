@@ -199,7 +199,7 @@ impl<A: ActionExt> EventLoop<A> {
             }
 
             BindDirective::Unbind(k) => {
-                self.binds.remove(&k);
+                self.binds.shift_remove(&k);
             }
 
             BindDirective::PopBind(k) => {
@@ -207,7 +207,7 @@ impl<A: ActionExt> EventLoop<A> {
                     actions.0.pop();
 
                     if actions.0.is_empty() {
-                        self.binds.remove(&k);
+                        self.binds.shift_remove(&k);
                     }
                 }
             }

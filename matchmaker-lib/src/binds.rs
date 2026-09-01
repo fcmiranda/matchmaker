@@ -6,6 +6,7 @@ use std::{
 };
 
 use cba::bring::StrExt;
+use indexmap::IndexMap;
 use serde::{
     Deserializer,
     de::{self, Visitor},
@@ -24,7 +25,7 @@ pub use crokey::{KeyCombination, key};
 pub use crossterm::event::{KeyModifiers, MouseButton, MouseEventKind};
 
 #[allow(type_alias_bounds)]
-pub type BindMap<A: ActionExt = NullActionExt> = HashMap<Trigger, Actions<A>>;
+pub type BindMap<A: ActionExt = NullActionExt> = IndexMap<Trigger, Actions<A>>;
 
 #[easy_ext::ext(BindMapExt)]
 impl<A: ActionExt> BindMap<A> {
@@ -138,7 +139,7 @@ impl<A: ActionExt> BindMap<A> {
             }
         }
 
-        let mut new_binds: BindMap<A> = HashMap::new();
+        let mut new_binds: BindMap<A> = IndexMap::new();
 
         // 1. Fully resolve concrete triggers that ALREADY have a mode
         for (trigger, actions) in self.iter().filter(|(t, _)| !t.mode.is_empty()) {
@@ -923,20 +924,8 @@ mod test {
         bind_map.resolve_semantics();
 
         // key(a) should resolve directly to Accept (with traces)
-        let actions = bind_map.get(&key!(a).into()).unwrap();
-        // It will be [Trace("@@s1"), Trace("@@s2"), Accept, Trace(""), Trace("")]
-        // Actually, wait:
-        // resolve_actions([@s1])
-        //   resolve_alias(s1) -> [@s2]
-        //   has_nested = true
-        //   flat = resolve_actions([@s2])
-        //     resolve_alias(s2) -> [Accept]
-        //     has_nested = false
-        //     flat = [Accept]
-        //     already_traced = false
-        //     returns [Trace("@@s2"), Accept, Trace("")]
-        //   already_traced = true
-        //   returns [Trace("@@s2"), Accept, Trace("")]
+        let actions = bind_map.get(&Trigger::from(key!(a))).unwrap();
+        // It will be [Trace("@@s2"), Accept, Trace("")]
         assert_eq!(actions.len(), 3);
         assert_eq!(actions.0[0], Action::Trace("@@s2".into()));
         assert_eq!(actions.0[1], Action::Accept);
@@ -957,7 +946,7 @@ mod test {
             } => Action::Semantic("s4".into()),
         );
         bind_map_unbound.resolve_semantics();
-        assert!(!bind_map_unbound.contains_key(&key!(b).into()));
+        assert!(!bind_map_unbound.contains_key(&Trigger::from(key!(b))));
 
         // Multi-action chain: key(c) -> @s5 -> [@s6, Accept]
         let mut bind_map_multi: BindMap<NullActionExt> = bindmap!(
@@ -972,7 +961,7 @@ mod test {
             } => Action::Cancel,
         );
         bind_map_multi.resolve_semantics();
-        let actions = bind_map_multi.get(&key!(c).into()).unwrap();
+        let actions = bind_map_multi.get(&Trigger::from(key!(c))).unwrap();
         // @s5 is not traced because it has nested aliases?
         // Wait, resolve_actions([@s5]):
         //   alias_actions = [@s6, Accept]
@@ -1006,7 +995,7 @@ mod test {
         bind_map.resolve_semantics();
 
         // key(a) should resolve directly to [Trace("desc"), Accept]
-        let actions = bind_map.get(&key!(a).into()).unwrap();
+        let actions = bind_map.get(&Trigger::from(key!(a))).unwrap();
         assert_eq!(actions.len(), 2);
         assert_eq!(actions.0[0], Action::Trace("desc".into()));
         assert_eq!(actions.0[1], Action::Accept);
@@ -1042,7 +1031,7 @@ mod test {
         bind_map.resolve_semantics();
 
         // key(a) in default mode should be Accept
-        let a_default = bind_map.get(&key!(a).into()).unwrap();
+        let a_default = bind_map.get(&Trigger::from(key!(a))).unwrap();
         assert!(a_default.iter().any(|a| matches!(a, Action::Accept)));
 
         // key(a) in mode1 should be Cancel
@@ -1096,7 +1085,7 @@ mod test {
         bind_map.resolve_semantics();
 
         // key(a) in default
-        assert!(bind_map.contains_key(&key!(a).into()));
+        assert!(bind_map.contains_key(&Trigger::from(key!(a))));
         // key(a) in m1
         assert!(bind_map.contains_key(&Trigger {
             kind: TriggerKind::Key(key!(a)),
