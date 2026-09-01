@@ -733,13 +733,13 @@ impl ResultsUI {
 
         let tier_sep_style = self.config.tier_separator_style;
         let is_underline_mode = self.config.tier_separator == HorizontalSeparator::Underline;
-        let apply_tier_underline = |t: &mut ratatui::text::Text<'_>, target_w: usize| {
+        let apply_tier_underline = |t: &mut ratatui::text::Text<'_>, target_w: usize, skip_spans: usize| {
             if let Some(last_line) = t.lines.last_mut() {
                 let cur_w = last_line.width();
                 if cur_w < target_w {
                     last_line.spans.push(Span::raw(" ".repeat(target_w - cur_w)));
                 }
-                for span in last_line.spans.iter_mut() {
+                for span in last_line.spans.iter_mut().skip(skip_spans) {
                     span.style = span.style.add_modifier(Modifier::UNDERLINED);
                     if let Some(fg) = tier_sep_style.fg {
                         span.style = span.style.underline_color(fg);
@@ -1149,11 +1149,14 @@ impl ResultsUI {
                     let total_available = self.width.saturating_sub(self.column_spacing_width());
                     let surplus = total_available.saturating_sub(total_allocated);
                     let num_cols = row_texts.len();
+                    let has_nav = !is_selected && !is_yanked && !is_cut && nav_bar_span.is_some();
+                    let prefix_skip = if has_nav { 2 } else { 1 };
                     for (col_idx, t) in row_texts.iter_mut().enumerate() {
                         let is_last_col = col_idx == num_cols.saturating_sub(1);
                         let base_w = widths.get(col_idx).copied().unwrap_or(0);
                         let target_w = if is_last_col { base_w + surplus } else { base_w } as usize;
-                        apply_tier_underline(t, target_w);
+                        let skip = if col_idx == target_prefix_col { prefix_skip } else { 0 };
+                        apply_tier_underline(t, target_w, skip);
                     }
                 }
 
@@ -1216,7 +1219,10 @@ impl ResultsUI {
 
                     if is_topside_tier_underlined {
                         let target_w = self.width as usize;
-                        apply_tier_underline(&mut col, target_w);
+                        let has_nav = !is_selected && !is_yanked && !is_cut && nav_bar_span.is_some();
+                        let prefix_skip = if has_nav { 2 } else { 1 };
+                        let skip = if col_idx == 0 { prefix_skip } else { 0 };
+                        apply_tier_underline(&mut col, target_w, skip);
                     }
 
                     let row = Row::new(vec![col.clone()]).height(height);
@@ -1496,11 +1502,14 @@ impl ResultsUI {
                     let total_available = self.width.saturating_sub(self.column_spacing_width());
                     let surplus = total_available.saturating_sub(total_allocated);
                     let num_cols = row_texts.len();
+                    let has_nav = !is_selected && !is_yanked && !is_cut && nav_bar_span.is_some();
+                    let prefix_skip = if has_nav { 2 } else { 1 };
                     for (col_idx, t) in row_texts.iter_mut().enumerate() {
                         let is_last_col = col_idx == num_cols.saturating_sub(1);
                         let base_w = widths.get(col_idx).copied().unwrap_or(0);
                         let target_w = if is_last_col { base_w + surplus } else { base_w } as usize;
-                        apply_tier_underline(t, target_w);
+                        let skip = if col_idx == target_prefix_col { prefix_skip } else { 0 };
+                        apply_tier_underline(t, target_w, skip);
                     }
                 }
 
@@ -1628,7 +1637,10 @@ impl ResultsUI {
                         )
                     {
                         let target_w = self.width as usize;
-                        apply_tier_underline(&mut col, target_w);
+                        let has_nav = !is_selected && !is_yanked && !is_cut && nav_bar_span.is_some();
+                        let prefix_skip = if has_nav { 2 } else { 1 };
+                        let skip = if x == 0 { prefix_skip } else { 0 };
+                        apply_tier_underline(&mut col, target_w, skip);
                     }
 
                     // push
@@ -2051,16 +2063,20 @@ mod template_tests {
         use ratatui::widgets::Widget;
         table.render(render_area, &mut buf);
 
-        // Row 0 has "alpha/" with UNDERLINED modifier across all cells:
-        // 1. Icon / prefix cell is underlined
-        let icon_cell = &buf[(0, 0)];
+        // Row 0 has "alpha/":
+        // 1. Prefix gutter is NOT underlined
+        let prefix_cell = &buf[(0, 0)];
+        assert!(!prefix_cell.modifier.contains(Modifier::UNDERLINED));
+
+        // 2. Icon cell is underlined
+        let icon_cell = &buf[(3, 0)];
         assert!(icon_cell.modifier.contains(Modifier::UNDERLINED));
 
-        // 2. Text cell is underlined
+        // 3. Text cell is underlined
         let text_cell = &buf[(5, 0)];
         assert!(text_cell.modifier.contains(Modifier::UNDERLINED));
 
-        // 3. Trailing padding cell is underlined across the entire row width
+        // 4. Trailing padding cell is underlined across the entire row width
         let pad_cell = &buf[(25, 0)];
         assert!(pad_cell.modifier.contains(Modifier::UNDERLINED));
 
