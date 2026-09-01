@@ -3,8 +3,7 @@ use serde::{Deserialize, Serialize};
 use matchmaker::config::*;
 use matchmaker_partial_macros::partial;
 
-use matchmaker::action::Actions;
-use matchmaker::binds::{BindMap, Trigger};
+use matchmaker::binds::BindMap;
 use std::collections::HashMap;
 
 use crate::action::MMAction;
