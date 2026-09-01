@@ -229,7 +229,7 @@ impl<A: ActionExt> EventLoop<A> {
         self.event_stream = Some(EventStream::new());
         let mut interval = time::interval(self.tick_interval);
         interval.set_missed_tick_behavior(time::MissedTickBehavior::Delay);
-        let mut ctrl_c = std::pin::pin!(tokio::signal::ctrl_c());
+        let mut sig = termination_status();
 
         if let Some(path) = self.key_file.clone() {
             log::debug!("Cleaning up temp files @ {path:?}");
@@ -278,16 +278,16 @@ impl<A: ActionExt> EventLoop<A> {
                     self.send(RenderCommand::Tick)
                 }
 
-                // In case ctrl-c manifests as a signal instead of a key
-                _ = &mut ctrl_c => {
+                // Termination signals (SIGINT, SIGTERM, SIGHUP)
+                code = &mut sig => {
                     self.record_key("ctrl-c".into());
                     if let Some(actions) = self.get_bind(TriggerKind::Key(key!(ctrl-c))) {
                         self.send_actions(actions, Some("ctrl-c".into()));
                     } else {
-                        self.send(RenderCommand::quit());
-                        info!("Received ctrl-c");
+                        self.send(RenderCommand::quit_with(code));
+                        info!("Received termination signal with code {code}");
                     }
-                    ctrl_c.set(tokio::signal::ctrl_c());
+                    sig = termination_status();
                 }
 
                 Some(event) = self.rx.recv() => {
@@ -497,4 +497,53 @@ pub async fn write_to_file(path: PathBuf, content: String) -> Result<()> {
     fs::rename(&tmp_path, &path).await?;
 
     Ok(())
+}
+
+/// Resolves with the shell-conventional exit status of the first termination
+/// signal received (SIGINT → 130, SIGTERM → 143, SIGHUP → 129). Pends forever
+/// on platforms without signals or when listener registration fails.
+fn termination_status() -> std::pin::Pin<Box<dyn std::future::Future<Output = i32> + Send>> {
+    #[cfg(unix)]
+    {
+        use futures::FutureExt;
+        use tokio::signal::unix::{SignalKind, signal};
+
+        let listen = |kind: SignalKind, code: i32| match signal(kind) {
+            Ok(mut rx) => async move {
+                rx.recv().await;
+                code
+            }
+            .boxed(),
+            Err(e) => {
+                error!("Failed to register signal listener: {e}");
+                async move {
+                    std::future::pending::<()>().await;
+                    code
+                }
+                .boxed()
+            }
+        };
+
+        let mut sigint = listen(SignalKind::interrupt(), 130);
+        let mut sigterm = listen(SignalKind::terminate(), 143);
+        let mut sighup = listen(SignalKind::hangup(), 129);
+
+        // Fused: the render loop keeps polling this arm until teardown
+        // finishes, and polling a completed future again would panic.
+        Box::pin(
+            async move {
+                tokio::select! {
+                    code = &mut sigint => code,
+                    code = &mut sigterm => code,
+                    code = &mut sighup => code,
+                }
+            }
+            .fuse(),
+        )
+    }
+
+    #[cfg(not(unix))]
+    {
+        Box::pin(std::future::pending())
+    }
 }

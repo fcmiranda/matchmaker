@@ -1,5 +1,5 @@
 use crate::config::TerminalConfig;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use cba::bait::ResultExt;
 use crossterm::{
     event::{
@@ -34,7 +34,14 @@ where
 {
     // waiting on https://github.com/ratatui/ratatui/issues/984 to implement growable inline, currently just tries to request max
     // if max > than remainder, then scrolls up a bit
-    pub fn new_with_writer(writer: W, config: TerminalConfig) -> Result<Self> {
+    pub fn new_with_writer(writer: W, mut config: TerminalConfig) -> Result<Self> {
+        if matches!(config.stream, IoStream::Auto) {
+            config.stream = config
+                .stream
+                .resolve()
+                .context("Failed to select a render stream")?;
+            debug!("Resolved IoStream::Auto to {:?}", config.stream);
+        }
         let mut backend = CrosstermBackend::new(writer);
         let mut options = TerminalOptions::default();
 
@@ -324,8 +331,14 @@ where
 }
 
 impl Tui<Box<dyn Write + Send>> {
-    pub fn new(config: TerminalConfig) -> Result<Self> {
-        let writer = config.stream.to_stream();
+    pub fn new(mut config: TerminalConfig) -> Result<Self> {
+        let stream = config
+            .stream
+            .resolve()
+            .context("Failed to select a render stream")?;
+        config.stream = stream.clone();
+        debug!("Render stream: {:?}", config.stream);
+        let writer = stream.to_stream()?;
         let tui = Self::new_with_writer(writer, config)?;
         Ok(tui)
     }
@@ -344,18 +357,65 @@ where
 
 #[derive(Debug, Clone, Deserialize, Default, Serialize, PartialEq)]
 pub enum IoStream {
-    Stdout,
+    /// Pick a render target automatically at startup; see [`IoStream::resolve`].
     #[default]
+    Auto,
+    Stdout,
     BufferedStderr,
+    /// The controlling terminal device (`/dev/tty` on unix).
+    Tty,
 }
 
 impl IoStream {
-    pub fn to_stream(&self) -> Box<dyn std::io::Write + Send> {
+    /// Resolve [`IoStream::Auto`] into a concrete render target.
+    pub fn resolve(self) -> std::io::Result<Self> {
         match self {
-            IoStream::Stdout => Box::new(io::stdout()),
-            IoStream::BufferedStderr => Box::new(io::LineWriter::new(io::stderr())),
+            Self::Auto => auto_detect(),
+            other => Ok(other),
         }
     }
+
+    pub fn to_stream(&self) -> std::io::Result<Box<dyn std::io::Write + Send>> {
+        match self {
+            // Resolved by [`crate::tui::Tui`] before any writer is built.
+            Self::Auto => Err(std::io::Error::other(
+                "IoStream::Auto must be resolved before building a writer",
+            )),
+            Self::Stdout => Ok(Box::new(io::stdout())),
+            Self::BufferedStderr => Ok(Box::new(io::LineWriter::new(io::stderr()))),
+            Self::Tty => Ok(Box::new(open_tty()?)),
+        }
+    }
+}
+
+fn auto_detect() -> std::io::Result<IoStream> {
+    use std::io::IsTerminal;
+
+    if std::io::stderr().is_terminal() {
+        return Ok(IoStream::BufferedStderr);
+    }
+    match open_tty() {
+        Ok(_) => Ok(IoStream::Tty),
+        Err(e) => Err(std::io::Error::other(format!(
+            "no usable render target: stderr is not a terminal and the controlling terminal is unavailable ({e})"
+        ))),
+    }
+}
+
+#[cfg(unix)]
+fn open_tty() -> std::io::Result<std::fs::File> {
+    std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open("/dev/tty")
+}
+
+#[cfg(windows)]
+fn open_tty() -> std::io::Result<std::fs::File> {
+    std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open("CONOUT$")
 }
 
 // ------------------------------------------------------------
