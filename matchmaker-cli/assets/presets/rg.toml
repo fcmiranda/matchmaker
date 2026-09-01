@@ -1,30 +1,38 @@
 # Full text search
 
+[matcher]
+ansi = true
+require_column = 1
+
 [start]
 command = '''rg --column --line-number --no-heading --color=always --smart-case "$FZF_QUERY"'''
-ansi = true
+output = "{=1}:{=2}"
 
 [columns]
 max = 3
+names = ["file", "pos", ""]
 split = '^(.*?):(\d+:\d+):(.*)$'
-default = 3
+default = "file"
+
+[exit]
+abort_empty = false
 
 # --- Preview ---
 [preview]
 show = true
 scroll.percentage = 70
-scroll.index = 2
+scroll.index = "pos"
 
 [[preview.layout]]
 command = '''
 line={2}
 if command -v bat >/dev/null 2>&1; then
-    bat --color=always --highlight-line ${line%%:*} {1}
+    bat --wrap=never --color=always -pp --highlight-line ${line%%:*} {1}
 else
     cat {1}
 fi
 '''
-border = { type = "LightDoubleDashed", color = "DarkGray" }
+border = { type = "LightDoubleDashed", color = "DarkGray", title = "File Contents" }
 side = "top"
 percentage = 50
 min = 5
@@ -41,7 +49,7 @@ percentage = 100
 [results]
 inactive_current_style.fg = "DarkGray"
 inactive_current_style.bg = "Black"
-
+scroll_wrap = true
 
 [binds]
 "enter" = "@accept"
@@ -49,18 +57,18 @@ inactive_current_style.bg = "Black"
 "ctrl-." = "NextColumn"
 "?" = "SwitchPreview"
 
-"@accept" = ["Print({=1}:{=2})", "Quit"]
-"tty^^@accept" = "Become($EDITOR {1})"
+"0,1^^@accept" = "Become($EDITOR {1})"
 
 # --- Scripts ---
 "Start" = "@enter_rg"
-"@enter_rg" = [ # Reload on query change, disable reparsing, update bind
-  "Filtering(false)",
-  '''Bind(QueryChange = Reload)''',
-  # Prompt indicator
-  '''Transform(
+# Reload on query change, disable reparsing, update bind
+"@enter_rg" = [
+    "Filtering(false)",
+    '''Bind(QueryChange = Reload)''',
+    # Prompt indicator
+    '''Transform(
     if [[ -n "$MM_QUERY" ]]; then
-        echo "SetStyledPrompt({blue,italic:(${MM_QUERY#\%1 } )} )"
+        echo "SetStyledPrompt({blue,italic:(${MM_QUERY#\%1 })} )"
     else
         echo "SetPrompt(rg> )"
     fi
@@ -68,12 +76,12 @@ inactive_current_style.bg = "Black"
     echo "SetQuery($MM_STORE)"
     echo "Store($MM_QUERY)"
 )''',
-  "Bind(@reload = @enter_mm)",
+    "Bind(@reload = @enter_mm)",
 ]
 "@enter_mm" = [
-  "Filtering(true)",
-  "Unbind(QueryChange)",
-  '''Transform(
+    "Filtering(true)",
+    "Unbind(QueryChange)",
+    '''Transform(
     if [[ -n "$MM_QUERY" ]]; then
         echo "SetPrompt(($MM_QUERY) )"
     else
@@ -82,8 +90,7 @@ inactive_current_style.bg = "Black"
 
     echo "SetQuery($MM_STORE)"
     echo "Store($MM_QUERY)"
-    echo "SwitchColumn(1)"
 )
 ''',
-  "Bind(@reload = @enter_rg)",
+    "Bind(@reload = @enter_rg)",
 ]

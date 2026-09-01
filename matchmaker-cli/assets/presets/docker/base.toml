@@ -1,23 +1,17 @@
-# Common binds and actions for Kubernetes presets
+# Common binds and actions for Docker presets
+[preview]
+show = true
 
 [binds]
-    # Previews & Info
-    "alt-c" = "@follow_logs"
-    # "@show" = "#config"
-    "ctrl-y" = "@copy_id"
-    "alt-d"  = "@show_2"
-    "alt-l"  = "@show_config"
-    "alt-t"  = "@show_stats"
+"alt-c" = "@follow_logs"
+"ctrl-y" = "@copy_id"
+"alt-d" = "@show_2"
+"alt-l" = "@show_config"
+"alt-t" = "@show_stats"
 
-    # Common Toggles
-    "ctrl-r" = [ "@restart", "Reload" ]
-    "ctrl-x" = [ "@toggle_start", "Reload" ]
-    "alt-x"  = [ "@toggle_pause", "Reload" ]
+"ctrl-r" = ["@restart", "Reload"]
+"ctrl-x" = ["@toggle_start", "Reload"]
+"alt-x" = ["@toggle_pause", "Reload"]
 
-    # --- Actions ---
-    # todo: suitable bind for @show
-    "@copy" = "CopyAsync(echo {id})"
-    "@next" = "Reload"
-
-[envs]
-    DOCKERcmd = "docker"
+"@copy" = "CopyAsync(echo {id})"
+"@next" = "Reload"

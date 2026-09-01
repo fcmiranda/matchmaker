@@ -1,9 +1,11 @@
 # Interactive container viewer for a project/pod
 source = "base.toml"
 
+[matcher]
+trim = true
+
 [start]
 command = '"$(dirname -- "$MM_OVERRIDE")"/containers.sh $@'
-trim = true
 
 [columns]
 split = "\\t"
@@ -13,12 +15,10 @@ names = ["name", "status", "state", "image", "id"]
 JQ = "jq"
 DOCKERcmd = { value = 'echo "$(dirname -- "$MM_OVERRIDE")"/dispatcher.sh', exec = true, force = true }
 
-[preview]
-show = true
-
 [[preview.layout]]
 # Logs
 command = '"$DOCKERcmd" logs --tail 200 {id} | PG_LANG=log $PAGER'
+border = { title = "Logs" }
 side = "top"
 percentage = 50
 min = 5
@@ -27,6 +27,7 @@ padding = 0
 [[preview.layout]]
 # Inspect
 command = '"$DOCKERcmd" inspect {id} | PG_LANG=json $PAGER'
+border = { title = "Container Inspect" }
 side = "right"
 percentage = 40
 min = 30
@@ -35,6 +36,7 @@ max = 120
 [[preview.layout]]
 # Top
 command = '"$DOCKERcmd" top {id}'
+border = { title = "Processes" }
 
 [binds]
 "@prev" = "BecomeSilent(mm -o docker/compose)"
@@ -43,6 +45,7 @@ command = '"$DOCKERcmd" top {id}'
 "ctrl-k" = ["@kill", "Reload"]
 "ctrl-e" = "@exec"
 "alt-r" = ["@rm", "Reload"]
+"ctrl-m" = "@mount"
 
 # --- Scripts ---
 "@follow_logs" = 'Preview("$DOCKERcmd" logs -f -t {id})'
@@ -68,6 +71,17 @@ command = '"$DOCKERcmd" top {id}'
 "@kill" = 'Execute("$DOCKERcmd" kill {id}) Status(Killing...)'
 "@exec" = 'Become("$DOCKERcmd" exec -it {id} sh -c "if command -v zsh > /dev/null 2>&1; then exec zsh; elif command -v bash > /dev/null 2>&1; then exec bash; else exec sh; fi")'
 "@rm" = 'Execute("$DOCKERcmd" rm -f {id}) Status(Removing...)'
+
+"@mount" = '''BecomeOrConfirm(
+    container_id={id}
+    mounted_dir=$(podman unshare -- podman mount "$container_id") || { echo "Mount failed" && read; exit 1; }
+    echo "Mounted at: $mounted_dir"
+    echo "$mounted_dir" | tee >(${=CLIPcmd})
+    cd "$mounted_dir"
+    echo "Entering podman unshare shell. Type 'exit' to return. Use 'podman unmount $container_id' later to cleanup."
+    podman unshare
+    exec $SHELL
+)'''
 
 [query]
 prompt = "containers> "

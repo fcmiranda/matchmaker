@@ -1,0 +1,63 @@
+# Obsidian vault selector
+
+[envs]
+OBSIDIAN_VAULTS_FILE = { value = 'echo "$(dirname -- "$MM_OVERRIDE")"/.__vaults', exec = true }
+PATH = { value = 'echo "$(dirname -- "$MM_OVERRIDE"):$PATH"', exec = true, force = true }
+OPENcmd = { value = '''if command -v fs >/dev/null 2>&1; then  echo fs :oelif [ "${OSTYPE#darwin}" = "$OSTYPE" ]; then  echo xdg-openelse  echo openfi''', exec = true }
+
+[start]
+command = 'ob-vaults -c'
+sync = true
+on_accept = '''for vault in {+vault}; do; eval $OPENcmd "'obsidian://open?vault=$vault'"; done'''
+
+[columns]
+split = '\t'
+names = ["vault", { name = "path", hidden = true }]
+default = "vault"
+
+[preview]
+# show = true
+
+[[preview.layout]]
+command = "fs :tool liza :u2 {path} || ls -l {path}"
+
+[binds]
+"right" = [
+    "#browse",
+    '''BecomeOrResume(
+cd {path}
+FS_OPTS='opener=ob-open' fs
+)''',
+]
+"ctrl-r" = [
+    "#search",
+    '''BecomeOrResume(
+  set -- {+path}
+  for arg do
+    set -- "$@" -p "$arg"
+    shift
+  done
+  
+  fs :rg '^#{1,6} ' --filtering --rebase --no-fixed-strings --query '% ' "$@"
+)''',
+]
+"ctrl-f" = [
+    "#find",
+    '''BecomeOrResume(printf '%s\n' {+path} | ob-files)''',
+]
+
+"@open" = "ExecuteSilent(eval $OPENcmd {+path})"
+"@open_2" = "ExecuteSilent(fs :tool lessfilter edit {path})"
+"ctrl-d" = "ExecuteSilent(eval $OPENcmd $(dirname -- {+path}))"
+"@copy" = "CopyAsync(echo {path})"
+"Start" = 'ToggleExitFirst(false)'
+
+[query]
+prompt = "obsidian> "
+
+[tui]
+percentage = 30
+
+[exit]
+first = true
+abort_empty = true

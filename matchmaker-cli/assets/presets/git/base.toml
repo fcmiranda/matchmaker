@@ -1,21 +1,31 @@
 [start]
-directory = { value = "git rev-parse --show-toplevel", exec = true }
+directory = { value = "git rev-parse --show-toplevel", exec = true, force = true }
 
 [binds]
 "ctrl-s" = "@show"
 "ctrl-shift-s" = "@diff"
+"ctrl-shift-l" = "@log"
 
 "@reload" = ["#next view", "ReloadNext"]
 "@reload_2" = ["#prev view", "ReloadPrev"]
 
 "@diff" = "Execute({ git --paginate diff --color=always --exit-code {1} && echo no change; })"
 "@show" = "Execute(git --paginate show --color=always {1} -- {$0})"
+"@log" = '''Execute(
+git --paginate log --graph --decorate=short --date=short \
+"--pretty=format:%C(yellow)%h%C(reset) %C(blue)%ad%C(reset) %C(green)%an%C(reset) %s %C(red)%d%C(reset)"
+)'''
 
 [results]
 inactive.fg = "DarkGray"
-# inactive.modifier = "DIM"
-style.fg = "White"
-# inactive_current.modifier = "DIM"
+inactive_current.fg = "DarkGray"
+style.fg = "Reset"
 
 [envs]
 DFT_COLOR = "always"
+
+[exit]
+abort_empty = false
+
+[preview]
+show = true

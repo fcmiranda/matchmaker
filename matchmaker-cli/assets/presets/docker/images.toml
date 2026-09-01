@@ -1,29 +1,45 @@
 # Docker/Podman image viewer
 source = "base.toml"
 
-[start]
-command = '$DOCKERcmd image ls --format "table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.CreatedAt}}\t{{.Size}}"'
-input_separator = "\n"
+[matcher]
 trim = true
+
+[start]
+command = '$DOCKERcmd image ls --format "{{.Repository}}	{{.Tag}}	{{.ID}}	{{.CreatedAt}}	{{.Size}}"'
+input_separator = "\n"
 
 [header]
 header_lines = 1
-content = "REPOSITORY\tTAG\tIMAGE ID\tCREATED\tSIZE"
+# content = ["REPOSITORY", "TAG", "IMAGE ID", "CREATED", "SIZE"]
 
 [columns]
-split = "\\t"
+split = "\\t\\s*"
 names = ["repo", "tag", "id", "created", "size"]
 
-[preview]
-show = true
+[[preview.layout]]
+# History
+command = '''$DOCKERcmd ps -a --filter ancestor={id} --format \
+"
+{{.ID}}
+{{.Status}}
+{{.Created}}
+
+names: {{.Names}}
+------------
+"
+
+'''
+border = { title = "Containers" }
 
 [[preview.layout]]
 # History
 command = "$DOCKERcmd image history {id}"
+border = { title = "Image History" }
 
 [[preview.layout]]
 # Inspect
 command = "$DOCKERcmd image inspect {id} | PG_LANG=json $PAGER"
+border = { title = "Image Inspect" }
 
 [binds]
 # Navigation
@@ -44,13 +60,13 @@ command = "$DOCKERcmd image inspect {id} | PG_LANG=json $PAGER"
 "@config_exec" = "Execute($DOCKERcmd image inspect {id} | PG_LANG=json $PAGER)"
 "@stats" = "Preview($DOCKERcmd image history {id})"
 
-"@pull" = 'Execute($DOCKERcmd image pull {repo}:{tag}) Status(Pulling...)'
-"@push" = 'Execute($DOCKERcmd image push {repo}:{tag}) Status(Pushing...)'
+"@pull" = 'ExecuteOrConfirm($DOCKERcmd image pull {repo}:{tag}) Status(Pulling...)'
+"@push" = 'ExecuteOrConfirm($DOCKERcmd image push {repo}:{tag}) Status(Pushing...)'
 
-"@rmi" = ["Execute($DOCKERcmd image rmi {repo}:{tag}) Status(Removing...)", "Reload"]
-"@rmi_id" = ["Execute($DOCKERcmd image rmi {id}) Status(Removing by ID...)", "Reload"]
+"@rmi" = ["ExecuteOrConfirm($DOCKERcmd image rmi {repo}:{tag}) Status(Removing...)", "Reload"]
+"@rmi_id" = ["ExecuteOrConfirm($DOCKERcmd image rmi {id}) Status(Removing by ID...)", "Reload"]
 
-"@save_tar" = '''Execute(
+"@save_tar" = '''ExecuteOrConfirm(
         printf "Save as (filename): "
         read -r filename
         if [[ -n "$filename" ]]; then
@@ -58,7 +74,7 @@ command = "$DOCKERcmd image inspect {id} | PG_LANG=json $PAGER"
         fi
     )'''
 
-"@copy_tag" = '''Execute(
+"@copy_tag" = '''ExecuteOrConfirm(
         printf "Copy {repo}:{tag} to (new name): "
         read -r newname
         if [[ -n "$newname" ]]; then
@@ -66,7 +82,7 @@ command = "$DOCKERcmd image inspect {id} | PG_LANG=json $PAGER"
         fi
     )'''
 
-"@rename_tag" = '''Execute(
+"@rename_tag" = '''ExecuteOrConfirm(
         printf "Rename {repo}:{tag} to (new name): "
         read -r newname
         if [[ -n "$newname" ]]; then
@@ -75,7 +91,7 @@ command = "$DOCKERcmd image inspect {id} | PG_LANG=json $PAGER"
         fi
     )'''
 
-"@new_tag" = '''Execute(
+"@new_tag" = '''ExecuteOrConfirm(
         printf "New tag for {repo} -> {repo}:"
         read -r newtag
         if [[ -n "$newtag" ]]; then
@@ -83,7 +99,7 @@ command = "$DOCKERcmd image inspect {id} | PG_LANG=json $PAGER"
         fi
     )'''
 
-"@retag" = '''Execute(
+"@retag" = '''ExecuteOrConfirm(
         printf "Retag {repo}:{tag} -> {repo}:"
         read -r newtag
         if [[ -n "$newtag" ]]; then

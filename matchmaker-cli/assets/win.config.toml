@@ -94,6 +94,7 @@ if (Get-Command fd -ErrorAction SilentlyContinue) {
 "ctrl-c" = "Quit"
 "esc" = "Quit"
 "enter" = "@accept"
+"alt-enter" = "@Accept"
 "ctrl-enter" = "@accept_2"
 "ctrl-a" = "CycleAll"
 "tab" = ["Toggle", "Down"]
@@ -174,6 +175,7 @@ if (Get-Command fd -ErrorAction SilentlyContinue) {
 "ctrl-s" = "@show"
 
 "@accept" = "Accept"
+"@Accept" = "Accept"
 "@accept_2" = "Accept"
 "@look" = "Execute(powershell -Command \"$env:MM_PREVIEW_COMMAND | & $env:PAGER\")"
 "@open" = "Execute(powershell -Command \"& $env:EDITOR {1}\")"

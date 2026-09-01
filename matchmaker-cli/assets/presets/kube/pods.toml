@@ -1,0 +1,45 @@
+# Kubernetes pods viewer
+source = "base.toml"
+
+[matcher]
+trim = true
+
+[start]
+command = 'kubectl get pods --all-namespaces'
+input_separator = "\n"
+
+[header]
+header_lines = 1
+
+[columns]
+split = ' +'
+names = ["namespace", "name", "ready", "status", "restarts", "age"]
+
+[[preview.layout]]
+# Logs
+command = "kubectl logs --follow --all-containers --tail=100 --namespace {namespace} {name}"
+border = { title = "Container Logs" }
+
+[binds]
+# Navigation
+"@accept" = "@exec"
+"@Accept" = "Accept"
+"@open" = "@logs_editor"
+
+# --- Actions ---
+"Start" = '''Transform(
+        context=$(kubectl config current-context | sed 's/-context$//')
+        echo "SetStyledPrompt({blue,italic:$context> })"
+    )'''
+
+"@exec" = "Execute(kubectl exec -it --namespace {namespace} {name} -- bash || kubectl exec -it --namespace {namespace} {name} -- sh)"
+"@logs_editor" = "Execute(${EDITOR:-vim} <(kubectl logs --all-containers --namespace {namespace} {name}))"
+
+"@logs" = "Execute(kubectl logs --all-containers --namespace {namespace} {name} | bat)"
+"@stats" = "Preview(kubectl top pod --namespace {namespace} {name})"
+
+[query]
+prompt = "pods> "
+
+[tui]
+percentage = 100

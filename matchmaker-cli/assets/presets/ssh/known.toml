@@ -8,10 +8,10 @@ split = ' '
 max = 4
 default = 1
 names = [
-  "host",
-  "type",
-  "key",
-  { name = "comment", hidden = true },
+    "host",
+    "type",
+    "key",
+    { name = "comment", hidden = true },
 ]
 
 # --- Preview ---
@@ -19,10 +19,12 @@ names = [
 show = true
 
 [[preview.layout]]
-command = "echo '### Fingerprint ###\n'; echo {} | ssh-keygen -lf -"
+command = "echo {} | ssh-keygen -lf -"
+border = { title = "Key Fingerprint" }
 
 [[preview.layout]]
-command = "echo '### Fetch ###\n'; ssh-keyscan {host};"
+command = "ssh-keyscan {host}"
+border = { title = "Host Keys" }
 
 # --- UI ---
 [header]
@@ -32,8 +34,15 @@ content = ["host", "type", "key"]
 prompt = "known> "
 
 [binds]
-"@open" = "Execute(ssh -vT {host} 2>&1)"
-"@next" = "BecomeSilent(mm -o ssh/tailscale)"
+"@show" = "ExecuteOrConfirm(ssh -vT {host} 2>&1)"
+"@open" = "ExecuteOrConfirm($EDITOR ~/.ssh/known_hosts)"
+"@next" = '''BecomeSilent(
+if tailscale status --peers=false > /dev/null 2>&1; then
+    mm -o ssh/tailscale
+else
+    mm -o ssh/hosts
+fi
+)'''
 "@prev" = "BecomeSilent(mm -o ssh/keys)"
 
 # --- Scripts ---

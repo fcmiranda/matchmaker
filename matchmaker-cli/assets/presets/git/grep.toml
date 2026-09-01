@@ -30,35 +30,47 @@ max = 3
 default = 3
 
 [matcher]
-sort = 40
+sort.threshold = 40
 
 # --- Preview ---
 [previewer]
 always_trigger = false
 
-[[preview.layout]]
-side = "top"
-percentage = 50
-min = 5
-max = 50
-command = '''
-git diff --color=always {1}\^ {1} -- {2} ||
-git show --color=always {1} -- {2}
-'''
+[results]
+autoscroll.initial_preserved = 1
+
+[preview]
+initial_layout = 2
+show = false
 
 [[preview.layout]]
 command = '''
 git show --color=always --stat --summary {1}
 '''
-side = "right"
-percentage = 40
-min = 30
-max = 120
+border = { title = "Commit Summary" }
+
+# side = "right"
+# percentage = 40
+# min = 30
+# max = 120
 
 [[preview.layout]]
 command = '''
+git diff --color=always {1}\^ {1} -- {2} ||
 git show --color=always {1} -- {2}
 '''
+border = { title = "File Diff" }
+
+# side = "top"
+# percentage = 50
+# min = 5
+# max = 50
+
+[[preview.layout]]
+command = '''
+git show --ext-diff --color=always {1} -- {2}
+'''
+border = { title = "File Contents" }
 
 # --- UI ---
 [tui]
@@ -74,7 +86,7 @@ prompt = "grep> "
 if [ -z "$(git status --porcelain)" ]; then
     mm -o git/restore
 else
-    mm -o git/status
+    mm -o git/status -F
 fi)'''
 "@prev" = "BecomeSilent(mm -o git/switch)"
 

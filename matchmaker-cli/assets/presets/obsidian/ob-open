@@ -1,0 +1,88 @@
+#!/bin/sh
+
+# === EDIT ME ===
+WAIT=5
+
+uri() {
+  if command -v "jq" > /dev/null 2>&1; then
+    printf '%s' "$*" | jq -sRr @uri
+  else
+    printf '%s' "$*" | sed 's/ /%20/g; s/\//%2F/g'
+  fi
+}
+
+# === ARGPARSE ===
+usage(){
+  echo "Opens a file in Obsidian, or their default application if not contained in a vault.
+
+  Usage: obf [options] [filename]
+  Options:
+    -s, --show    Show the filepath URI (expected by Obsidian) instead of opening.
+    -h, --help    Show this help message."
+
+  (($#)) && exit $1
+}
+
+SHOW=false
+file=""
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -h|--help)
+      usage 0
+      ;;
+    -s|--show)
+      shift 1
+      (($#)) || usage 1
+      uri "$1"
+      ;;
+    -*)
+      echo "Unknown option: $1" >&2
+      usage 1
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+# Convert relative path to absolute path
+case "$1" in
+  "") usage 1 ;;
+  /*) file="$1";; # Already absolute
+  *)  file="$PWD/$file" ;;
+esac
+
+# === SCRIPT START ===
+if [ -z "$OPENcmd" ]; then
+  if command -v fs >/dev/null 2>&1; then
+    echo fs :o
+  elif [ "${OSTYPE#darwin}" = "$OSTYPE" ]; then
+    echo xdg-open
+  else
+    echo open
+  fi
+fi
+TARGET="'obsidian://open?path=$(uri "$file")'"
+
+if vault="$(ob-vaults -b "$file")"; then
+  if ps -e -o args= 2>/dev/null | grep -q '[O]bsidian'; then
+    eval $OPENcmd "$TARGET"
+  else
+    eval $OPENcmd "$TARGET"
+    # queue up some extra tries in case the request was dropped while obsidian was starting up
+    (
+      sleep "$WAIT"
+      eval $OPENcmd "$TARGET"
+      sleep "$WAIT"
+      eval $OPENcmd "$TARGET"
+    ) >/dev/null 2>&1 &
+  fi
+else
+  if [ -e "$file" ]; then
+    eval $OPENcmd "$file"
+  else
+    # Normalize markdown link syntax
+    eval $OPENcmd "${file%%#*}" || exit 1
+  fi
+fi

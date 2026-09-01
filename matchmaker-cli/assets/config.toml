@@ -71,6 +71,7 @@ ansi = false # don't set to true here
 "ctrl-c" = "Quit"
 "esc" = "Quit"
 "enter" = "@accept"
+"alt-enter" = "@Accept"
 "ctrl-enter" = "@accept_2"
 "ctrl-a" = "CycleAll"
 "tab" = ["Toggle", "Down"]
@@ -154,6 +155,7 @@ ansi = false # don't set to true here
 "ctrl-s" = "@show"
 
 "@accept" = "Accept"
+"@Accept" = "Accept"
 "@accept_2" = "Accept"
 "@look" = "Execute(eval $MM_PREVIEW_COMMAND | $PAGER)"
 "@open" = "Execute($EDITOR {1})"

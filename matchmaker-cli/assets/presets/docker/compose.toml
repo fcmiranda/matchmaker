@@ -4,6 +4,7 @@ source = "base.toml"
 [start]
 command = '"$(dirname -- "$MM_OVERRIDE")"/projects.sh'
 input_separator = "\\0"
+output = "{=id}"
 
 [columns]
 split = "\\t"
@@ -12,14 +13,13 @@ names = ["name", "status", "id", { name = "source", hidden = true }]
 [envs]
 JQ = "jq"
 
-[preview]
-show = true
 [previewer]
 # delay_clear = false
 
 [[preview.layout]]
 # Logs
 command = '"$(dirname -- "$MM_OVERRIDE")"/composer.sh {id} logs {source} --tail 200 | PG_LANG=log $PAGER'
+border = { title = "Logs" }
 side = "top"
 percentage = 50
 min = 5
@@ -28,6 +28,7 @@ padding = 0
 [[preview.layout]]
 # Config
 command = '"$(dirname -- "$MM_OVERRIDE")"/composer.sh {id} config {source} | PG_LANG=yaml $PAGER'
+border = { title = "Compose Config" }
 side = "right"
 percentage = 40
 min = 30
@@ -36,11 +37,11 @@ max = 120
 [[preview.layout]]
 # Top
 command = '"$(dirname -- "$MM_OVERRIDE")"/composer.sh {id} top {source}'
+border = { title = "Processes" }
 
 [binds]
-"tty^^@accept" = "Become(mm -o docker/containers -- {id} {source})"
-"tty^^@accept2" = ["#lazydocker", "Become(lazydocker -f {id})"]
-"@accept" = ["Print({=id})", "Quit"]
+"0,1^^@accept" = "Become(mm -o docker/containers -- {id} {source})"
+"0,1^^@Accept" = ["#lazydocker", "Become(lazydocker -f {id})"]
 
 "alt-r" = ["@recreate", "Reload"]
 "ctrl-a" = ["@restart_all", "Reload"]
@@ -55,7 +56,7 @@ command = '"$(dirname -- "$MM_OVERRIDE")"/composer.sh {id} top {source}'
 "@show_2" = "@ls"
 "@show_stats" = 'Preview("$(dirname -- "$MM_OVERRIDE")"/composer.sh {id} stats {source})'
 
-"@restart" = 'Execute("$(dirname -- "$MM_OVERRIDE")"/composer.sh {id} restart {source} --no-deps) Status(Restarting...)'
+"@restart" = 'Execute(@composer.sh {id} restart {source} --no-deps) Status(Restarting...)'
 "@toggle_start" = '''Execute(
     if [[ {status} == *exited* || {status} == *stopped* || {status} == *created* ]]; then
         "$(dirname -- "$MM_OVERRIDE")"/composer.sh {id} start {source}
@@ -72,9 +73,9 @@ command = '"$(dirname -- "$MM_OVERRIDE")"/composer.sh {id} top {source}'
     fi
 )'''
 
-"@recreate" = 'Execute("$(dirname -- "$MM_OVERRIDE")"/composer.sh {id} up {source} --force-recreate) Status(Recreating...)'
-"@restart_all" = 'Execute("$(dirname -- "$MM_OVERRIDE")"/composer.sh {id} restart {source}) Status(Restarting all...)'
-"@recreate_all" = 'Execute("$(dirname -- "$MM_OVERRIDE")"/composer.sh {id} up {source} --renew-anon-volumes --force-recreate) Status(Recreating all...)'
+"@recreate" = 'Execute(@composer.sh {id} up {source} --force-recreate) Status(Recreating...)'
+"@restart_all" = 'Execute(@composer.sh {id} restart {source}) Status(Restarting all...)'
+"@recreate_all" = 'Execute(@composer.sh {id} up {source} --renew-anon-volumes --force-recreate) Status(Recreating all...)'
 
 "@toggle_up" = '''Execute(
     if [[ {status} == *down* || {status} == *exited* ]]; then
