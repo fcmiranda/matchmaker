@@ -4,7 +4,7 @@ use matchmaker::config::*;
 use matchmaker_partial_macros::partial;
 
 use matchmaker::action::Actions;
-use matchmaker::binds::Trigger;
+use matchmaker::binds::{BindMap, Trigger};
 use std::collections::HashMap;
 
 use crate::action::MMAction;
@@ -30,7 +30,7 @@ pub struct Config {
     #[serde(default)]
     #[partial(alias = "b")]
     #[partial(no_recurse, unwrap)]
-    pub binds: HashMap<Trigger, Actions<MMAction>>,
+    pub binds: BindMap<MMAction>,
 
     // configure the tui
     #[partial(attr)]

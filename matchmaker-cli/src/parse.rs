@@ -49,7 +49,7 @@ pub fn get_pairs(pairs: Vec<String>) -> Result<Vec<(Vec<String>, String)>, Parse
     let mut iter = pairs.into_iter().peekable();
 
     while let Some(item) = iter.next() {
-        let (mut path_str, value) = if let Some(eq_pos) = item.find('=') {
+        let (path_str, value) = if let Some(eq_pos) = item.find('=') {
             let path = item[..eq_pos].to_string();
             let val = item[eq_pos + 1..].to_string();
 
