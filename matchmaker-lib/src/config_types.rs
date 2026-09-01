@@ -67,16 +67,24 @@ impl StyleSetting {
 #[derive(Clone, Copy, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum HorizontalSeparator {
     #[default]
+    #[serde(alias = "none")]
     None,
+    #[serde(alias = "empty")]
     Empty,
+    #[serde(alias = "light")]
     Light,
+    #[serde(alias = "normal")]
     Normal,
+    #[serde(alias = "heavy")]
     Heavy,
+    #[serde(alias = "dashed")]
     Dashed,
-    #[serde(alias = "Upper", alias = "UpperBlock", alias = "upper_block")]
+    #[serde(alias = "top", alias = "Upper", alias = "upper", alias = "UpperBlock", alias = "upper_block")]
     Top,
-    #[serde(alias = "Lower", alias = "LowerBlock", alias = "lower_block")]
+    #[serde(alias = "bottom", alias = "Lower", alias = "lower", alias = "LowerBlock", alias = "lower_block")]
     Bottom,
+    #[serde(alias = "underline", alias = "underlined", alias = "under_line", alias = "Underline")]
+    Underline,
 }
 
 impl HorizontalSeparator {
@@ -90,6 +98,7 @@ impl HorizontalSeparator {
             Self::Dashed => "╌", // U+254C (box drawings light double dash)
             Self::Top => "▔",    // U+2594 (upper one eighth block)
             Self::Bottom => " ", // U+2581 (lower one eighth block)
+            Self::Underline => "",
         }
     }
 }

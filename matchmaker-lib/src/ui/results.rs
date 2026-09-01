@@ -731,6 +731,24 @@ impl ResultsUI {
             self.cursor = self.cursor.min(results.len().saturating_sub(1) as u16)
         }
 
+        if self.config.tier_separator == HorizontalSeparator::Underline {
+            for idx in 1..results.len() {
+                if matches!(results[idx].0, Some(crate::nucleo::GroupHeader::TierSeparator)) {
+                    let prev_cells = &mut results[idx - 1].1;
+                    for cell in prev_cells.iter_mut() {
+                        if let Some(last_line) = cell.lines.last_mut() {
+                            for span in last_line.spans.iter_mut() {
+                                span.style = span.style.add_modifier(ratatui::style::Modifier::UNDERLINED);
+                                if let Some(fg) = self.config.tier_separator_style.fg {
+                                    span.style = span.style.underline_color(fg);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         let mut rows = vec![];
         let mut total_height = 0;
 
@@ -746,7 +764,10 @@ impl ResultsUI {
             let group_h = match &t.0 {
                 Some(crate::nucleo::GroupHeader::Named(_)) => 1,
                 Some(crate::nucleo::GroupHeader::TierSeparator) => {
-                    if !matches!(self.config.tier_separator, HorizontalSeparator::None) {
+                    if !matches!(
+                        self.config.tier_separator,
+                        HorizontalSeparator::None | HorizontalSeparator::Underline
+                    ) {
                         1
                     } else {
                         0
@@ -1245,7 +1266,10 @@ impl ResultsUI {
                         }
                         crate::nucleo::GroupHeader::TierSeparator => {
                             let tier_sep = self.config.tier_separator;
-                            if matches!(tier_sep, HorizontalSeparator::None) {
+                            if matches!(
+                                tier_sep,
+                                HorizontalSeparator::None | HorizontalSeparator::Underline
+                            ) {
                                 None
                             } else {
                                 let sep_char = tier_sep.as_str();
@@ -1941,6 +1965,49 @@ mod template_tests {
         // Row 2 has "file.txt"
         let row2_text: String = (0..30).map(|x| buf[(x, 2)].symbol()).collect();
         assert!(row2_text.contains("file.txt"));
+    }
+
+    #[test]
+    fn test_results_ui_renders_tier_separator_underline() {
+        let mut results_config = ResultsConfig::default();
+        results_config.tier_separator = HorizontalSeparator::Underline;
+        results_config.tier_separator_style = StyleSetting {
+            fg: Some(Color::Cyan),
+            ..Default::default()
+        };
+
+        let status_config = StatusConfig::default();
+        let mut results_ui = ResultsUI::new(results_config, status_config);
+        let area = ratatui::layout::Rect::new(0, 0, 30, 10);
+        results_ui.update_dimensions(&area);
+
+        let mut worker = Worker::<String>::new_single_column();
+        worker.dir_first = true;
+        let injector = worker.nucleo.injector();
+        injector.push("alpha/".to_string(), |item, cols| cols[0] = item.clone().into());
+        injector.push("file.txt".to_string(), |item, cols| cols[0] = item.clone().into());
+        worker.nucleo.tick(10);
+
+        let mut selector = crate::selector::Selector::new(|_s: &String| (0u32, ())).disabled();
+        let mut matcher = nucleo::Matcher::default();
+        let mut click = Click::None;
+
+        let table = results_ui.make_table(0, &mut worker, &mut selector, &mut matcher, &mut click, None, false);
+        let render_area = ratatui::layout::Rect::new(0, 0, 30, 5);
+        let mut buf = ratatui::buffer::Buffer::empty(render_area);
+        use ratatui::widgets::Widget;
+        table.render(render_area, &mut buf);
+
+        // Row 0 has "alpha/" with UNDERLINED modifier and Cyan underline_color
+        let row0_text: String = (0..30).map(|x| buf[(x, 0)].symbol()).collect();
+        assert!(row0_text.contains("alpha/"));
+        // Check that alpha cell has modifier UNDERLINED
+        let cell = &buf[(2, 0)];
+        assert!(cell.modifier.contains(Modifier::UNDERLINED));
+
+        // Row 1 has "file.txt" (no extra separator row!)
+        let row1_text: String = (0..30).map(|x| buf[(x, 1)].symbol()).collect();
+        assert!(row1_text.contains("file.txt"));
     }
 }
 
