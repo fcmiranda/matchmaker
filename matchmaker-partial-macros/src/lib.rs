@@ -343,8 +343,10 @@ pub fn partial(attr: TokenStream, item: TokenStream) -> TokenStream {
                 CollectionKind::Vec => quote! { Vec },
                 CollectionKind::HashSet => quote! { HashSet },
                 CollectionKind::BTreeSet => quote! { BTreeSet },
+                CollectionKind::IndexSet => quote! { IndexSet },
                 CollectionKind::HashMap => quote! { HashMap },
                 CollectionKind::BTreeMap => quote! { BTreeMap },
+                CollectionKind::IndexMap => quote! { IndexMap },
             };
 
             let partial_coll_ty = if inners.len() == 2 {
@@ -369,7 +371,10 @@ pub fn partial(attr: TokenStream, item: TokenStream) -> TokenStream {
 
             let apply_stmt = if is_recursive_field {
                 let element_apply = match kind {
-                    CollectionKind::Vec | CollectionKind::HashSet | CollectionKind::BTreeSet => {
+                    CollectionKind::Vec
+                    | CollectionKind::HashSet
+                    | CollectionKind::BTreeSet
+                    | CollectionKind::IndexSet => {
                         let push_method = if kind == CollectionKind::Vec {
                             quote! { push }
                         } else {
@@ -411,7 +416,7 @@ pub fn partial(attr: TokenStream, item: TokenStream) -> TokenStream {
                             }
                         }
                     }
-                    CollectionKind::HashMap | CollectionKind::BTreeMap => {
+                    CollectionKind::HashMap | CollectionKind::BTreeMap | CollectionKind::IndexMap => {
                         if !field_unwrap {
                             quote! {
                                 for (k, p_v) in p {
@@ -452,7 +457,10 @@ pub fn partial(attr: TokenStream, item: TokenStream) -> TokenStream {
                     quote! { p }
                 };
                 quote! { if let Some(p) = partial.#field_name { self.#field_name = #val; } }
-            } else if kind == CollectionKind::HashMap || kind == CollectionKind::BTreeMap {
+            } else if matches!(
+                kind,
+                CollectionKind::HashMap | CollectionKind::BTreeMap | CollectionKind::IndexMap
+            ) {
                 quote! {
                     for (k, v) in partial.#field_name {
                         #target_expr.insert(k, v);
@@ -890,8 +898,10 @@ enum CollectionKind {
     Vec,
     HashSet,
     BTreeSet,
+    IndexSet,
     HashMap,
     BTreeMap,
+    IndexMap,
 }
 
 fn get_collection_info(ty: &Type) -> Option<(CollectionKind, Vec<&Type>)> {
@@ -903,10 +913,14 @@ fn get_collection_info(ty: &Type) -> Option<(CollectionKind, Vec<&Type>)> {
             CollectionKind::HashSet
         } else if last_seg.ident == "BTreeSet" {
             CollectionKind::BTreeSet
+        } else if last_seg.ident == "IndexSet" {
+            CollectionKind::IndexSet
         } else if last_seg.ident == "HashMap" {
             CollectionKind::HashMap
         } else if last_seg.ident == "BTreeMap" {
             CollectionKind::BTreeMap
+        } else if last_seg.ident == "IndexMap" {
+            CollectionKind::IndexMap
         } else {
             return None;
         };
