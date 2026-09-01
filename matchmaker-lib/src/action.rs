@@ -399,7 +399,7 @@ enum_from_str_display!(
     CopyAsync, Copy, ChDir;
 
     defaults:
-    (Up, 1), (Down, 1), (PreviewUp, 1), (PreviewDown, 1), (Quit, 1), (Overlay, 0), (Print, String::new()), (Help, String::new()), (Reload, String::new()), (PreviewScroll, 1), (PreviewHScroll, 1), (HScroll, 0), (VScroll, 0), (ExpandPreview, 1), (ShrinkPreview, 1);
+    (Up, 1), (Down, 1), (PreviewUp, 1), (PreviewDown, 1), (Quit, 130), (Overlay, 0), (Print, String::new()), (Help, String::new()), (Reload, String::new()), (PreviewScroll, 1), (PreviewHScroll, 1), (HScroll, 0), (VScroll, 0), (ExpandPreview, 1), (ShrinkPreview, 1);
 
     options:
     SwitchPreview, SetPreview, ToggleColumn, ShowColumn

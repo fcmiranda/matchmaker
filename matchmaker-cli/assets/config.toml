@@ -68,8 +68,8 @@ ansi = false # don't set to true here
 # --- Binds ---
 [binds]
 # Essentia
-"ctrl-c" = "Quit(130)"
-"esc" = "Quit"
+"ctrl-c" = "Quit"
+"esc" = "Quit(1)"
 "enter" = "@accept"
 "alt-enter" = "@Accept"
 "ctrl-enter" = "@accept_2"

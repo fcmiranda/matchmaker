@@ -91,8 +91,8 @@ if (Get-Command fd -ErrorAction SilentlyContinue) {
 # --- Binds ---
 [binds]
 # Essential
-"ctrl-c" = "Quit(130)"
-"esc" = "Quit"
+"ctrl-c" = "Quit"
+"esc" = "Quit(1)"
 "enter" = "@accept"
 "alt-enter" = "@Accept"
 "ctrl-enter" = "@accept_2"
