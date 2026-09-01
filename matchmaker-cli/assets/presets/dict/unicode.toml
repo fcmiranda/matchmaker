@@ -75,5 +75,5 @@ min_width = 5
     char={char}
     printf "\\\\u{%X}" "'$char"
 )'''
-"@accept" = ["Print({=char})", "Quit"]
-"tty^^@accept" = ["Copy(echo {char})", "Quit"]
+"@accept" = ["Print({=char})", "Quit(0)"]
+"tty^^@accept" = ["Copy(echo {char})", "Quit(0)"]

@@ -106,7 +106,7 @@ else
 fi
 )'''
 
-"enter" = ["Print({=char})", "Quit"]
+"enter" = ["Print({=char})", "Quit(0)"]
 
 "tty^^enter" = [
   '''Copy(
@@ -117,7 +117,7 @@ else
   printf "%b" "$emoji_seq"
 fi
 )''',
-  "Quit",
+  "Quit(0)",
 ]
 
 # --- Scripts ---
