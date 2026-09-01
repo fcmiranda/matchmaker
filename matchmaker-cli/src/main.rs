@@ -35,6 +35,11 @@ static GLOBAL: MiMalloc = MiMalloc;
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn main() {
+    #[cfg(unix)]
+    unsafe {
+        libc::signal(libc::SIGPIPE, libc::SIG_DFL)
+    };
+
     let (cli, config_args) = Cli::get_partitioned_args();
 
     init_logger(

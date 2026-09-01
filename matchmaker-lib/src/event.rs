@@ -142,7 +142,10 @@ impl<A: ActionExt> EventLoop<A> {
         let mut matched = true;
         // a basic set of keys to ensure basic usability
         match key {
-            key!(ctrl-c) | key!(esc) => {
+            key!(ctrl-c) => {
+                self.send(RenderCommand::quit_with(130));
+            }
+            key!(esc) => {
                 self.send(RenderCommand::quit());
             }
             key!(up) => self.send_action(Action::Up(1)),
