@@ -728,26 +728,25 @@ impl ResultsUI {
                 self.cursor_jump(match_count);
             }
         } else {
-            self.cursor = self.cursor.min(results.len().saturating_sub(1) as u16)
+            self.cursor = self.cursor.min(results.len().saturating_sub(1) as u16);
         }
 
-        if self.config.tier_separator == HorizontalSeparator::Underline {
-            for idx in 1..results.len() {
-                if matches!(results[idx].0, Some(crate::nucleo::GroupHeader::TierSeparator)) {
-                    let prev_cells = &mut results[idx - 1].1;
-                    for cell in prev_cells.iter_mut() {
-                        if let Some(last_line) = cell.lines.last_mut() {
-                            for span in last_line.spans.iter_mut() {
-                                span.style = span.style.add_modifier(ratatui::style::Modifier::UNDERLINED);
-                                if let Some(fg) = self.config.tier_separator_style.fg {
-                                    span.style = span.style.underline_color(fg);
-                                }
-                            }
-                        }
+        let tier_sep_style = self.config.tier_separator_style;
+        let is_underline_mode = self.config.tier_separator == HorizontalSeparator::Underline;
+        let apply_tier_underline = |t: &mut ratatui::text::Text<'_>, target_w: usize| {
+            if let Some(last_line) = t.lines.last_mut() {
+                let cur_w = last_line.width();
+                if cur_w < target_w {
+                    last_line.spans.push(Span::raw(" ".repeat(target_w - cur_w)));
+                }
+                for span in last_line.spans.iter_mut() {
+                    span.style = span.style.add_modifier(Modifier::UNDERLINED);
+                    if let Some(fg) = tier_sep_style.fg {
+                        span.style = span.style.underline_color(fg);
                     }
                 }
             }
-        }
+        };
 
         let mut rows = vec![];
         let mut total_height = 0;
@@ -1051,6 +1050,12 @@ impl ResultsUI {
             }
         } else if let Some(mut remaining_height) = self.bottom_clip {
             start_index += 1;
+            let is_topside_tier_underlined = is_underline_mode
+                && ((start_index as usize) < results_len
+                    && matches!(
+                        results.get(start_index as usize),
+                        Some((Some(crate::nucleo::GroupHeader::TierSeparator), _, _))
+                    ));
             // same as above
             let h = height_of(&results[0]);
             let (_, row, item) = &mut results[0];
@@ -1098,7 +1103,7 @@ impl ResultsUI {
                                 self.active_prefix_style(&icon_name, is_selected, is_spinner, &cwd),
                                 self.inactive_prefix_style(
                                     &icon_name,
-                                    is_selected,
+                                    is_selected && !is_current_row,
                                     is_spinner,
                                     &cwd,
                                 ),
@@ -1137,6 +1142,19 @@ impl ResultsUI {
 
                 if self.config.right_align_last && row_texts.len() > 1 {
                     row_texts.last_mut().unwrap().alignment = Some(Alignment::Right)
+                }
+
+                if is_topside_tier_underlined {
+                    let total_allocated: u16 = widths.iter().sum();
+                    let total_available = self.width.saturating_sub(self.column_spacing_width());
+                    let surplus = total_available.saturating_sub(total_allocated);
+                    let num_cols = row_texts.len();
+                    for (col_idx, t) in row_texts.iter_mut().enumerate() {
+                        let is_last_col = col_idx == num_cols.saturating_sub(1);
+                        let base_w = widths.get(col_idx).copied().unwrap_or(0);
+                        let target_w = if is_last_col { base_w + surplus } else { base_w } as usize;
+                        apply_tier_underline(t, target_w);
+                    }
                 }
 
                 let text_h = row_texts.iter().map(|t| t.lines.len() as u16).max().unwrap_or(1);
@@ -1194,6 +1212,11 @@ impl ResultsUI {
                             self.config.symlink_target_style.into(),
                             self.width,
                         );
+                    }
+
+                    if is_topside_tier_underlined {
+                        let target_w = self.width as usize;
+                        apply_tier_underline(&mut col, target_w);
                     }
 
                     let row = Row::new(vec![col.clone()]).height(height);
@@ -1463,6 +1486,24 @@ impl ResultsUI {
                     row_texts.last_mut().unwrap().alignment = Some(Alignment::Right)
                 }
 
+                if is_underline_mode
+                    && matches!(
+                        drain_iter.peek(),
+                        Some((Some(crate::nucleo::GroupHeader::TierSeparator), _, _))
+                    )
+                {
+                    let total_allocated: u16 = widths.iter().sum();
+                    let total_available = self.width.saturating_sub(self.column_spacing_width());
+                    let surplus = total_available.saturating_sub(total_allocated);
+                    let num_cols = row_texts.len();
+                    for (col_idx, t) in row_texts.iter_mut().enumerate() {
+                        let is_last_col = col_idx == num_cols.saturating_sub(1);
+                        let base_w = widths.get(col_idx).copied().unwrap_or(0);
+                        let target_w = if is_last_col { base_w + surplus } else { base_w } as usize;
+                        apply_tier_underline(t, target_w);
+                    }
+                }
+
                 // push
                 let mut row = Row::new(row_texts).height(height);
 
@@ -1580,6 +1621,16 @@ impl ResultsUI {
                         RowConnectionStyle::Full => {}
                     }
 
+                    if is_underline_mode
+                        && matches!(
+                            drain_iter.peek(),
+                            Some((Some(crate::nucleo::GroupHeader::TierSeparator), _, _))
+                        )
+                    {
+                        let target_w = self.width as usize;
+                        apply_tier_underline(&mut col, target_w);
+                    }
+
                     // push
                     let mut row = Row::new(vec![col]).height(height);
                     if is_current_row {
@@ -1620,7 +1671,8 @@ impl ResultsUI {
             // column_spacing eats into the width
             let mut widths: Vec<_> = widths[..pos.map_or(0, |x| x + 1)].to_vec();
 
-            let surplus = self.content_width().saturating_sub(widths.iter().sum());
+            let total_available = self.width.saturating_sub(self.column_spacing_width());
+            let surplus = total_available.saturating_sub(widths.iter().sum());
 
             if surplus > 0 {
                 // occupy full row
@@ -1970,6 +2022,7 @@ mod template_tests {
     #[test]
     fn test_results_ui_renders_tier_separator_underline() {
         let mut results_config = ResultsConfig::default();
+        results_config.icons = true;
         results_config.tier_separator = HorizontalSeparator::Underline;
         results_config.tier_separator_style = StyleSetting {
             fg: Some(Color::Cyan),
@@ -1998,12 +2051,18 @@ mod template_tests {
         use ratatui::widgets::Widget;
         table.render(render_area, &mut buf);
 
-        // Row 0 has "alpha/" with UNDERLINED modifier and Cyan underline_color
-        let row0_text: String = (0..30).map(|x| buf[(x, 0)].symbol()).collect();
-        assert!(row0_text.contains("alpha/"));
-        // Check that alpha cell has modifier UNDERLINED
-        let cell = &buf[(2, 0)];
-        assert!(cell.modifier.contains(Modifier::UNDERLINED));
+        // Row 0 has "alpha/" with UNDERLINED modifier across all cells:
+        // 1. Icon / prefix cell is underlined
+        let icon_cell = &buf[(0, 0)];
+        assert!(icon_cell.modifier.contains(Modifier::UNDERLINED));
+
+        // 2. Text cell is underlined
+        let text_cell = &buf[(5, 0)];
+        assert!(text_cell.modifier.contains(Modifier::UNDERLINED));
+
+        // 3. Trailing padding cell is underlined across the entire row width
+        let pad_cell = &buf[(25, 0)];
+        assert!(pad_cell.modifier.contains(Modifier::UNDERLINED));
 
         // Row 1 has "file.txt" (no extra separator row!)
         let row1_text: String = (0..30).map(|x| buf[(x, 1)].symbol()).collect();
